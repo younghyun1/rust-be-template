@@ -2,7 +2,9 @@ use init::server_init::server_init_proc;
 use tracing::info;
 
 // modules tree
-pub mod domain {}
+pub mod domain {
+    pub mod user;
+}
 pub mod dto {
     pub mod common {}
     pub mod requests {}
@@ -19,7 +21,10 @@ pub mod handlers {
     pub mod fallback;
     pub mod root;
 }
-pub mod routes {
+pub mod routers {
+    pub mod middleware {
+        pub mod logging;
+    }
     pub mod main_router;
 }
 pub mod init {

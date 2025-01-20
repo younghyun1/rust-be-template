@@ -4,7 +4,7 @@ use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use tracing::info;
 
-use crate::routes::main_router::build_router;
+use crate::routers::main_router::build_router;
 
 use super::{config::DbConfig, state::ServerState};
 
