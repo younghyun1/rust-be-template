@@ -1,9 +1,12 @@
+use std::sync::atomic::AtomicU64;
+
 use diesel_async::pooled_connection::bb8::{Pool, PooledConnection};
 use diesel_async::AsyncPgConnection;
 
 pub struct ServerState {
     server_start_time: tokio::time::Instant,
     pool: Pool<AsyncPgConnection>,
+    responses_handled: AtomicU64,
 }
 
 impl ServerState {
@@ -17,6 +20,16 @@ impl ServerState {
 
     pub fn get_uptime(&self) -> tokio::time::Duration {
         self.server_start_time.elapsed()
+    }
+
+    pub fn get_responses_handled(&self) -> u64 {
+        self.responses_handled
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub fn add_responses_handled(&self) {
+        self.responses_handled
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
@@ -45,6 +58,7 @@ impl ServerStateBuilder {
             pool: self
                 .pool
                 .ok_or_else(|| anyhow::anyhow!("pool is required"))?,
+            responses_handled: AtomicU64::new(0u64),
         })
     }
 }

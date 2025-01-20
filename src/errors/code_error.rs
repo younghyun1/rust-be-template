@@ -20,6 +20,12 @@ impl CodeError {
         http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
         message: "Could not get conn out of pool!",
     };
+    pub const DB_QUERY_ERROR: CodeError = CodeError {
+        success: false,
+        error_code: 1,
+        http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
+        message: "Database query failed!",
+    };
 }
 
 // Update the trait bound to std::fmt::Display
@@ -63,6 +69,13 @@ impl Error for CodeErrorResp {}
 // Ensure CodeErrorResp still implements IntoResponse
 impl IntoResponse for CodeErrorResp {
     fn into_response(self) -> axum::response::Response {
+        tracing::error!(
+            "Error occurred: status_code={}, error_code={}, message='{}', error_message='{}'",
+            self.http_status_code,
+            self.error_code,
+            self.message,
+            self.error_message
+        );
         let body = serde_json::to_string(&self).unwrap_or_else(|_| "{}".to_string());
         (self.http_status_code, body).into_response()
     }

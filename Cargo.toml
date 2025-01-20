@@ -13,8 +13,12 @@ lto = true
 panic = "abort"
 
 [dependencies]
-# web framework
-axum = { version = "0.8.1", features = ["http2", "multipart", "ws"] }
+axum = { version = "0.8.1", features = [
+    "http2",
+    "multipart",
+    "ws",
+    "macros",
+] } # web framework
 axum-extra = { version = "0.10.0", features = ["cookie", "attachment", "form"] }
 tower-http = { version = "0.6.2", features = ["compression-gzip", "trace"] }
 
@@ -48,5 +52,12 @@ serde = "1.0.217"
 serde_derive = "1.0.217"
 serde_json = "1.0.137"
 
-# time
+# types
 chrono = { version = "0.4.39", features = ["serde"] }
+uuid = { version = "1.12.0", features = [
+    "v4",
+    "v7",
+    "serde",
+    "zerocopy",
+    "fast-rng",
+] }
