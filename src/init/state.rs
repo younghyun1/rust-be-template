@@ -1,22 +1,25 @@
-use diesel_async::{pooled_connection::AsyncDieselConnectionManager, AsyncPgConnection};
-
-type Pool = bb8::Pool<AsyncDieselConnectionManager<AsyncPgConnection>>;
+use diesel_async::pooled_connection::bb8::{Pool, PooledConnection};
+use diesel_async::AsyncPgConnection;
 
 pub struct ServerState {
     server_start_time: tokio::time::Instant,
-    pool: Pool,
+    pool: Pool<AsyncPgConnection>,
 }
 
 impl ServerState {
     pub fn builder() -> ServerStateBuilder {
         ServerStateBuilder::default()
     }
+
+    pub async fn get_conn(&self) -> anyhow::Result<PooledConnection<AsyncPgConnection>> {
+        Ok(self.pool.get().await?)
+    }
 }
 
 #[derive(Default)]
 pub struct ServerStateBuilder {
     server_start_time: Option<tokio::time::Instant>,
-    pool: Option<Pool>,
+    pool: Option<Pool<AsyncPgConnection>>,
 }
 
 impl ServerStateBuilder {
@@ -25,7 +28,7 @@ impl ServerStateBuilder {
         self
     }
 
-    pub fn pool(mut self, pool: Pool) -> Self {
+    pub fn pool(mut self, pool: Pool<AsyncPgConnection>) -> Self {
         self.pool = Some(pool);
         self
     }
@@ -35,7 +38,9 @@ impl ServerStateBuilder {
             server_start_time: self
                 .server_start_time
                 .ok_or_else(|| anyhow::anyhow!("server_start_time is required"))?,
-            pool: self.pool.ok_or_else(|| anyhow::anyhow!("pool is required"))?,
+            pool: self
+                .pool
+                .ok_or_else(|| anyhow::anyhow!("pool is required"))?,
         })
     }
 }

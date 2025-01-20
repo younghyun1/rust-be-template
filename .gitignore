@@ -19,3 +19,50 @@ Cargo.lock
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+
+# Added by cargo
+
+/target
+
+**/.DS_Store
+**/.classpath
+**/.dockerignore
+**/.env
+**/.git
+**/.gitignore
+**/.project
+**/.settings
+**/.toolstarget
+**/.vs
+**/.vscode
+**/*.*proj.user
+**/*.dbmdl
+**/*.jfm
+**/charts
+**/docker-compose*
+**/compose.y*ml
+**/Dockerfile*
+**/node_modules
+**/npm-debug.log
+**/secrets.dev.yaml
+**/values.dev.yaml
+/bin
+/target
+LICENSE
+README.md
+
+# logs
+*.log
+*.txt
+
+# executables
+*.bin
+*.elf
+*.exe
+*.o
+*.dll
+*.lib
+
+# artefacts
+*.json
+*.txt
