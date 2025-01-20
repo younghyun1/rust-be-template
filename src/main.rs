@@ -29,6 +29,7 @@ pub mod init {
 }
 pub mod util {
     pub mod duration_formatter;
+    pub mod now;
 }
 
 // main function
