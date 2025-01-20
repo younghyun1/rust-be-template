@@ -1,6 +1,7 @@
 use anyhow::anyhow;
 use std::net::IpAddr;
 
+#[repr(u8)]
 enum DbType {
     Postgres,
     MySql,
@@ -8,12 +9,13 @@ enum DbType {
     Oracle,
     MsSql,
 }
+
 pub struct DbConfig {
     db_type: DbType,
-    db_host: IpAddr,
+    db_host: String,
     db_port: u16,
     db_username: String,
-    db_pw: String,
+    db_password: String,
     db_name: String,
 }
 
@@ -24,18 +26,24 @@ impl DbConfig {
         }
 
         let db_type = DbType::Postgres; // Default to Postgres if not specified in URL
-        let db_host = std::env::var("DB_HOST")?.parse::<IpAddr>()?;
-        let db_port = std::env::var("DB_PORT")?.parse::<u16>()?;
-        let db_username = std::env::var("DB_USERNAME")?;
-        let db_pw = std::env::var("DB_PW")?;
-        let db_name = std::env::var("DB_NAME")?;
+        let db_host = std::env::var("DB_HOST")
+            .map_err(|_| anyhow!("Environment variable DB_HOST not found"))?;
+        let db_port = std::env::var("DB_PORT")
+            .map_err(|_| anyhow!("Environment variable DB_PORT not found"))?
+            .parse::<u16>()?;
+        let db_username = std::env::var("DB_USERNAME")
+            .map_err(|_| anyhow!("Environment variable DB_USERNAME not found"))?;
+        let db_password = std::env::var("DB_PASSWORD")
+            .map_err(|_| anyhow!("Environment variable DB_PW not found"))?;
+        let db_name = std::env::var("DB_NAME")
+            .map_err(|_| anyhow!("Environment variable DB_NAME not found"))?;
 
         Ok(DbConfig {
             db_type,
             db_host,
             db_port,
             db_username,
-            db_pw,
+            db_password,
             db_name,
         })
     }
@@ -70,7 +78,7 @@ impl DbConfig {
 
         let mut credentials_iter = credentials.split(':');
         let db_username = credentials_iter.next().unwrap_or("").to_string();
-        let db_pw = credentials_iter.next().unwrap_or("").to_string();
+        let db_password = credentials_iter.next().unwrap_or("").to_string();
 
         let mut host_and_path_iter = host_and_path.split('/');
         let host_and_port = host_and_path_iter
@@ -79,10 +87,9 @@ impl DbConfig {
         let db_name = host_and_path_iter.next().unwrap_or("").to_string();
 
         let mut host_and_port_iter = host_and_port.split(':');
-        let host = host_and_port_iter
+        let db_host = host_and_port_iter
             .next()
             .ok_or_else(|| anyhow!("Missing host"))?;
-        let db_host = host.parse::<IpAddr>()?;
 
         let db_port = if let Some(port_str) = host_and_port_iter.next() {
             port_str.parse::<u16>()?
@@ -98,10 +105,10 @@ impl DbConfig {
 
         Ok(DbConfig {
             db_type,
-            db_host,
+            db_host: db_host.to_owned(),
             db_port,
             db_username,
-            db_pw,
+            db_password,
             db_name,
         })
     }
@@ -117,7 +124,7 @@ impl DbConfig {
 
         Ok(format!(
             "{}://{}:{}@{}:{}/{}",
-            scheme, self.db_username, self.db_pw, self.db_host, self.db_port, self.db_name
+            scheme, self.db_username, self.db_password, self.db_host, self.db_port, self.db_name
         ))
     }
 }

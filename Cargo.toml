@@ -1,0 +1,48 @@
+[package]
+name = "rust-be-template"
+version = "0.1.0"
+edition = "2021"
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+debug = false
+incremental = false
+strip = true
+lto = true
+panic = "abort"
+
+[dependencies]
+# web framework
+axum = { version = "0.8.1", features = ["http2", "multipart", "ws"] }
+axum-extra = { version = "0.10.0", features = ["cookie", "attachment", "form"] }
+tower-http = { version = "0.6.2", features = ["compression-gzip", "trace"] }
+
+# ORM
+diesel = { version = "2.2.6", features = [
+    "postgres",
+    "chrono",
+    "serde_json",
+    "uuid",
+] }
+diesel-async = { version = "0.5.2", features = ["bb8", "postgres"] }
+
+# .env loading
+dotenvy = "0.15.7"
+
+# async runtime
+tokio = { version = "1.43.0", features = ["full"] }
+
+# loggers
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
+
+# error
+anyhow = "1.0.95"
+
+# number of cpus
+num_cpus = "1.16.0"
+
+# serialization/deserialization
+serde = "1.0.217"
+serde_derive = "1.0.217"
