@@ -1,24 +1,28 @@
 use std::sync::Arc;
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse};
+use axum::{extract::State, response::IntoResponse};
+use serde_derive::Serialize;
 
 use crate::{
-    errors::code_error::{code_err, CodeError, HandlerResult},
-    init::state::ServerState,
+    dto::responses::response_data::http_resp, errors::code_error::HandlerResult,
+    init::state::ServerState, util::duration_formatter::format_duration,
 };
+
+#[derive(Serialize)]
+pub struct RootHandlerResponse {
+    server_uptime: String,
+}
 
 pub async fn root_handler(
     State(state): State<Arc<ServerState>>,
 ) -> HandlerResult<impl IntoResponse> {
-    // Use the `?` operator for error handling
-    let conn = state
-        .get_conn()
-        .await
-        .map_err(|e| code_err(CodeError::DB_CONNECTION_ERROR, e))?;
+    let start = tokio::time::Instant::now();
 
-    
-    
-    drop(conn);
-
-    Ok((StatusCode::OK, "dsadsa"))
+    Ok(http_resp::<RootHandlerResponse, ()>(
+        RootHandlerResponse {
+            server_uptime: format_duration(state.get_uptime()),
+        },
+        (),
+        start,
+    ))
 }

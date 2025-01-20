@@ -1,5 +1,4 @@
 use anyhow::anyhow;
-use std::net::IpAddr;
 
 #[repr(u8)]
 enum DbType {

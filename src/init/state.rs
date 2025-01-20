@@ -14,6 +14,10 @@ impl ServerState {
     pub async fn get_conn(&self) -> anyhow::Result<PooledConnection<AsyncPgConnection>> {
         Ok(self.pool.get().await?)
     }
+
+    pub fn get_uptime(&self) -> tokio::time::Duration {
+        self.server_start_time.elapsed()
+    }
 }
 
 #[derive(Default)]

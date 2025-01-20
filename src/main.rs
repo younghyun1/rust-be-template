@@ -7,6 +7,7 @@ pub mod dto {
     pub mod common {}
     pub mod requests {}
     pub mod responses {
+        pub mod response_data;
         pub mod response_meta;
     }
 }
@@ -26,7 +27,9 @@ pub mod init {
     pub mod server_init;
     pub mod state;
 }
-pub mod util {}
+pub mod util {
+    pub mod duration_formatter;
+}
 
 // main function
 #[tokio::main(flavor = "multi_thread")]
