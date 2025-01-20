@@ -1,4 +1,5 @@
 use init::server_init::server_init_proc;
+use tracing::info;
 
 // modules tree
 pub mod domain {}
@@ -25,6 +26,9 @@ pub mod util {}
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> anyhow::Result<()> {
     let start = tokio::time::Instant::now();
+    tracing_subscriber::fmt().init();
+
+    info!("Initializing server...");
     server_init_proc(start).await?;
 
     Ok(())
