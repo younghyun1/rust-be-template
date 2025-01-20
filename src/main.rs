@@ -3,7 +3,13 @@ use tracing::info;
 
 // modules tree
 pub mod domain {}
-pub mod dto {}
+pub mod dto {
+    pub mod common {}
+    pub mod requests {}
+    pub mod responses {
+        pub mod response_meta;
+    }
+}
 pub mod errors {
 
     pub mod code_error;

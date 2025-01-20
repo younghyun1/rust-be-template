@@ -56,11 +56,11 @@ impl DbConfig {
         let rest = &url[separator_pos + 3..];
 
         let db_type = match scheme.trim().to_lowercase().as_ref() {
-            "postgres" | "psql" | "postgresql" => DbType::Postgres,
-            "mysql" => DbType::MySql,
-            "sqlite" => DbType::Sqlite,
-            "oracle" => DbType::Oracle,
-            "mssql" | "microsoftsql" => DbType::MsSql,
+            "postgres" | "psql" | "postgresql" | "pg" => DbType::Postgres,
+            "mysql" | "mariadb" | "maria" => DbType::MySql,
+            "sqlite" | "sqlite3" => DbType::Sqlite,
+            "oracle" | "ora" | "orcl" => DbType::Oracle,
+            "mssql" | "microsoftsql" | "sqlserver" => DbType::MsSql,
             _ => {
                 return Err(anyhow!(
                     "Unsupported DB; only postgreSQL is supported for now."
