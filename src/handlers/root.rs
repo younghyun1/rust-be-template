@@ -16,6 +16,8 @@ pub async fn root_handler(
         .await
         .map_err(|e| code_err(CodeError::DB_CONNECTION_ERROR, e))?;
 
+    
+    
     drop(conn);
 
     Ok((StatusCode::OK, "dsadsa"))
