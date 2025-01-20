@@ -10,7 +10,6 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/", get(root_handler))
         // .fallback(get(fallback_handler))
         .layer(CompressionLayer::new())
-        .layer(TraceLayer::new_for_http())
         .with_state(state);
 
     app
