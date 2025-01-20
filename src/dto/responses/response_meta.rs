@@ -9,6 +9,12 @@ pub struct ResponseMeta<T: serde::Serialize> {
 }
 
 impl<T: serde::Serialize> ResponseMeta<T> {
+    pub fn get_metadata(self) -> T {
+        self.metadata
+    }
+}
+
+impl<T: serde::Serialize> ResponseMeta<T> {
     pub fn from(start: tokio::time::Instant, metadata: T) -> Self {
         ResponseMeta {
             time_to_process: format!("{:?}", start.elapsed()),

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use axum::routing::get;
-use tower_http::{compression::CompressionLayer, trace::TraceLayer};
+use tower_http::compression::CompressionLayer;
 
 use crate::{handlers::root::root_handler, init::state::ServerState};
 
