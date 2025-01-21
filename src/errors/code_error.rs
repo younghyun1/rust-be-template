@@ -1,5 +1,6 @@
 use axum::http::{HeaderValue, StatusCode};
 use axum::response::IntoResponse;
+use axum::Json;
 use serde_derive::Serialize;
 use std::error::Error;
 use std::fmt::{self, Debug};
@@ -77,8 +78,9 @@ impl Error for CodeErrorResp {}
 // Implement IntoResponse for CodeErrorResp
 impl IntoResponse for CodeErrorResp {
     fn into_response(self) -> axum::response::Response {
-        let body = serde_json::to_string(&self).unwrap_or_else(|_| "{}".to_string());
+        let body = Json(&self);
         let mut response = (self.http_status_code, body).into_response();
+
         response.headers_mut().insert(
             "X-Error-Log-Level",
             HeaderValue::from_str(&self.log_level.to_string()).unwrap(),
