@@ -24,7 +24,7 @@ pub struct RootHandlerResponse {
 
 #[derive(QueryableByName)]
 struct Version {
-    #[sql_type = "diesel::sql_types::Text"]
+    #[diesel(sql_type = diesel::sql_types::Text)]
     version: String,
 }
 
