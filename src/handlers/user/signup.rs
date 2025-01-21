@@ -1,16 +1,27 @@
 use std::sync::Arc;
 
 use axum::{extract::State, response::IntoResponse, Json};
+use diesel::prelude::Insertable;
+use diesel_async::RunQueryDsl;
 
 use crate::{
+    domain::user::users,
     dto::{
         requests::user::signup_request::SignupRequest,
         responses::{response_data::http_resp, user::signup_response::SignupResponse},
     },
     errors::code_error::{code_err, CodeError, HandlerResult},
     init::state::ServerState,
-    util::now::t_now,
+    util::{crypto::hash_pw::hash_pw, now::t_now},
 };
+
+#[derive(Insertable)]
+#[diesel(table_name = users)]
+struct NewUser<'a> {
+    user_name: &'a str,
+    user_email: &'a str,
+    user_password_hash: &'a str,
+}
 
 pub async fn signup_handler<'a>(
     State(state): State<Arc<ServerState>>,
@@ -26,10 +37,26 @@ pub async fn signup_handler<'a>(
         return Err(CodeError::EMAIL_INVALID.into());
     };
 
-    let conn = state
+    let mut conn = state
         .get_conn()
         .await
         .map_err(|e| code_err(CodeError::DB_CONNECTION_ERROR, e))?;
+
+    let hashed_pw = hash_pw(request.user_password)
+        .await
+        .map_err(|e| code_err(CodeError::COULD_NOT_HASH_PW, e))?;
+
+    let new_user = NewUser {
+        user_name: &request.user_name,
+        user_email: &request.user_email,
+        user_password_hash: &hashed_pw,
+    };
+
+    diesel::insert_into(users::table)
+        .values(new_user)
+        .execute(&mut conn)
+        .await
+        .map_err(|e| code_err(CodeError::DB_INSERTION_ERROR, e))?;
 
     drop(conn);
 
