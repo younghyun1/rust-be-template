@@ -43,7 +43,7 @@ pub async fn root_handler(
     let version: Version = sql_query("SELECT version()")
         .get_result(&mut conn)
         .await
-        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e.into()))?;
+        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
 
     drop(conn);
 

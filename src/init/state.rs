@@ -3,11 +3,14 @@ use std::sync::atomic::AtomicU64;
 use diesel_async::pooled_connection::bb8::{Pool, PooledConnection};
 use diesel_async::AsyncPgConnection;
 
+// use super::compile_regex::get_email_regex;
+
 pub struct ServerState {
     app_name_version: String,
     server_start_time: tokio::time::Instant,
     pool: Pool<AsyncPgConnection>,
     responses_handled: AtomicU64,
+    // regexes: [regex::Regex; 1],
 }
 
 impl ServerState {
@@ -73,6 +76,7 @@ impl ServerStateBuilder {
                 .pool
                 .ok_or_else(|| anyhow::anyhow!("pool is required"))?,
             responses_handled: AtomicU64::new(0u64),
+            // regexes: [get_email_regex()],
         })
     }
 }
