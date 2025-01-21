@@ -32,12 +32,12 @@ impl ServerState {
 
     pub fn get_responses_handled(&self) -> u64 {
         self.responses_handled
-            .load(std::sync::atomic::Ordering::Relaxed)
+            .load(std::sync::atomic::Ordering::SeqCst)
     }
 
     pub fn add_responses_handled(&self) {
         self.responses_handled
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     }
 }
 
