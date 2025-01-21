@@ -1,4 +1,4 @@
-use axum::http::StatusCode;
+use axum::http::{HeaderValue, StatusCode};
 use axum::response::IntoResponse;
 use serde_derive::Serialize;
 use std::error::Error;
@@ -36,7 +36,7 @@ impl CodeError {
         error_code: 2,
         http_status_code: StatusCode::BAD_REQUEST,
         message: "Invalid email address!",
-        log_level: Level::DEBUG,
+        log_level: Level::INFO, // info, debug, trace all info'd
     };
 }
 
@@ -51,7 +51,7 @@ pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
     }
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 pub struct CodeErrorResp {
     pub success: bool,
     pub error_code: u16,
@@ -81,33 +81,33 @@ impl fmt::Display for CodeErrorResp {
 // Implement std::error::Error for CodeErrorResp
 impl Error for CodeErrorResp {}
 
-macro_rules! log_with_level {
-    ($level:expr, $($arg:tt)*) => {
-        match $level {
-            Level::ERROR => tracing::error!($($arg)*),
-            Level::WARN => tracing::warn!($($arg)*),
-            Level::INFO => tracing::info!($($arg)*),
-            Level::DEBUG => tracing::debug!($($arg)*),
-            Level::TRACE => tracing::trace!($($arg)*),
-        }
-    };
-}
-
 // Implement IntoResponse for CodeErrorResp
 impl IntoResponse for CodeErrorResp {
     fn into_response(self) -> axum::response::Response {
-        log_with_level!(
-            self.log_level,
-            "{}: status_code={}, error_code={}, message='{}', error_message='{}'",
-            self.log_level.to_string(),
-            self.http_status_code,
-            self.error_code,
-            self.message,
-            self.error_message
+        let body = serde_json::to_string(&self).unwrap_or_else(|_| "{}".to_string());
+        let mut response = (self.http_status_code, body).into_response();
+        response.headers_mut().insert(
+            "X-Error-Log-Level",
+            HeaderValue::from_str(&self.log_level.to_string()).unwrap(),
+        );
+        response.headers_mut().insert(
+            "X-Error-Status-Code",
+            HeaderValue::from_str(&self.http_status_code.as_u16().to_string()).unwrap(),
+        );
+        response.headers_mut().insert(
+            "X-Error-Code",
+            HeaderValue::from_str(&self.error_code.to_string()).unwrap(),
+        );
+        response.headers_mut().insert(
+            "X-Error-Message",
+            HeaderValue::from_str(&self.message).unwrap(),
+        );
+        response.headers_mut().insert(
+            "X-Error-Detail",
+            HeaderValue::from_str(&self.error_message).unwrap(),
         );
 
-        let body = serde_json::to_string(&self).unwrap_or_else(|_| "{}".to_string());
-        (self.http_status_code, body).into_response()
+        response
     }
 }
 
