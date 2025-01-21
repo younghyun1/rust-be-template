@@ -1,8 +1,8 @@
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use axum::{
     body::Body,
-    extract::State,
+    extract::{ConnectInfo, State},
     http::{HeaderValue, Request, Response, StatusCode},
     middleware::Next,
 };
@@ -26,6 +26,7 @@ macro_rules! log_codeerror {
 
 pub async fn log_middleware(
     State(state): State<Arc<ServerState>>,
+    ConnectInfo(info): ConnectInfo<SocketAddr>,
     request: Request<Body>,
     next: Next,
 ) -> Response<Body> {
@@ -34,12 +35,15 @@ pub async fn log_middleware(
 
     let method = request.method().clone();
     let path = request.uri().path().to_owned();
-    let client_ip = request
+
+    let client_ip: String = match request
         .headers()
-        .get("X-Forwarded-For")
+        .get("x-forwarded-for")
         .and_then(|value| value.to_str().ok())
-        .unwrap_or("unknown")
-        .to_owned();
+    {
+        Some(val) => val.to_owned(),
+        None => info.to_string(),
+    };
 
     tracing::info!("RECV: {} @ {} from {}", method, path, client_ip);
 

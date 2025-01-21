@@ -39,6 +39,13 @@ impl CodeError {
         message: "Invalid email address!",
         log_level: Level::INFO, // info, debug, trace all info'd
     };
+    pub const USER_NAME_INVALID: CodeError = CodeError {
+        success: false,
+        error_code: 3,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Invalid username!",
+        log_level: Level::INFO,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {

@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
@@ -50,9 +50,12 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
 
     info!("Backend server starting...");
 
-    axum::serve(listener, build_router(state))
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to serve application: {}", e))?;
+    axum::serve(
+        listener,
+        build_router(state).into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("Failed to serve application: {}", e))?;
 
     Ok(())
 }

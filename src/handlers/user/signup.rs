@@ -18,6 +18,10 @@ pub async fn signup_handler<'a>(
 ) -> HandlerResult<impl IntoResponse> {
     let start = t_now();
 
+    if !validate_username(&request.user_name) {
+        return Err(CodeError::USER_NAME_INVALID.into());
+    }
+
     if !email_address::EmailAddress::is_valid(&request.user_email) {
         return Err(CodeError::EMAIL_INVALID.into());
     };
@@ -37,4 +41,9 @@ pub async fn signup_handler<'a>(
         (),
         start,
     ))
+}
+
+#[inline(always)]
+fn validate_username<'a>(username: &'a str) -> bool {
+    !username.is_empty()
 }
