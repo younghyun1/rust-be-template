@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use axum::{extract::State, response::IntoResponse, Json};
-use diesel::prelude::Insertable;
+use diesel::{dsl::exists, prelude::Insertable, ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
 
 use crate::{
@@ -43,6 +43,19 @@ pub async fn signup_handler<'a>(
         .await
         .map_err(|e| code_err(CodeError::DB_CONNECTION_ERROR, e))?;
 
+    #[rustfmt::skip]
+    let email_exists: bool = diesel::select(
+        exists(
+            users::table.filter(users::user_email.eq(&request.user_email)),
+        ))
+        .get_result(&mut conn)
+        .await
+        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+
+    if email_exists {
+        return Err(CodeError::EMAIL_MUST_BE_UNIQUE.into());
+    }
+
     let hashed_pw = hash_pw(request.user_password)
         .await
         .map_err(|e| code_err(CodeError::COULD_NOT_HASH_PW, e))?;
@@ -57,7 +70,13 @@ pub async fn signup_handler<'a>(
         .values(new_user)
         .execute(&mut conn)
         .await
-        .map_err(|e| code_err(CodeError::DB_INSERTION_ERROR, e))?;
+        .map_err(|e| match e {
+            diesel::result::Error::DatabaseError(
+                diesel::result::DatabaseErrorKind::UniqueViolation,
+                _,
+            ) => code_err(CodeError::EMAIL_MUST_BE_UNIQUE, e),
+            _ => code_err(CodeError::DB_INSERTION_ERROR, e),
+        })?;
 
     drop(conn);
 

@@ -60,6 +60,13 @@ impl CodeError {
         message: "Database insertion failed!",
         log_level: Level::ERROR,
     };
+    pub const EMAIL_MUST_BE_UNIQUE: CodeError = CodeError {
+        success: false,
+        error_code: 6,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Email address already exists!",
+        log_level: Level::INFO,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
