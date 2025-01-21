@@ -61,3 +61,7 @@ uuid = { version = "1.12.1", features = [
     "zerocopy",
     "fast-rng",
 ] }
+
+# regex
+regex = { version = "1.11.1", features = ["perf-dfa-full"] }
+email_address = "0.2.9"

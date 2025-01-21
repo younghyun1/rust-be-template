@@ -7,6 +7,7 @@ table! {
         user_id -> Uuid,
         name -> Varchar,
         email -> Varchar,
+        password_hash -> Varchar,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
     }
@@ -20,6 +21,8 @@ pub struct User {
     pub name: String,
     #[diesel(sql_type = diesel::sql_types::Text)]
     pub email: String,
+    #[diesel(sql_type = diesel::sql_types::Text)]
+    pub password_hash: String,
     #[diesel(sql_type = diesel::sql_types::Timestamptz)]
     pub created_at: DateTime<Utc>,
     #[diesel(sql_type = diesel::sql_types::Timestamptz)]
