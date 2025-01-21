@@ -46,6 +46,20 @@ impl CodeError {
         message: "Invalid username!",
         log_level: Level::INFO,
     };
+    pub const COULD_NOT_HASH_PW: CodeError = CodeError {
+        success: false,
+        error_code: 4,
+        http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
+        message: "Failed to hash the password!",
+        log_level: Level::ERROR,
+    };
+    pub const DB_INSERTION_ERROR: CodeError = CodeError {
+        success: false,
+        error_code: 5,
+        http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
+        message: "Database insertion failed!",
+        log_level: Level::ERROR,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {

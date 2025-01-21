@@ -5,11 +5,11 @@ use serde_derive::{Deserialize, Serialize};
 table! {
     users (user_id) {
         user_id -> Uuid,
-        name -> Varchar,
-        email -> Varchar,
-        password_hash -> Varchar,
-        created_at -> Timestamptz,
-        updated_at -> Timestamptz,
+        user_name -> Varchar,
+        user_email -> Varchar,
+        user_password_hash -> Varchar,
+        user_created_at -> Timestamptz,
+        user_updated_at -> Timestamptz,
     }
 }
 
@@ -18,13 +18,13 @@ pub struct User {
     #[diesel(sql_type = diesel::sql_types::Uuid)]
     pub user_id: uuid::Uuid,
     #[diesel(sql_type = diesel::sql_types::Text)]
-    pub name: String,
+    pub user_name: String,
     #[diesel(sql_type = diesel::sql_types::Text)]
-    pub email: String,
+    pub user_email: String,
     #[diesel(sql_type = diesel::sql_types::Text)]
-    pub password_hash: String,
+    pub user_password_hash: String,
     #[diesel(sql_type = diesel::sql_types::Timestamptz)]
-    pub created_at: DateTime<Utc>,
+    pub user_created_at: DateTime<Utc>,
     #[diesel(sql_type = diesel::sql_types::Timestamptz)]
-    pub updated_at: DateTime<Utc>,
+    pub user_updated_at: DateTime<Utc>,
 }

@@ -4,6 +4,7 @@ CREATE TABLE users (
     user_id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
     user_name VARCHAR NOT NULL,
     user_email VARCHAR NOT NULL,
+    user_password_hash VARCHAR NOT NULL,
     user_created_at TIMESTAMPTZ NOT NULL DEFAULT now (),
     user_updated_at TIMESTAMPTZ NOT NULL DEFAULT now ()
 );

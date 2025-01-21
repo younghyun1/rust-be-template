@@ -49,6 +49,10 @@ pub mod init {
 }
 pub mod jobs {}
 pub mod util {
+    pub mod crypto {
+
+        pub mod hash_pw;
+    }
     pub mod duration_formatter;
     pub mod now;
 }
