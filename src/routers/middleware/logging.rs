@@ -61,7 +61,7 @@ pub async fn log_middleware(
         let status_code = header_value_to_str(headers.get("x-error-status-code")).unwrap_or("");
         let error_code = header_value_to_str(headers.get("x-error-code")).unwrap_or("");
         let message = header_value_to_str(headers.get("x-error-message")).unwrap_or("");
-        let detail = header_value_to_str(headers.get("x-error-detail")).unwrap_or("\"\"");
+        let detail = header_value_to_str(headers.get("x-error-detail")).unwrap_or("");
 
         let duration = start.elapsed();
 

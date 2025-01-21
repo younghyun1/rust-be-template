@@ -11,10 +11,6 @@ use super::{config::DbConfig, state::ServerState};
 pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()> {
     let num_cores: u32 = num_cpus::get_physical() as u32;
 
-    if std::env::var("IS_AWS").is_err() {
-        dotenvy::dotenv().map_err(|e| anyhow::anyhow!("Failed to load .env: {}", e))?;
-    }
-
     let db_config = DbConfig::from_env()
         .map_err(|e| anyhow::anyhow!("Failed to get DB config from environment: {}", e))?
         .to_url()

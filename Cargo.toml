@@ -40,6 +40,7 @@ tokio = { version = "1.43.0", features = ["full"] }
 # loggers
 tracing = { version = "0.1.41", features = ["std"] }
 tracing-subscriber = { version = "0.3.19", features = ["fmt", "json"] }
+tracing-appender = "0.2.3"
 
 # error
 anyhow = "1.0.95"
