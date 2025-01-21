@@ -83,8 +83,8 @@ async fn main() -> anyhow::Result<()> {
     let file_layer = tracing_subscriber::fmt::layer()
         .with_target(true)
         .json()
-        .with_writer(non_blocking_file)
-        .with_filter(level_filters::LevelFilter::INFO);
+        // .with_filter(level_filters::LevelFilter::INFO)
+        .with_writer(non_blocking_file);
 
     // Build a subscriber that combines both layers
     tracing_subscriber::registry()
