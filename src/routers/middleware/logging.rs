@@ -13,13 +13,13 @@ use crate::init::state::ServerState;
 
 // by default, debug and below not logged at all; hence why
 macro_rules! log_codeerror {
-    ($level:expr, $($arg:tt)*) => {
+    ($level:expr, $kind:expr, response.method = $method:expr, response.path = $path:expr, response.client_ip = $client_ip:expr, response.status = $status:expr, response.status_code = $status_code:expr, response.duration = $duration:expr, response.error_code = $error_code:expr, response.message = $message:expr, response.detail = $detail:expr) => {
         match $level {
-            Level::ERROR => tracing::error!($($arg)*),
-            Level::WARN => tracing::warn!($($arg)*),
-            Level::INFO => tracing::info!($($arg)*),
-            Level::DEBUG => tracing::info!($($arg)*),
-            Level::TRACE => tracing::info!($($arg)*),
+            Level::ERROR => tracing::error!(kind = $kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
+            Level::WARN => tracing::warn!(kind = $kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
+            Level::INFO => tracing::info!(kind = $kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
+            Level::DEBUG => tracing::debug!(kind = $kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
+            Level::TRACE => tracing::trace!(kind = $kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
         }
     };
 }
@@ -45,20 +45,14 @@ pub async fn log_middleware(
         None => info.to_string(),
     };
 
-    tracing::info!("RECV: {} @ {} from {}", method, path, client_ip);
+    tracing::info!(kind = "RECV", method = %method, path = %path, client_ip = %client_ip);
 
     let mut response = next.run(request).await;
 
     if response.status() == StatusCode::OK {
         let duration = start.elapsed();
 
-        tracing::info!(
-            "RESP: {} @ {} FROM {} took {:?}",
-            method,
-            path,
-            client_ip,
-            duration
-        );
+        tracing::info!(kind = "RESP", method = %method, path = %path, client_ip = %client_ip, duration = ?duration);
     } else {
         // Use lowercase header keys for consistency and use empty strings if headers are not present
         let headers = response.headers_mut();
@@ -67,22 +61,22 @@ pub async fn log_middleware(
         let status_code = header_value_to_str(headers.get("x-error-status-code")).unwrap_or("");
         let error_code = header_value_to_str(headers.get("x-error-code")).unwrap_or("");
         let message = header_value_to_str(headers.get("x-error-message")).unwrap_or("");
-        let detail = header_value_to_str(headers.get("x-error-detail")).unwrap_or("");
+        let detail = header_value_to_str(headers.get("x-error-detail")).unwrap_or("\"\"");
 
         let duration = start.elapsed();
 
         log_codeerror!(
             log_level.parse::<Level>().unwrap_or(Level::ERROR),
-            "RESP: {} @ {} FROM {} {} ({}) took {:?} - Error Code: {}, Message: \"{}\", Detail: {}",
-            method,
-            path,
-            client_ip,
-            "ERROR",
-            status_code,
-            duration,
-            error_code,
-            message,
-            detail
+            "ERR_RESP",
+            response.method = method,
+            response.path = path,
+            response.client_ip = client_ip,
+            response.status = "ERROR",
+            response.status_code = status_code,
+            response.duration = format!("{:?}", duration),
+            response.error_code = error_code,
+            response.message = message,
+            response.detail = detail
         );
 
         headers.remove("x-error-log-level");

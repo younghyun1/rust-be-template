@@ -38,8 +38,8 @@ dotenvy = "0.15.7"
 tokio = { version = "1.43.0", features = ["full"] }
 
 # loggers
-tracing = "0.1.41"
-tracing-subscriber = "0.3.19"
+tracing = { version = "0.1.41", features = ["std"] }
+tracing-subscriber = { version = "0.3.19", features = ["fmt", "json"] }
 
 # error
 anyhow = "1.0.95"

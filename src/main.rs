@@ -54,10 +54,7 @@ pub mod util {
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> anyhow::Result<()> {
     let start = tokio::time::Instant::now();
-    tracing_subscriber::fmt()
-        .with_ansi(false)
-        .with_target(false)
-        .init();
+    tracing_subscriber::fmt().json().with_target(true).init();
 
     info!("Initializing server...");
     server_init_proc(start).await?;
