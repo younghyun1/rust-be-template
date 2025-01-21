@@ -66,3 +66,5 @@ README.md
 # artefacts
 *.json
 *.txt
+
+log/
