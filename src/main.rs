@@ -13,6 +13,9 @@ pub mod dto {
         }
     }
     pub mod responses {
+        pub mod user {
+            pub mod signup_response;
+        }
         pub mod response_data;
         pub mod response_meta;
     }
@@ -36,10 +39,10 @@ pub mod routers {
     pub mod main_router;
 }
 pub mod init {
+    pub mod compile_regex;
     pub mod config;
     pub mod server_init;
     pub mod state;
-    pub mod compile_regex;
 }
 pub mod jobs {}
 pub mod util {

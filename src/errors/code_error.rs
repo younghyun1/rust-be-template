@@ -2,11 +2,12 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde_derive::Serialize;
 use std::error::Error;
-use std::fmt;
+use std::fmt::{self, Debug};
 use tracing::Level;
 
 pub type HandlerResult<T> = Result<T, CodeErrorResp>;
 
+#[derive(Copy, Clone, Debug)]
 pub struct CodeError {
     pub success: bool,
     pub error_code: u16,
@@ -57,6 +58,7 @@ pub struct CodeErrorResp {
     #[serde(serialize_with = "serialize_status_code")]
     pub http_status_code: StatusCode,
     pub message: String,
+    #[serde(skip_serializing)]
     pub error_message: String,
     #[serde(skip_serializing)]
     pub log_level: Level,
@@ -91,7 +93,7 @@ macro_rules! log_with_level {
     };
 }
 
-// Ensure CodeErrorResp still implements IntoResponse
+// Implement IntoResponse for CodeErrorResp
 impl IntoResponse for CodeErrorResp {
     fn into_response(self) -> axum::response::Response {
         log_with_level!(
@@ -106,5 +108,27 @@ impl IntoResponse for CodeErrorResp {
 
         let body = serde_json::to_string(&self).unwrap_or_else(|_| "{}".to_string());
         (self.http_status_code, body).into_response()
+    }
+}
+
+// Implement From<CodeError> for CodeErrorResp
+impl From<CodeError> for CodeErrorResp {
+    fn from(cerr: CodeError) -> Self {
+        CodeErrorResp {
+            success: cerr.success,
+            error_code: cerr.error_code,
+            http_status_code: cerr.http_status_code,
+            message: cerr.message.to_string(),
+            error_message: "".to_string(),
+            log_level: cerr.log_level,
+        }
+    }
+}
+
+// Implement IntoResponse for CodeError
+impl IntoResponse for CodeError {
+    fn into_response(self) -> axum::response::Response {
+        let resp: CodeErrorResp = self.into();
+        resp.into_response()
     }
 }
