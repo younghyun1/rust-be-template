@@ -9,7 +9,7 @@ use axum::{
 use tokio::time::Instant;
 use tracing::Level;
 
-use crate::{init::state::ServerState, util::now::t_now};
+use crate::init::state::ServerState;
 
 // by default, debug and below not logged at all; hence why
 macro_rules! log_codeerror {
