@@ -15,6 +15,7 @@ use crate::{
     util::{crypto::hash_pw::hash_pw, now::t_now},
 };
 
+// TODO: where to fit this?
 #[derive(Insertable)]
 #[diesel(table_name = users)]
 struct NewUser<'a> {
