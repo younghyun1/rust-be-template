@@ -55,20 +55,13 @@ pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
 pub struct CodeErrorResp {
     pub success: bool,
     pub error_code: u16,
-    #[serde(serialize_with = "serialize_status_code")]
+    #[serde(skip_serializing)]
     pub http_status_code: StatusCode,
     pub message: String,
     #[serde(skip_serializing)]
     pub error_message: String,
     #[serde(skip_serializing)]
     pub log_level: Level,
-}
-
-fn serialize_status_code<S>(status: &StatusCode, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serializer.serialize_u16(status.as_u16())
 }
 
 // Implement std::fmt::Display for CodeErrorResp
