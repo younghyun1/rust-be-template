@@ -10,10 +10,10 @@ debug = false
 incremental = false
 strip = true
 lto = true
-panic = "abort"
+panic = "unwind"
 
 [dependencies]
-axum = { version = "0.8.1", features = [
+axum = { version = "0.8.2", features = [
     "http2",
     "multipart",
     "ws",
