@@ -12,7 +12,7 @@ use crate::{
     },
     errors::code_error::{code_err, CodeError, HandlerResult},
     init::state::ServerState,
-    util::now::t_now,
+    util::time::now::t_now,
 };
 
 pub async fn check_if_user_exists_handler(
