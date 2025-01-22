@@ -18,10 +18,10 @@ use crate::{
 // TODO: where to fit this?
 #[derive(Insertable)]
 #[diesel(table_name = users)]
-struct NewUser<'a> {
-    user_name: &'a str,
-    user_email: &'a str,
-    user_password_hash: &'a str,
+struct NewUser<'nu> {
+    user_name: &'nu str,
+    user_email: &'nu str,
+    user_password_hash: &'nu str,
 }
 
 pub async fn signup_handler<'a>(
