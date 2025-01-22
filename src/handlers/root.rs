@@ -10,7 +10,7 @@ use crate::{
     dto::responses::response_data::http_resp,
     errors::code_error::{code_err, CodeError, HandlerResult},
     init::state::ServerState,
-    util::{duration_formatter::format_duration, now::t_now},
+    util::{time::duration_formatter::format_duration, time::now::t_now},
 };
 
 #[derive(Serialize)]
