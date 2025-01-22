@@ -15,6 +15,7 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
         .map_err(|e| anyhow::anyhow!("Failed to get DB config from environment: {}", e))?
         .to_url()
         .map_err(|e| anyhow::anyhow!("Failed to convert DB config to URL: {}", e))?;
+    info!("Loaded DB configuration.");
 
     let pool_config =
         AsyncDieselConnectionManager::<diesel_async::AsyncPgConnection>::new(db_config);
@@ -26,6 +27,11 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
         .build(pool_config)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to build connection pool: {}", e))?;
+    info!(
+        "Connection pool built with {} connections. Will scale to {} connections.",
+        num_cores,
+        num_cores * 10u32
+    );
 
     let app_name_version: String = std::env::var("APP_NAME_VERSION")
         .map_err(|e| anyhow::anyhow!("Failed to load APP_NAME_VAR from .env: {}", e))?;
@@ -38,13 +44,15 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
             .build()
             .map_err(|e| anyhow::anyhow!("Failed to build ServerState: {}", e))?,
     );
+    info!("ServerState initialized.");
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
         .map_err(|e| anyhow::anyhow!("Failed to bind TCP listener: {}", e))?;
+    info!("Listening to Port 3000...");
 
-    info!("Backend server starting...");
+    info!("Initialization complete. Starting server now...");
 
     axum::serve(
         listener,
