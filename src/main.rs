@@ -12,6 +12,7 @@ pub mod dto {
     pub mod common {}
     pub mod requests {
         pub mod user {
+            pub mod check_if_user_exists_request;
             pub mod signup_request;
         }
     }
@@ -29,7 +30,7 @@ pub mod errors {
 }
 pub mod handlers {
     pub mod user {
-
+        pub mod check_if_user_exists;
         pub mod signup;
     }
     pub mod fallback;

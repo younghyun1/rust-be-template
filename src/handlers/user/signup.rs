@@ -24,7 +24,7 @@ struct NewUser<'nu> {
     user_password_hash: &'nu str,
 }
 
-pub async fn signup_handler<'a>(
+pub async fn signup_handler(
     State(state): State<Arc<ServerState>>,
     Json(request): Json<SignupRequest>,
 ) -> HandlerResult<impl IntoResponse> {
