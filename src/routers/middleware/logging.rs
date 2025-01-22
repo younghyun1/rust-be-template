@@ -67,7 +67,7 @@ pub async fn log_middleware(
 
         log_codeerror!(
             log_level.parse::<Level>().unwrap_or(Level::ERROR),
-            "ERR_RESP",
+            "ERSP",
             response.method = method,
             response.path = path,
             response.client_ip = client_ip,

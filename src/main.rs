@@ -64,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
     let start = tokio::time::Instant::now();
 
     if std::env::var("IS_AWS").is_err() {
-        println!(r#"{{"message": "env. variable IS_AWS missing, assuming .env exists..."}}"#);
+        println!("env. variable IS_AWS missing, assuming .env exists...");
         dotenvy::dotenv().map_err(|e| anyhow::anyhow!("Failed to load .env: {}", e))?;
     }
 
