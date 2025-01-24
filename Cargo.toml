@@ -13,12 +13,13 @@ lto = true
 panic = "unwind"
 
 [dependencies]
+# web framework
 axum = { version = "0.8.1", features = [
   "http2",
   "multipart",
   "ws",
   "macros",
-] } # web framework
+] }
 axum-extra = { version = "0.10.0", features = ["cookie", "attachment", "form"] }
 tower-http = { version = "0.6.2", features = ["compression-gzip", "trace"] }
 
@@ -55,6 +56,7 @@ serde_derive = "1.0.217"
 
 # types
 chrono = { version = "0.4.39", features = ["serde"] }
+chrono-tz = { version = "0.10.1", features = ["serde"] }
 uuid = { version = "1.12.1", features = [
   "v4",
   "v7",
@@ -63,10 +65,13 @@ uuid = { version = "1.12.1", features = [
   "fast-rng",
 ] }
 
-# regex
+# regex/verification
 regex = { version = "1.11.1", features = ["perf-dfa-full"] }
 email_address = "0.2.9"
 
 # crypto/rand
 argon2 = "0.5.3"
 rand = "0.8.5"
+
+# scheduling
+tokio-cron-scheduler = { version = "0.13.0", features = ["tracing-subscriber"] }
