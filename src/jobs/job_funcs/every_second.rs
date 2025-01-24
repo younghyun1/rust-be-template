@@ -1,10 +1,10 @@
 use anyhow::{anyhow, Result};
-use chrono::{Timelike, Utc};
+use chrono::{DateTime, Timelike, Utc};
 use std::sync::Arc;
 use tracing::{error, info};
 
 // Replace these with your actual imports.
-use crate::{init::state::ServerState, util::time::duration_formatter::format_dt_difference};
+use crate::init::state::ServerState;
 
 /// Calculate the next UTC DateTime that lands on either the current or next second boundary,
 /// with a sub-second offset of `millisecond_offset` and `microsecond_offset`.
@@ -41,16 +41,9 @@ fn next_scheduled_second_delay(
     task_descriptor: &str,
     millisecond_offset: u32,
     microsecond_offset: u32,
-) -> Result<(tokio::time::Duration, String)> {
+) -> Result<(tokio::time::Duration, String, DateTime<Utc>)> {
     let now = Utc::now();
     let next_mark = next_scheduled_second_mark(now, millisecond_offset, microsecond_offset)?;
-
-    // A user-friendly message.
-    let message = format!(
-        "Task '{}' will run in {}",
-        task_descriptor,
-        format_dt_difference(now, next_mark)
-    );
 
     // Convert Chrono duration to std::time::Duration for Tokio.
     let delay_chrono = next_mark - now;
@@ -60,7 +53,7 @@ fn next_scheduled_second_delay(
             e
         )
     })?;
-    Ok((delay_std, message))
+    Ok((delay_std, task_descriptor.to_owned(), next_mark))
 }
 
 /// Schedules a task to run once per second at the specified sub-second offset.
@@ -78,7 +71,7 @@ where
 {
     loop {
         // 1) Determine how long to wait until the next sub-second occurrence.
-        let (delay, schedule_message) = match next_scheduled_second_delay(
+        let (delay, task_descriptor, next_mark) = match next_scheduled_second_delay(
             &task_descriptor,
             millisecond_offset,
             microsecond_offset,
@@ -95,7 +88,11 @@ where
             }
         };
 
-        info!("{}", schedule_message);
+        info!(
+            task_name = %task_descriptor,
+            next_run_time = %next_mark,
+            "Scheduled task"
+        );
 
         // 2) Sleep until the scheduled second+offset arrives.
         tokio::time::sleep(delay).await;
