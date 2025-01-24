@@ -13,7 +13,7 @@ lto = true
 panic = "unwind"
 
 [dependencies]
-axum = { version = "0.8.2", features = [
+axum = { version = "0.8.1", features = [
     "http2",
     "multipart",
     "ws",

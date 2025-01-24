@@ -10,6 +10,7 @@ pub mod domain {
 }
 pub mod dto {
     pub mod common {}
+
     pub mod requests {
         pub mod user {
             pub mod check_if_user_exists_request;
@@ -25,7 +26,6 @@ pub mod dto {
     }
 }
 pub mod errors {
-
     pub mod code_error;
 }
 pub mod handlers {
