@@ -4,7 +4,7 @@ use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use tracing::info;
 
-use crate::routers::main_router::build_router;
+use crate::{jobs::job_funcs::init_scheduler::task_init, routers::main_router::build_router};
 
 use super::{config::DbConfig, state::ServerState};
 
@@ -47,6 +47,7 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
     info!("ServerState initialized.");
 
     // initialize scheduled jobs manager
+    task_init(state.clone()).await?;
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")

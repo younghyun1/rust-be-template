@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use tokio::time::Duration;
 
 const SECONDS_PER_MINUTE: u64 = 60;
@@ -5,6 +6,7 @@ const SECONDS_PER_HOUR: u64 = 3_600;
 const SECONDS_PER_DAY: u64 = 86_400;
 const SECONDS_PER_YEAR: u64 = 31_536_000;
 
+// std/tokio::time::Duration
 pub fn format_duration(duration: Duration) -> String {
     let mut total_secs = duration.as_secs();
     let millis = duration.subsec_millis() as u64;
@@ -74,4 +76,18 @@ pub fn format_duration(duration: Duration) -> String {
     }
 
     parts.join(", ")
+}
+
+// chrono::TimeDelta
+pub fn format_dt_difference(start_time: DateTime<Utc>, end_time: DateTime<Utc>) -> String {
+    let differential = end_time - start_time;
+
+    format!(
+        "{} days, {} hours, {} minutes, {} seconds, {} milliseconds",
+        differential.num_days(),
+        differential.num_hours() % 24,
+        differential.num_minutes() % 60,
+        differential.num_seconds() % 60,
+        differential.num_milliseconds() % 1000,
+    )
 }

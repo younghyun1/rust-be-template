@@ -48,7 +48,14 @@ pub mod init {
     pub mod server_init;
     pub mod state;
 }
-pub mod jobs {}
+pub mod jobs {
+    pub mod job_funcs {
+
+        pub mod every_minute;
+        pub mod every_second;
+        pub mod init_scheduler;
+    }
+}
 pub mod util {
     pub mod crypto {
         pub mod hash_pw;
