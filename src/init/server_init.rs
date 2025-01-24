@@ -2,6 +2,7 @@ use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
+use tokio_cron_scheduler::JobScheduler;
 use tracing::info;
 
 use crate::routers::main_router::build_router;
@@ -46,13 +47,20 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
     );
     info!("ServerState initialized.");
 
+    // initialize scheduled jobs manager
+    let mut scheduler = JobScheduler::new().await?;
+    
+
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
         .map_err(|e| anyhow::anyhow!("Failed to bind TCP listener: {}", e))?;
     info!("Listening to Port 3000...");
 
-    info!("Initialization complete. Starting server now...");
+    info!(
+        "Initialization complete in {:?}. Starting server now...",
+        start.elapsed()
+    );
 
     axum::serve(
         listener,

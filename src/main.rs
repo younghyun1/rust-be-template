@@ -65,7 +65,6 @@ async fn main() -> anyhow::Result<()> {
     let start = tokio::time::Instant::now();
 
     if std::env::var("IS_AWS").is_err() {
-        println!("env. variable IS_AWS missing, assuming .env exists...");
         dotenvy::dotenv().map_err(|e| anyhow::anyhow!("Failed to load .env: {}", e))?;
     }
 
@@ -89,8 +88,8 @@ async fn main() -> anyhow::Result<()> {
     let file_layer = tracing_subscriber::fmt::layer()
         .with_target(true)
         .json()
-        // .with_filter(level_filters::LevelFilter::INFO)
-        .with_writer(non_blocking_file);
+        .with_writer(non_blocking_file)
+        .with_filter(level_filters::LevelFilter::DEBUG);
 
     // Build a subscriber that combines both layers
     tracing_subscriber::registry()
