@@ -6,6 +6,7 @@ use axum::{
     http::{HeaderValue, Request, Response, StatusCode},
     middleware::Next,
 };
+use chrono::Utc;
 use tokio::time::Instant;
 use tracing::Level;
 
@@ -27,10 +28,12 @@ macro_rules! log_codeerror {
 pub async fn log_middleware(
     State(state): State<Arc<ServerState>>,
     ConnectInfo(info): ConnectInfo<SocketAddr>,
-    request: Request<Body>,
+    mut request: Request<Body>,
     next: Next,
 ) -> Response<Body> {
     let start = Instant::now();
+    let now = Utc::now(); // earliest possible timestamp of server-received request
+
     state.add_responses_handled();
 
     let method = request.method().clone();
@@ -46,6 +49,7 @@ pub async fn log_middleware(
     };
 
     tracing::info!(kind = "RECV", method = %method, path = %path, client_ip = %client_ip);
+    request.extensions_mut().insert(now);
 
     let mut response = next.run(request).await;
 

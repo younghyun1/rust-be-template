@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
-use axum::{extract::State, response::IntoResponse, Json};
+use axum::{extract::State, response::IntoResponse, Extension, Json};
+use chrono::{DateTime, Utc};
 use diesel::{dsl::exists, prelude::Insertable, ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
+use uuid::Uuid;
 
 use crate::{
-    domain::user::users,
+    domain::user::{email_verification_tokens, users},
     dto::{
         requests::user::signup_request::SignupRequest,
         responses::{response_data::http_resp, user::signup_response::SignupResponse},
@@ -24,7 +26,17 @@ struct NewUser<'nu> {
     user_password_hash: &'nu str,
 }
 
+#[derive(Insertable)]
+#[diesel(table_name = email_verification_tokens)]
+struct NewEmailVerificationToken<'nevt> {
+    user_id: &'nevt Uuid,
+    email_verification_token: &'nevt Uuid,
+    email_verification_token_expires_at: DateTime<Utc>,
+    email_verification_token_created_at: DateTime<Utc>,
+}
+
 pub async fn signup_handler(
+    Extension(request_received_time): Extension<DateTime<Utc>>,
     State(state): State<Arc<ServerState>>,
     Json(request): Json<SignupRequest>,
 ) -> HandlerResult<impl IntoResponse> {
@@ -60,15 +72,16 @@ pub async fn signup_handler(
         .await
         .map_err(|e| code_err(CodeError::COULD_NOT_HASH_PW, e))?;
 
-    let new_user = NewUser {
+    let new_user: NewUser = NewUser {
         user_name: &request.user_name,
         user_email: &request.user_email,
         user_password_hash: &hashed_pw,
     };
 
-    diesel::insert_into(users::table)
+    let user_id: Uuid = diesel::insert_into(users::table)
         .values(new_user)
-        .execute(&mut conn)
+        .returning(users::user_id)
+        .get_result(&mut conn)
         .await
         .map_err(|e| match e {
             diesel::result::Error::DatabaseError(
@@ -78,12 +91,33 @@ pub async fn signup_handler(
             _ => code_err(CodeError::DB_INSERTION_ERROR, e),
         })?;
 
+    let email_verification_token: Uuid = Uuid::new_v4();
+
+    let new_email_verification_token: NewEmailVerificationToken = NewEmailVerificationToken {
+        user_id: &user_id,
+        email_verification_token: &email_verification_token,
+        email_verification_token_expires_at: request_received_time + chrono::Duration::days(1),
+        email_verification_token_created_at: request_received_time,
+    };
+
+    let inserted_email_verification_token: DateTime<Utc> =
+        diesel::insert_into(email_verification_tokens::table)
+            .values(new_email_verification_token)
+            .returning(email_verification_tokens::email_verification_token_expires_at)
+            .get_result(&mut conn)
+            .await
+            .map_err(|e| code_err(CodeError::DB_INSERTION_ERROR, e))?;
+
+    // TODO: Send email with this
+    // TODO: Email resend handler in case this fails
+
     drop(conn);
 
     Ok(http_resp(
         SignupResponse {
             user_name: request.user_name,
             user_email: request.user_email,
+            verify_by: inserted_email_verification_token,
         },
         (),
         start,
@@ -92,5 +126,10 @@ pub async fn signup_handler(
 
 #[inline(always)]
 fn validate_username<'a>(username: &'a str) -> bool {
-    !username.is_empty()
+    // Enhanced validation logic for username
+    let is_non_empty = !username.is_empty();
+    let is_valid_length = username.len() >= 3 && username.len() <= 20;
+    let is_valid_char = username.chars().all(|c| c.is_alphanumeric()); // includes hangul, etc
+
+    is_non_empty && is_valid_length && is_valid_char
 }
