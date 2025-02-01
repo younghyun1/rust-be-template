@@ -24,6 +24,7 @@ COPY --from=build /bin/server /bin/
 
 ENV IS_AWS=true
 ENV APP_NAME_VERSION=rust-be-template-0.1.0
-ENV DB_URL=postgresql://spring_learn_admin:K7ww89Sj!5@host.docker.internal:5432/spring_learn
+ENV DB_URL=postgres://template-admin:brz764-%5~VUt5%25@host.docker.internal/template-db
+
 
 CMD ["/bin/server"]

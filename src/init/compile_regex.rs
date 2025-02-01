@@ -10,7 +10,7 @@
 //     let start = std_now();
 //     match regex::Regex::from_str(EMAIL_REGEX) {
 //         Ok(rgx) => {
-//             info!(
+//             info!(?
 //                 "Email regex compiled and validated in {:?}",
 //                 start.elapsed()
 //             );

@@ -14,21 +14,16 @@ panic = "unwind"
 
 [dependencies]
 # web framework
-axum = { version = "0.8.1", features = [
-  "http2",
-  "multipart",
-  "ws",
-  "macros",
-] }
+axum = { version = "0.8.1", features = ["http2", "multipart", "ws", "macros"] }
 axum-extra = { version = "0.10.0", features = ["cookie", "attachment", "form"] }
 tower-http = { version = "0.6.2", features = ["compression-gzip", "trace"] }
 
 # ORM
-diesel = { version = "2.2.6", features = [
-  "postgres",
-  "chrono",
-  "serde_json",
-  "uuid",
+diesel = { version = "2.2.7", features = [
+    "postgres",
+    "chrono",
+    "serde_json",
+    "uuid",
 ] }
 diesel-async = { version = "0.5.2", features = ["bb8", "postgres"] }
 
@@ -52,17 +47,17 @@ num_cpus = "1.16.0"
 # serialization/deserialization
 serde = "1.0.217"
 serde_derive = "1.0.217"
-# serde_json = "1.0.137"
+serde_json = "1.0.138"
 
 # types
 chrono = { version = "0.4.39", features = ["serde"] }
 chrono-tz = { version = "0.10.1", features = ["serde"] }
 uuid = { version = "1.12.1", features = [
-  "v4",
-  "v7",
-  "serde",
-  "zerocopy",
-  "fast-rng",
+    "v4",
+    "v7",
+    "serde",
+    "zerocopy",
+    "fast-rng",
 ] }
 
 # regex/verification
