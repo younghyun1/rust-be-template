@@ -67,6 +67,3 @@ email_address = "0.2.9"
 # crypto/rand
 argon2 = "0.5.3"
 rand = "0.8.5"
-
-# scheduling
-tokio-cron-scheduler = { version = "0.13.0", features = ["tracing-subscriber"] }
