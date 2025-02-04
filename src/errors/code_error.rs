@@ -11,7 +11,7 @@ pub type HandlerResult<T> = Result<T, CodeErrorResp>;
 #[derive(Copy, Clone, Debug)]
 pub struct CodeError {
     pub success: bool,
-    pub error_code: u16,
+    pub error_code: u8,
     pub http_status_code: StatusCode,
     pub message: &'static str,
     pub log_level: Level,
@@ -67,7 +67,6 @@ impl CodeError {
         message: "Email address already exists!",
         log_level: Level::INFO,
     };
-
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
@@ -84,7 +83,7 @@ pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
 #[derive(Serialize, Debug, Clone)]
 pub struct CodeErrorResp {
     pub success: bool,
-    pub error_code: u16,
+    pub error_code: u8,
     #[serde(skip_serializing)]
     pub http_status_code: StatusCode,
     pub message: String,
