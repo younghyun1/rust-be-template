@@ -67,4 +67,6 @@ email_address = "0.2.9"
 # crypto/rand
 argon2 = "0.5.3"
 rand = "0.8.5"
+
+# memory allocator
 mimalloc = "0.1.43"
