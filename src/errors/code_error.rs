@@ -67,6 +67,7 @@ impl CodeError {
         message: "Email address already exists!",
         log_level: Level::INFO,
     };
+
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {

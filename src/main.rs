@@ -1,8 +1,12 @@
 use init::server_init::server_init_proc;
+use mimalloc::MiMalloc;
 use tracing::{info, level_filters};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::Layer;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 // modules tree
 pub mod domain {
