@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     dto::{
         requests::user::verify_user_email_request::VerifyUserEmailRequest,
@@ -10,13 +12,14 @@ use crate::{
     util::time::now::tokio_now,
 };
 
-use axum::{extract::State, response::IntoResponse, Json};
+use axum::{debug_handler, extract::State, response::IntoResponse, Json};
 use chrono::Utc;
 use diesel::prelude::QueryableByName;
 use diesel_async::RunQueryDsl;
 
+#[debug_handler]
 pub async fn verify_user_email(
-    State(state): State<ServerState>,
+    State(state): State<Arc<ServerState>>,
     Json(request): Json<VerifyUserEmailRequest>,
 ) -> HandlerResult<impl IntoResponse> {
     let start = tokio_now();
