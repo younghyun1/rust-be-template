@@ -74,8 +74,42 @@ impl CodeError {
         message: "Database update failed!",
         log_level: Level::ERROR,
     };
+    pub const INVALID_EMAIL_VERIFICATION_TOKEN: CodeError = CodeError {
+        success: false,
+        error_code: 8,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Invalid email verification token!",
+        log_level: Level::INFO,
+    };
+    pub const EMAIL_VERIFICATION_TOKEN_EXPIRED: CodeError = CodeError {
+        success: false,
+        error_code: 9,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Email verification token has expired!",
+        log_level: Level::INFO,
+    };
+    pub const EMAIL_VERIFICATION_TOKEN_FABRICATED: CodeError = CodeError {
+        success: false,
+        error_code: 10,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Email verification token was fabricated; created_at was in the future!",
+        log_level: Level::ERROR,
+    };
+    pub const EMAIL_VERIFICATION_TOKEN_ALREADY_USED: CodeError = CodeError {
+        success: false,
+        error_code: 11,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Email verification token has already been used!",
+        log_level: Level::INFO,
+    };
+    pub const USER_EMAIL_ALREADY_VERIFIED: CodeError = CodeError {
+        success: false,
+        error_code: 12,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "User email is already verified!",
+        log_level: Level::INFO,
+    };
 }
-
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
     CodeErrorResp {
