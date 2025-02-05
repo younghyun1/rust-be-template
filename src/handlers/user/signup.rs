@@ -8,13 +8,14 @@ use lettre::{AsyncTransport, Message};
 use uuid::Uuid;
 
 use crate::{
-    domain::user::{email_verification_tokens, users, NewEmailVerificationToken, NewUser},
+    domain::user::{NewEmailVerificationToken, NewUser},
     dto::{
         requests::user::signup_request::SignupRequest,
         responses::{response_data::http_resp, user::signup_response::SignupResponse},
     },
     errors::code_error::{code_err, CodeError, HandlerResult},
     init::state::ServerState,
+    schema::{email_verification_tokens, users},
     util::{crypto::hash_pw::hash_pw, time::now::tokio_now},
 };
 

@@ -1,3 +1,5 @@
+pub mod schema;
+
 use init::server_init::server_init_proc;
 use mimalloc::MiMalloc;
 use tracing::{info, level_filters};
@@ -26,8 +28,8 @@ pub mod dto {
     }
     pub mod responses {
         pub mod user {
-            pub mod signup_response;
             pub mod email_validate_response;
+            pub mod signup_response;
         }
         pub mod response_data;
         pub mod response_meta;
