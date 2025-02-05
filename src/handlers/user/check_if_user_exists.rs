@@ -5,13 +5,13 @@ use diesel::{dsl::exists, ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
 
 use crate::{
-    domain::user::users,
     dto::{
         requests::user::check_if_user_exists_request::CheckIfUserExistsRequest,
         responses::response_data::http_resp,
     },
     errors::code_error::{code_err, CodeError, HandlerResult},
     init::state::ServerState,
+    schema::users,
     util::time::now::tokio_now,
 };
 
