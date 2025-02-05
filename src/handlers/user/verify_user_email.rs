@@ -82,7 +82,14 @@ pub async fn verify_user_email(
             .await
             .map_err(|e| code_err(CodeError::DB_UPDATE_ERROR, e))?;
 
-    drop(conn);
+    diesel::update(email_verification_tokens::table.filter(
+        email_verification_tokens::email_verification_token_id
+            .eq(&email_verification_token.email_verification_token_id),
+    ))
+        .set(email_verification_tokens::email_verification_token_used_at.eq(now))
+        .execute(&mut conn)
+        .await
+        .map_err(|e| code_err(CodeError::DB_UPDATE_ERROR, e))?;
 
     Ok(http_resp(
         EmailValidateResponse {
