@@ -12,14 +12,14 @@ use crate::{
     },
     errors::code_error::{code_err, CodeError, HandlerResult},
     init::state::ServerState,
-    util::time::now::t_now,
+    util::time::now::tokio_now,
 };
 
 pub async fn check_if_user_exists_handler(
     State(state): State<Arc<ServerState>>,
     Json(request): Json<CheckIfUserExistsRequest>,
 ) -> HandlerResult<impl IntoResponse> {
-    let start = t_now();
+    let start = tokio_now();
 
     if !email_address::EmailAddress::is_valid(&request.user_email) {
         return Err(CodeError::EMAIL_INVALID.into());

@@ -10,7 +10,7 @@ use crate::{
     dto::responses::response_data::http_resp,
     errors::code_error::{code_err, CodeError, HandlerResult},
     init::state::ServerState,
-    util::{time::duration_formatter::format_duration, time::now::t_now},
+    util::{time::duration_formatter::format_duration, time::now::tokio_now},
 };
 
 #[derive(Serialize)]
@@ -31,9 +31,9 @@ struct Version {
 pub async fn root_handler(
     State(state): State<Arc<ServerState>>,
 ) -> HandlerResult<impl IntoResponse> {
-    let start = t_now();
+    let start = tokio_now();
 
-    let db_start = t_now();
+    let db_start = tokio_now();
 
     let mut conn = state
         .get_conn()

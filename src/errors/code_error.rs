@@ -67,7 +67,15 @@ impl CodeError {
         message: "Email address already exists!",
         log_level: Level::INFO,
     };
+    pub const DB_UPDATE_ERROR: CodeError = CodeError {
+        success: false,
+        error_code: 7,
+        http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
+        message: "Database update failed!",
+        log_level: Level::ERROR,
+    };
 }
+
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
     CodeErrorResp {
