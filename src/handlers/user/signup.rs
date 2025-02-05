@@ -2,12 +2,13 @@ use std::sync::Arc;
 
 use axum::{extract::State, response::IntoResponse, Extension, Json};
 use chrono::{DateTime, Utc};
-use diesel::{dsl::exists, prelude::Insertable, ExpressionMethods, QueryDsl};
+use diesel::{dsl::exists, ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
+use lettre::{AsyncTransport, Message};
 use uuid::Uuid;
 
 use crate::{
-    domain::user::{email_verification_tokens, users},
+    domain::user::{email_verification_tokens, users, NewEmailVerificationToken, NewUser},
     dto::{
         requests::user::signup_request::SignupRequest,
         responses::{response_data::http_resp, user::signup_response::SignupResponse},
@@ -16,24 +17,6 @@ use crate::{
     init::state::ServerState,
     util::{crypto::hash_pw::hash_pw, time::now::t_now},
 };
-
-// TODO: where to fit this?
-#[derive(Insertable)]
-#[diesel(table_name = users)]
-struct NewUser<'nu> {
-    user_name: &'nu str,
-    user_email: &'nu str,
-    user_password_hash: &'nu str,
-}
-
-#[derive(Insertable)]
-#[diesel(table_name = email_verification_tokens)]
-struct NewEmailVerificationToken<'nevt> {
-    user_id: &'nevt Uuid,
-    email_verification_token: &'nevt Uuid,
-    email_verification_token_expires_at: DateTime<Utc>,
-    email_verification_token_created_at: DateTime<Utc>,
-}
 
 pub async fn signup_handler(
     Extension(request_received_time): Extension<DateTime<Utc>>,
@@ -72,11 +55,7 @@ pub async fn signup_handler(
         .await
         .map_err(|e| code_err(CodeError::COULD_NOT_HASH_PW, e))?;
 
-    let new_user: NewUser = NewUser {
-        user_name: &request.user_name,
-        user_email: &request.user_email,
-        user_password_hash: &hashed_pw,
-    };
+    let new_user: NewUser = NewUser::new(&request.user_name, &request.user_email, &hashed_pw);
 
     let user_id: Uuid = diesel::insert_into(users::table)
         .values(new_user)
@@ -93,14 +72,14 @@ pub async fn signup_handler(
 
     let email_verification_token: Uuid = Uuid::new_v4();
 
-    let new_email_verification_token: NewEmailVerificationToken = NewEmailVerificationToken {
-        user_id: &user_id,
-        email_verification_token: &email_verification_token,
-        email_verification_token_expires_at: request_received_time + chrono::Duration::days(1),
-        email_verification_token_created_at: request_received_time,
-    };
+    let new_email_verification_token: NewEmailVerificationToken = NewEmailVerificationToken::new(
+        &user_id,
+        &email_verification_token,
+        request_received_time + chrono::Duration::days(1), // expires_at
+        request_received_time,                             // created_at
+    );
 
-    let inserted_email_verification_token: DateTime<Utc> =
+    let inserted_email_verification_token_verify_by: DateTime<Utc> =
         diesel::insert_into(email_verification_tokens::table)
             .values(new_email_verification_token)
             .returning(email_verification_tokens::email_verification_token_expires_at)
@@ -108,16 +87,28 @@ pub async fn signup_handler(
             .await
             .map_err(|e| code_err(CodeError::DB_INSERTION_ERROR, e))?;
 
+    drop(conn);
+
     // TODO: Send email with this
     // TODO: Email resend handler in case this fails
-
-    drop(conn);
+    let user_email = request.user_email.clone();
+    tokio::spawn(async move {
+        let email_client = state.get_email_client();
+        let email: Message = Message::builder()
+            .from("Cyhdev Forums <donotreply@cyhdev.com>".parse().unwrap())
+            .to(user_email.parse().unwrap())
+            .subject("Verify your Email")
+            .header(lettre::message::header::ContentType::TEXT_HTML)
+            .body(String::from("TEST"))
+            .unwrap();
+        email_client.send(email).await.unwrap();
+    });
 
     Ok(http_resp(
         SignupResponse {
             user_name: request.user_name,
             user_email: request.user_email,
-            verify_by: inserted_email_verification_token,
+            verify_by: inserted_email_verification_token_verify_by,
         },
         (),
         start,

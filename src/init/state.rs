@@ -2,6 +2,7 @@ use std::sync::atomic::AtomicU64;
 
 use diesel_async::pooled_connection::bb8::{Pool, PooledConnection};
 use diesel_async::AsyncPgConnection;
+use lettre::{AsyncSmtpTransport, Tokio1Executor};
 
 // use super::compile_regex::get_email_regex;
 
@@ -10,7 +11,7 @@ pub struct ServerState {
     server_start_time: tokio::time::Instant,
     pool: Pool<AsyncPgConnection>,
     responses_handled: AtomicU64,
-    // regexes: [regex::Regex; 1],
+    email_client: lettre::AsyncSmtpTransport<Tokio1Executor>, // regexes: [regex::Regex; 1],
 }
 
 impl ServerState {
@@ -30,6 +31,10 @@ impl ServerState {
         Ok(self.pool.get().await?)
     }
 
+    pub fn get_email_client(&self) -> &AsyncSmtpTransport<Tokio1Executor> {
+        &self.email_client
+    }
+
     pub fn get_responses_handled(&self) -> u64 {
         self.responses_handled
             .load(std::sync::atomic::Ordering::SeqCst)
@@ -46,6 +51,7 @@ pub struct ServerStateBuilder {
     app_name_version: Option<String>,
     server_start_time: Option<tokio::time::Instant>,
     pool: Option<Pool<AsyncPgConnection>>,
+    email_client: Option<lettre::AsyncSmtpTransport<Tokio1Executor>>, // regexes: [regex::Regex; 1],
 }
 
 impl ServerStateBuilder {
@@ -64,6 +70,14 @@ impl ServerStateBuilder {
         self
     }
 
+    pub fn email_client(
+        mut self,
+        email_client: lettre::AsyncSmtpTransport<Tokio1Executor>,
+    ) -> Self {
+        self.email_client = Some(email_client);
+        self
+    }
+
     pub fn build(self) -> anyhow::Result<ServerState> {
         Ok(ServerState {
             app_name_version: self
@@ -76,6 +90,9 @@ impl ServerStateBuilder {
                 .pool
                 .ok_or_else(|| anyhow::anyhow!("pool is required"))?,
             responses_handled: AtomicU64::new(0u64),
+            email_client: self
+                .email_client
+                .ok_or_else(|| anyhow::anyhow!("email_client is required"))?,
             // regexes: [get_email_regex()],
         })
     }

@@ -2,9 +2,13 @@ use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
+use lettre::{transport::smtp::authentication::Credentials, AsyncSmtpTransport, Tokio1Executor};
 use tracing::info;
 
-use crate::{jobs::job_funcs::init_scheduler::task_init, routers::main_router::build_router};
+use crate::{
+    init::config::EmailConfig, jobs::job_funcs::init_scheduler::task_init,
+    routers::main_router::build_router,
+};
 
 use super::{config::DbConfig, state::ServerState};
 
@@ -27,6 +31,7 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
         .build(pool_config)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to build connection pool: {}", e))?;
+
     info!(
         "Connection pool built with {} connections. Will scale to {} connections.",
         num_cores,
@@ -36,11 +41,20 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
     let app_name_version: String = std::env::var("APP_NAME_VERSION")
         .map_err(|e| anyhow::anyhow!("Failed to load APP_NAME_VAR from .env: {}", e))?;
 
+    let email_config = EmailConfig::from_env()
+        .map_err(|e| anyhow::anyhow!("Failed to load email configs from .env: {}", e))?;
+    let email_creds: Credentials = email_config.to_creds();
+    let email_client: AsyncSmtpTransport<Tokio1Executor> =
+        AsyncSmtpTransport::<Tokio1Executor>::relay(&email_config.get_url())?
+            .credentials(email_creds)
+            .build();
+
     let state = Arc::new(
         ServerState::builder()
             .app_name_version(app_name_version)
             .pool(pool)
             .server_start_time(start)
+            .email_client(email_client)
             .build()
             .map_err(|e| anyhow::anyhow!("Failed to build ServerState: {}", e))?,
     );
