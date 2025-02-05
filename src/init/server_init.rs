@@ -49,6 +49,11 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
             .credentials(email_creds)
             .build();
 
+    info!(
+        "Email client configured; relay at {}",
+        email_config.get_url()
+    );
+
     let state = Arc::new(
         ServerState::builder()
             .app_name_version(app_name_version)

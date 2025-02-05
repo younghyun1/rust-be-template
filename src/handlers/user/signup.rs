@@ -15,7 +15,7 @@ use crate::{
     },
     errors::code_error::{code_err, CodeError, HandlerResult},
     init::state::ServerState,
-    util::{crypto::hash_pw::hash_pw, time::now::t_now},
+    util::{crypto::hash_pw::hash_pw, time::now::tokio_now},
 };
 
 pub async fn signup_handler(
@@ -23,7 +23,7 @@ pub async fn signup_handler(
     State(state): State<Arc<ServerState>>,
     Json(request): Json<SignupRequest>,
 ) -> HandlerResult<impl IntoResponse> {
-    let start = t_now();
+    let start = tokio_now();
 
     if !validate_username(&request.user_name) {
         return Err(CodeError::USER_NAME_INVALID.into());
@@ -89,7 +89,6 @@ pub async fn signup_handler(
 
     drop(conn);
 
-    // TODO: Send email with this
     // TODO: Email resend handler in case this fails
     let user_email = request.user_email.clone();
     tokio::spawn(async move {

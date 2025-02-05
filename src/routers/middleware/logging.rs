@@ -48,7 +48,7 @@ pub async fn log_middleware(
         None => info.to_string(),
     };
 
-    tracing::info!(kind = "RECV", method = %method, path = %path, client_ip = %client_ip);
+    tracing::info!(kind = %"RECV", method = %method, path = %path, client_ip = %client_ip);
     request.extensions_mut().insert(now);
 
     let mut response = next.run(request).await;
@@ -56,7 +56,7 @@ pub async fn log_middleware(
     if response.status() == StatusCode::OK {
         let duration = start.elapsed();
 
-        tracing::info!(kind = "RESP", method = %method, path = %path, client_ip = %client_ip, duration = ?duration);
+        tracing::info!(kind = %"RESP", method = %method, path = %path, client_ip = %client_ip, duration = ?duration);
     } else {
         // Use lowercase header keys for consistency and use empty strings if headers are not present
         let headers = response.headers_mut();
