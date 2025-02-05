@@ -16,8 +16,8 @@ use crate::{
 
 use axum::{extract::State, response::IntoResponse, Json};
 use chrono::Utc;
-use diesel::{dsl::exists, ExpressionMethods, QueryDsl};
-use diesel_async::RunQueryDsl;
+use diesel::{ExpressionMethods, QueryDsl};
+use diesel_async::{AsyncConnection, RunQueryDsl};
 
 pub async fn verify_user_email(
     State(state): State<Arc<ServerState>>,
@@ -59,10 +59,9 @@ pub async fn verify_user_email(
     }
 
     #[rustfmt::skip]
-    let user_is_email_verified: bool = diesel::select(
-        exists(
-            users::table.filter(users::user_id.eq(&email_verification_token.user_id)),
-        ))
+    let user_is_email_verified: bool = users::table
+        .filter(users::user_id.eq(&email_verification_token.user_id))
+        .select(users::user_is_email_verified)
         .get_result(&mut conn)
         .await
         .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
@@ -71,25 +70,40 @@ pub async fn verify_user_email(
         return Err(CodeError::USER_EMAIL_ALREADY_VERIFIED.into());
     }
 
-    let updated_user_email =
-        diesel::update(users::table.filter(users::user_id.eq(&email_verification_token.user_id)))
-            .set((
-                users::user_is_email_verified.eq(true),
-                users::user_updated_at.eq(now),
-            ))
-            .returning(users::user_email)
-            .get_result::<String>(&mut conn)
-            .await
-            .map_err(|e| code_err(CodeError::DB_UPDATE_ERROR, e))?;
+    let updated_user_email = match conn
+        .transaction::<_, diesel::result::Error, _>(move |conn| {
+            let user_id = email_verification_token.user_id;
+            let token_id = email_verification_token.email_verification_token_id;
 
-    diesel::update(email_verification_tokens::table.filter(
-        email_verification_tokens::email_verification_token_id
-            .eq(&email_verification_token.email_verification_token_id),
-    ))
-        .set(email_verification_tokens::email_verification_token_used_at.eq(now))
-        .execute(&mut conn)
+            Box::pin(async move {
+                let updated_email = diesel::update(users::table.filter(users::user_id.eq(user_id)))
+                    .set((
+                        users::user_is_email_verified.eq(true),
+                        users::user_updated_at.eq(now),
+                    ))
+                    .returning(users::user_email)
+                    .get_result::<String>(conn)
+                    .await?;
+
+                diesel::update(
+                    email_verification_tokens::table.filter(
+                        email_verification_tokens::email_verification_token_id.eq(token_id),
+                    ),
+                )
+                .set(email_verification_tokens::email_verification_token_used_at.eq(now))
+                .execute(conn)
+                .await?;
+
+                Ok(updated_email)
+            })
+        })
         .await
-        .map_err(|e| code_err(CodeError::DB_UPDATE_ERROR, e))?;
+    {
+        Ok(uue) => uue,
+        Err(e) => {
+            return Err(code_err(CodeError::DB_INSERTION_ERROR, e));
+        }
+    };
 
     Ok(http_resp(
         EmailValidateResponse {
