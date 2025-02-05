@@ -16,11 +16,11 @@ use crate::init::state::ServerState;
 macro_rules! log_codeerror {
     ($level:expr, $kind:expr, response.method = $method:expr, response.path = $path:expr, response.client_ip = $client_ip:expr, response.status = $status:expr, response.status_code = $status_code:expr, response.duration = $duration:expr, response.error_code = $error_code:expr, response.message = $message:expr, response.detail = $detail:expr) => {
         match $level {
-            Level::ERROR => tracing::error!(kind = $kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
-            Level::WARN => tracing::warn!(kind = $kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
-            Level::INFO => tracing::info!(kind = $kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
-            Level::DEBUG => tracing::debug!(kind = $kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
-            Level::TRACE => tracing::trace!(kind = $kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
+            Level::ERROR => tracing::error!(kind = %$kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
+            Level::WARN => tracing::warn!(kind = %$kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
+            Level::INFO => tracing::info!(kind = %$kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
+            Level::DEBUG => tracing::debug!(kind = %$kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
+            Level::TRACE => tracing::trace!(kind = %$kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
         }
     };
 }
