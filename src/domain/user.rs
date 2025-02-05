@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
-use diesel::{table, Queryable, QueryableByName};
+use diesel::{prelude::Insertable, table, Queryable, QueryableByName};
 use serde_derive::{Deserialize, Serialize};
+use uuid::Uuid;
 
 table! {
     users (user_id) {
@@ -63,6 +64,24 @@ pub struct User {
     pub user_is_email_verified: bool,
 }
 
+#[derive(Insertable)]
+#[diesel(table_name = users)]
+pub struct NewUser<'nu> {
+    user_name: &'nu str,
+    user_email: &'nu str,
+    user_password_hash: &'nu str,
+}
+
+impl<'nu> NewUser<'nu> {
+    pub fn new(user_name: &'nu str, user_email: &'nu str, user_password_hash: &'nu str) -> Self {
+        Self {
+            user_name,
+            user_email,
+            user_password_hash,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, QueryableByName, Queryable)]
 pub struct EmailVerificationToken {
     #[diesel(sql_type = diesel::sql_types::Uuid)]
@@ -75,6 +94,31 @@ pub struct EmailVerificationToken {
     pub email_verification_token_expires_at: DateTime<Utc>,
     #[diesel(sql_type = diesel::sql_types::Timestamptz)]
     pub email_verification_token_created_at: DateTime<Utc>,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = email_verification_tokens)]
+pub struct NewEmailVerificationToken<'nevt> {
+    user_id: &'nevt Uuid,
+    email_verification_token: &'nevt Uuid,
+    email_verification_token_expires_at: DateTime<Utc>,
+    email_verification_token_created_at: DateTime<Utc>,
+}
+
+impl<'nevt> NewEmailVerificationToken<'nevt> {
+    pub fn new(
+        user_id: &'nevt Uuid,
+        email_verification_token: &'nevt Uuid,
+        email_verification_token_expires_at: DateTime<Utc>,
+        email_verification_token_created_at: DateTime<Utc>,
+    ) -> Self {
+        Self {
+            user_id,
+            email_verification_token,
+            email_verification_token_expires_at,
+            email_verification_token_created_at,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, QueryableByName, Queryable)]

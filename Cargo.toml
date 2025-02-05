@@ -61,7 +61,7 @@ uuid = { version = "1.12.1", features = [
 ] }
 
 # regex/verification
-regex = { version = "1.11.1", features = ["perf-dfa-full"] }
+# regex = { version = "1.11.1", features = ["perf-dfa-full"] }
 email_address = "0.2.9"
 
 # crypto/rand
@@ -70,3 +70,15 @@ rand = "0.8.5"
 
 # memory allocator
 mimalloc = "0.1.43"
+
+# email
+lettre = { version = "0.11.12", default-features = false, features = [
+    "builder",
+    "hostname",
+    "pool",
+    "smtp-transport",
+    "tokio1",
+    "tokio1-rustls-tls",
+    "tracing",
+    "serde",
+] }
