@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
+    domain::user::EmailVerificationToken,
     dto::{
         requests::user::verify_user_email_request::VerifyUserEmailRequest,
         responses::{
@@ -9,74 +10,83 @@ use crate::{
     },
     errors::code_error::{code_err, CodeError, HandlerResult},
     init::state::ServerState,
+    schema::{email_verification_tokens, users},
     util::time::now::tokio_now,
 };
 
-use axum::{debug_handler, extract::State, response::IntoResponse, Json};
+use axum::{extract::State, response::IntoResponse, Json};
 use chrono::Utc;
-use diesel::prelude::QueryableByName;
+use diesel::{dsl::exists, ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
 
-#[debug_handler]
 pub async fn verify_user_email(
     State(state): State<Arc<ServerState>>,
     Json(request): Json<VerifyUserEmailRequest>,
 ) -> HandlerResult<impl IntoResponse> {
     let start = tokio_now();
+    let now = Utc::now();
 
     let mut conn = state
         .get_conn()
         .await
         .map_err(|e| code_err(CodeError::DB_CONNECTION_ERROR, e))?;
 
-    // TODO: Make the struct and the query go somewhere else
-    #[derive(QueryableByName)]
-    struct UserEmail {
-        #[sql_type = "diesel::sql_types::Text"]
-        user_email: String,
+    let email_verification_token: EmailVerificationToken = email_verification_tokens::table
+        .filter(
+            email_verification_tokens::email_verification_token
+                .eq(&request.email_verification_token),
+        )
+        .get_result(&mut conn)
+        .await
+        .map_err(|e| code_err(CodeError::INVALID_EMAIL_VERIFICATION_TOKEN, e))?;
+
+    // validate if expired
+    if email_verification_token.email_verification_token_expires_at < now {
+        return Err(CodeError::EMAIL_VERIFICATION_TOKEN_EXPIRED.into());
     }
 
-    // TODO: Make the struct and the query go somewhere else
-    let query = r#"
-        UPDATE users
-        SET user_is_email_verified = TRUE,
-            user_updated_at = NOW()
-        WHERE user_is_email_verified = FALSE
-          AND EXISTS (
-            SELECT 1
-            FROM email_verification_tokens
-            WHERE email_verification_token = $1
-              AND email_verification_tokens.user_id = users.user_id
-          )
-        RETURNING user_email;
-    "#;
+    // validate if we're being messed with
+    if email_verification_token.email_verification_token_created_at > now {
+        return Err(CodeError::EMAIL_VERIFICATION_TOKEN_FABRICATED.into());
+    }
 
-    let user_email: UserEmail = diesel::sql_query(query)
-        .bind::<diesel::sql_types::Uuid, _>(request.email_verification_token)
-        .get_result::<UserEmail>(&mut conn)
+    // validate if token was already used
+    if email_verification_token
+        .email_verification_token_used_at
+        .is_some()
+    {
+        return Err(CodeError::EMAIL_VERIFICATION_TOKEN_ALREADY_USED.into());
+    }
+
+    #[rustfmt::skip]
+    let user_is_email_verified: bool = diesel::select(
+        exists(
+            users::table.filter(users::user_id.eq(&email_verification_token.user_id)),
+        ))
+        .get_result(&mut conn)
         .await
-        .map_err(|e| match e {
-            diesel::result::Error::DatabaseError(database_error_kind, _) => {
-                match database_error_kind {
-                    diesel::result::DatabaseErrorKind::UniqueViolation
-                    | diesel::result::DatabaseErrorKind::ForeignKeyViolation
-                    | diesel::result::DatabaseErrorKind::NotNullViolation => {
-                        code_err(CodeError::DB_UPDATE_ERROR, e)
-                    }
-                    _ => code_err(CodeError::DB_UPDATE_ERROR, e),
-                }
-            }
-            diesel::result::Error::NotFound => code_err(CodeError::DB_UPDATE_ERROR, e),
-            _ => code_err(CodeError::DB_UPDATE_ERROR, e),
-        })?;
+        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
 
-    let now = Utc::now();
+    if user_is_email_verified {
+        return Err(CodeError::USER_EMAIL_ALREADY_VERIFIED.into());
+    }
+
+    let updated_user_email =
+        diesel::update(users::table.filter(users::user_id.eq(&email_verification_token.user_id)))
+            .set((
+                users::user_is_email_verified.eq(true),
+                users::user_updated_at.eq(now),
+            ))
+            .returning(users::user_email)
+            .get_result::<String>(&mut conn)
+            .await
+            .map_err(|e| code_err(CodeError::DB_UPDATE_ERROR, e))?;
 
     drop(conn);
 
     Ok(http_resp(
         EmailValidateResponse {
-            user_email: user_email.user_email,
+            user_email: updated_user_email,
             verified_at: now,
         },
         (),
