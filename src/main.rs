@@ -21,11 +21,13 @@ pub mod dto {
         pub mod user {
             pub mod check_if_user_exists_request;
             pub mod signup_request;
+            pub mod verify_user_email_request;
         }
     }
     pub mod responses {
         pub mod user {
             pub mod signup_response;
+            pub mod email_validate_response;
         }
         pub mod response_data;
         pub mod response_meta;
@@ -38,6 +40,7 @@ pub mod handlers {
     pub mod user {
         pub mod check_if_user_exists;
         pub mod signup;
+        pub mod verify_user_email;
     }
     pub mod fallback;
     pub mod root;

@@ -4,6 +4,6 @@ pub fn std_now() -> std::time::Instant {
 }
 
 #[inline(always)]
-pub fn t_now() -> tokio::time::Instant {
+pub fn tokio_now() -> tokio::time::Instant {
     tokio::time::Instant::now()
 }

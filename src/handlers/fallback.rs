@@ -2,7 +2,8 @@ use axum::response::IntoResponse;
 use serde_derive::Serialize;
 
 use crate::{
-    dto::responses::response_data::http_resp, errors::code_error::HandlerResult, util::time::now::t_now,
+    dto::responses::response_data::http_resp, errors::code_error::HandlerResult,
+    util::time::now::tokio_now,
 };
 
 #[derive(Serialize)]
@@ -11,7 +12,7 @@ pub struct FallbackHandlerResponse<'a> {
 }
 
 pub async fn fallback_handler() -> HandlerResult<impl IntoResponse> {
-    let start = t_now();
+    let start = tokio_now();
     Ok(http_resp::<FallbackHandlerResponse, ()>(
         FallbackHandlerResponse {
             message: "Invalid path!",
