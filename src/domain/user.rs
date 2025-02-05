@@ -9,11 +9,11 @@ use crate::schema::{email_verification_tokens, users};
 pub struct User {
     #[diesel(sql_type = diesel::sql_types::Uuid)]
     pub user_id: uuid::Uuid,
-    #[diesel(sql_type = diesel::sql_types::Text)]
+    #[diesel(sql_type = diesel::sql_types::Varchar)]
     pub user_name: String,
-    #[diesel(sql_type = diesel::sql_types::Text)]
+    #[diesel(sql_type = diesel::sql_types::Varchar)]
     pub user_email: String,
-    #[diesel(sql_type = diesel::sql_types::Text)]
+    #[diesel(sql_type = diesel::sql_types::Varchar)]
     pub user_password_hash: String,
     #[diesel(sql_type = diesel::sql_types::Timestamptz)]
     pub user_created_at: DateTime<Utc>,
@@ -53,6 +53,8 @@ pub struct EmailVerificationToken {
     pub email_verification_token_expires_at: DateTime<Utc>,
     #[diesel(sql_type = diesel::sql_types::Timestamptz)]
     pub email_verification_token_created_at: DateTime<Utc>,
+    #[diesel(sql_type = diesel::sql_types::Nullable<diesel::sql_types::Timestamptz>)]
+    pub email_verification_token_used_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Insertable)]
@@ -92,6 +94,8 @@ pub struct PasswordResetToken {
     pub password_reset_token_expires_at: DateTime<Utc>,
     #[diesel(sql_type = diesel::sql_types::Timestamptz)]
     pub password_reset_token_created_at: DateTime<Utc>,
+    #[diesel(sql_type = diesel::sql_types::Nullable<diesel::sql_types::Timestamptz>)]
+    pub password_reset_token_used_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Serialize, Deserialize, QueryableByName, Queryable)]
@@ -108,4 +112,6 @@ pub struct RefreshToken {
     pub refresh_token_expires_at: DateTime<Utc>,
     #[diesel(sql_type = diesel::sql_types::Bool)]
     pub refresh_token_revoked: bool,
+    #[diesel(sql_type = diesel::sql_types::Nullable<diesel::sql_types::Timestamptz>)]
+    pub refresh_token_used_at: Option<DateTime<Utc>>,
 }
