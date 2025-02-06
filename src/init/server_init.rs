@@ -3,11 +3,11 @@ use std::{net::SocketAddr, sync::Arc, time::Duration};
 use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use lettre::{transport::smtp::authentication::Credentials, AsyncSmtpTransport, Tokio1Executor};
-use tracing::info;
+use tracing::{error, info};
 
 use crate::{
     init::config::EmailConfig, jobs::job_funcs::init_scheduler::task_init,
-    routers::main_router::build_router,
+    routers::main_router::build_router, util::time::now::tokio_now,
 };
 
 use super::{config::DbConfig, state::ServerState};
@@ -79,12 +79,16 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
         start.elapsed()
     );
 
-    axum::serve(
-        listener,
-        build_router(state).into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .await
-    .map_err(|e| anyhow::anyhow!("Failed to serve application: {}", e))?;
+    tokio::spawn(async move {
+        if let Err(e) = axum::serve(
+            listener,
+            build_router(state).into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .await
+        {
+            error!("Failed to serve application: {}", e);
+        }
+    });
 
     Ok(())
 }

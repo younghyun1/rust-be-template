@@ -3,6 +3,8 @@ use std::sync::atomic::AtomicU64;
 use diesel_async::pooled_connection::bb8::{Pool, PooledConnection};
 use diesel_async::AsyncPgConnection;
 use lettre::{AsyncSmtpTransport, Tokio1Executor};
+use tracing::error;
+use uuid::Uuid;
 
 // use super::compile_regex::get_email_regex;
 
@@ -11,10 +13,44 @@ pub struct ServerState {
     server_start_time: tokio::time::Instant,
     pool: Pool<AsyncPgConnection>,
     responses_handled: AtomicU64,
-    email_client: lettre::AsyncSmtpTransport<Tokio1Executor>, // regexes: [regex::Regex; 1],
+    email_client: lettre::AsyncSmtpTransport<Tokio1Executor>,
+    // regexes: [regex::Regex; 1],
+    session_map: scc::HashMap<uuid::Uuid, Session>,
+}
+
+#[derive(Debug, Clone, serde_derive::Serialize, serde_derive::Deserialize)]
+pub struct Session {
+    session_id: uuid::Uuid,
+    user_id: uuid::Uuid,
+    created_at: chrono::DateTime<chrono::Utc>,
+    expires_at: chrono::DateTime<chrono::Utc>,
 }
 
 impl ServerState {
+    pub async fn new_session(&self, user_id: Uuid) {
+        let session_id = Uuid::new_v4();
+        let now = chrono::Utc::now();
+        let expires_at = now + chrono::Duration::minutes(30);
+        match self
+            .session_map
+            .insert_async(
+                session_id,
+                Session {
+                    session_id,
+                    user_id,
+                    created_at: now,
+                    expires_at,
+                },
+            )
+            .await
+        {
+            Ok(_) => (),
+            Err(e) => {
+                error!("Failed to insert session into scc::HashMap: {:?}", e.1);
+            }
+        };
+    }
+
     pub fn builder() -> ServerStateBuilder {
         ServerStateBuilder::default()
     }
@@ -94,6 +130,7 @@ impl ServerStateBuilder {
                 .email_client
                 .ok_or_else(|| anyhow::anyhow!("email_client is required"))?,
             // regexes: [get_email_regex()],
+            session_map: scc::HashMap::new(),
         })
     }
 }
