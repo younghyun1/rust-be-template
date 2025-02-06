@@ -43,6 +43,7 @@ pub mod handlers {
         pub mod check_if_user_exists;
         pub mod signup;
         pub mod verify_user_email;
+        pub mod login;
     }
     pub mod fallback;
     pub mod root;
