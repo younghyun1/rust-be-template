@@ -51,6 +51,25 @@ impl ServerState {
         };
     }
 
+    pub async fn purge_expired_sessions(&self) -> (usize, usize) {
+        let now = chrono::Utc::now();
+        let (mut pruned, mut remaining): (usize, usize) = (0usize, 0usize);
+
+        self.session_map
+            .prune_async(|_, session| {
+                if session.expires_at < now {
+                    pruned += 1;
+                    None
+                } else {
+                    remaining += 1;
+                    Some(session)
+                }
+            })
+            .await;
+
+        (pruned, remaining)
+    }
+
     pub fn builder() -> ServerStateBuilder {
         ServerStateBuilder::default()
     }

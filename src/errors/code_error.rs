@@ -6,7 +6,7 @@ use std::error::Error;
 use std::fmt::{self, Debug};
 use tracing::Level;
 
-pub type HandlerResult<T> = Result<T, CodeErrorResp>;
+pub type HandlerResponse<T> = Result<T, CodeErrorResp>;
 
 #[derive(Copy, Clone, Debug)]
 pub struct CodeError {

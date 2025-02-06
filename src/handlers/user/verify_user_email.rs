@@ -8,7 +8,7 @@ use crate::{
             response_data::http_resp, user::email_validate_response::EmailValidateResponse,
         },
     },
-    errors::code_error::{code_err, CodeError, HandlerResult},
+    errors::code_error::{code_err, CodeError, HandlerResponse},
     init::state::ServerState,
     schema::{email_verification_tokens, users},
     util::time::now::tokio_now,
@@ -22,7 +22,7 @@ use diesel_async::{AsyncConnection, RunQueryDsl};
 pub async fn verify_user_email(
     State(state): State<Arc<ServerState>>,
     Json(request): Json<VerifyUserEmailRequest>,
-) -> HandlerResult<impl IntoResponse> {
+) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
     let now = Utc::now();
 

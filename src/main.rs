@@ -41,9 +41,9 @@ pub mod errors {
 pub mod handlers {
     pub mod user {
         pub mod check_if_user_exists;
+        pub mod login;
         pub mod signup;
         pub mod verify_user_email;
-        pub mod login;
     }
     pub mod fallback;
     pub mod root;
@@ -61,8 +61,10 @@ pub mod init {
     pub mod state;
 }
 pub mod jobs {
+    pub mod auth {
+        pub mod invalidate_sessions;
+    }
     pub mod job_funcs {
-
         pub mod every_minute;
         pub mod every_second;
         pub mod init_scheduler;
@@ -117,7 +119,9 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     info!("Initializing server...");
-    server_init_proc(start).await?;
+    let server_handle = tokio::spawn(async move { server_init_proc(start).await });
+
+    server_handle.await??;
 
     Ok(())
 }

@@ -13,7 +13,7 @@ use crate::{
         requests::user::signup_request::SignupRequest,
         responses::{response_data::http_resp, user::signup_response::SignupResponse},
     },
-    errors::code_error::{code_err, CodeError, HandlerResult},
+    errors::code_error::{code_err, CodeError, HandlerResponse},
     init::state::ServerState,
     schema::{email_verification_tokens, users},
     util::{crypto::hash_pw::hash_pw, time::now::tokio_now},
@@ -23,7 +23,7 @@ pub async fn signup_handler(
     Extension(request_received_time): Extension<DateTime<Utc>>,
     State(state): State<Arc<ServerState>>,
     Json(request): Json<SignupRequest>,
-) -> HandlerResult<impl IntoResponse> {
+) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
     if !validate_username(&request.user_name) {

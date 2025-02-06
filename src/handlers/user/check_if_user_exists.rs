@@ -9,7 +9,7 @@ use crate::{
         requests::user::check_if_user_exists_request::CheckIfUserExistsRequest,
         responses::response_data::http_resp,
     },
-    errors::code_error::{code_err, CodeError, HandlerResult},
+    errors::code_error::{code_err, CodeError, HandlerResponse},
     init::state::ServerState,
     schema::users,
     util::time::now::tokio_now,
@@ -18,7 +18,7 @@ use crate::{
 pub async fn check_if_user_exists_handler(
     State(state): State<Arc<ServerState>>,
     Json(request): Json<CheckIfUserExistsRequest>,
-) -> HandlerResult<impl IntoResponse> {
+) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
     if !email_address::EmailAddress::is_valid(&request.user_email) {
