@@ -8,7 +8,7 @@ use serde_derive::Serialize;
 
 use crate::{
     dto::responses::response_data::http_resp,
-    errors::code_error::{code_err, CodeError, HandlerResult},
+    errors::code_error::{code_err, CodeError, HandlerResponse},
     init::state::ServerState,
     util::{time::duration_formatter::format_duration, time::now::tokio_now},
 };
@@ -30,7 +30,7 @@ struct Version {
 
 pub async fn root_handler(
     State(state): State<Arc<ServerState>>,
-) -> HandlerResult<impl IntoResponse> {
+) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
     let db_start = tokio_now();

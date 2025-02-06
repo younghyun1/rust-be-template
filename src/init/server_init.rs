@@ -3,7 +3,7 @@ use std::{net::SocketAddr, sync::Arc, time::Duration};
 use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use lettre::{transport::smtp::authentication::Credentials, AsyncSmtpTransport, Tokio1Executor};
-use tracing::{error, info};
+use tracing::info;
 
 use crate::{
     init::config::EmailConfig, jobs::job_funcs::init_scheduler::task_init,
@@ -65,6 +65,10 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
     );
     info!("ServerState initialized.");
 
+    for _ in 0..10_000_000 {
+        state.new_session(uuid::Uuid::new_v4()).await;
+    }
+
     // initialize scheduled jobs manager
     task_init(state.clone()).await?;
 
@@ -79,16 +83,12 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
         start.elapsed()
     );
 
-    tokio::spawn(async move {
-        if let Err(e) = axum::serve(
-            listener,
-            build_router(state).into_make_service_with_connect_info::<SocketAddr>(),
-        )
-        .await
-        {
-            error!("Failed to serve application: {}", e);
-        }
-    });
+    axum::serve(
+        listener,
+        build_router(state).into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("Failed to serve application: {}", e))?;
 
     Ok(())
 }
