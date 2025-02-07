@@ -37,7 +37,7 @@ pub struct ResponseWithCookies<'a, D: serde::Serialize, M: serde::Serialize> {
     cookies_to_unset: Option<Vec<axum_extra::extract::cookie::Cookie<'a>>>,
 }
 
-impl<'a, D: serde::Serialize, M: serde::Serialize> IntoResponse for ResponseWithCookies<'a, D, M> {
+impl<D: serde::Serialize, M: serde::Serialize> IntoResponse for ResponseWithCookies<'_, D, M> {
     fn into_response(self) -> axum::response::Response {
         let mut response = self.response.into_response();
         let headers = response.headers_mut();
