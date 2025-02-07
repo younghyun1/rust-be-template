@@ -3,7 +3,6 @@ use std::sync::atomic::AtomicU64;
 use diesel_async::pooled_connection::bb8::{Pool, PooledConnection};
 use diesel_async::AsyncPgConnection;
 use lettre::{AsyncSmtpTransport, Tokio1Executor};
-use tracing::error;
 use uuid::Uuid;
 
 // use super::compile_regex::get_email_regex;
@@ -29,7 +28,11 @@ pub struct Session {
 }
 
 impl ServerState {
-    pub async fn new_session(&self, user_id: Uuid, valid_for: Option<chrono::Duration>) -> Uuid {
+    pub async fn new_session(
+        &self,
+        user_id: Uuid,
+        valid_for: Option<chrono::Duration>,
+    ) -> anyhow::Result<Uuid> {
         let session_id = Uuid::new_v4();
         let now = chrono::Utc::now();
         let expires_at = now + valid_for.unwrap_or(DEFAULT_SESSION_DURATION);
@@ -47,12 +50,14 @@ impl ServerState {
             .await
         {
             Ok(_) => (),
-            Err(e) => {
-                error!("Failed to insert session into scc::HashMap: {:?}", e.1);
+            Err(_) => {
+                return Err(anyhow::anyhow!(
+                    "Failed to insert session into scc::HashMap; key already exists!"
+                ));
             }
         };
 
-        session_id
+        Ok(session_id)
     }
 
     pub async fn purge_expired_sessions(&self) -> (usize, usize) {
