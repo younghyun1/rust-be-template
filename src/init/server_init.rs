@@ -7,7 +7,7 @@ use tracing::info;
 
 use crate::{
     init::config::EmailConfig, jobs::job_funcs::init_scheduler::task_init,
-    routers::main_router::build_router, util::time::now::tokio_now,
+    routers::main_router::build_router,
 };
 
 use super::{config::DbConfig, state::ServerState};
@@ -64,10 +64,6 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
             .map_err(|e| anyhow::anyhow!("Failed to build ServerState: {}", e))?,
     );
     info!("ServerState initialized.");
-
-    for _ in 0..10_000_000 {
-        state.new_session(uuid::Uuid::new_v4()).await;
-    }
 
     // initialize scheduled jobs manager
     task_init(state.clone()).await?;
