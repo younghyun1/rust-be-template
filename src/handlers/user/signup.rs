@@ -18,7 +18,7 @@ use crate::{
     schema::{email_verification_tokens, users},
     util::{
         crypto::hash_pw::hash_pw,
-        string::validations::{validate_password, validate_username},
+        string::validations::{validate_password_form, validate_username},
         time::now::tokio_now,
     },
 };
@@ -34,7 +34,7 @@ pub async fn signup_handler(
         return Err(CodeError::USER_NAME_INVALID.into());
     }
 
-    if !validate_password(&request.user_password) {
+    if !validate_password_form(&request.user_password) {
         return Err(CodeError::PASSWORD_INVALID.into());
     }
 
