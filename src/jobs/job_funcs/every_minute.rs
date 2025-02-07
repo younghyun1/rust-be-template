@@ -29,7 +29,7 @@ pub fn next_scheduled_mark(
 
     // 3) If that target time is before 'now', then move it to the next minute by adding 60s.
     if target_time <= now {
-        target_time = target_time + chrono::Duration::seconds(60);
+        target_time += chrono::Duration::seconds(60);
     }
 
     Ok(target_time)
