@@ -2,7 +2,7 @@
 pub fn validate_username(username: &str) -> bool {
     // Enhanced validation logic for username
     let is_non_empty = !username.is_empty();
-    let is_valid_length = username.len() >= 1 && username.len() <= 20;
+    let is_valid_length = !username.is_empty() && username.len() <= 20;
     let is_valid_char = username.chars().all(|c| c.is_alphanumeric()); // includes hangul, etc
 
     is_non_empty && is_valid_length && is_valid_char
