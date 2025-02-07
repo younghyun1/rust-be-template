@@ -92,7 +92,7 @@ async fn main() -> anyhow::Result<()> {
     let app_name_version = std::env::var("APP_NAME_VERSION")
         .map_err(|e| anyhow::anyhow!("Failed to get APP_NAME_VERSION: {}", e))?;
 
-    let filename = format!("{}", app_name_version);
+    let filename = app_name_version.to_string();
 
     let file_appender =
         tracing_appender::rolling::daily(format!("./log/{}", app_name_version), filename);
