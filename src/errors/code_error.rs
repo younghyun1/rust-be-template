@@ -137,11 +137,11 @@ impl CodeError {
         message: "Wrong password!",
         log_level: Level::INFO,
     };
-    pub const ALREADY_LOGGED_IN: CodeError = CodeError {
+    pub const SESSION_ID_ALREADY_EXISTS: CodeError = CodeError {
         success: false,
         error_code: 17,
         http_status_code: StatusCode::BAD_REQUEST,
-        message: "User is already logged in!",
+        message: "Session ID already exists!",
         log_level: Level::INFO,
     };
 }
