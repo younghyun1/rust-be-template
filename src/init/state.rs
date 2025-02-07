@@ -8,6 +8,8 @@ use uuid::Uuid;
 
 // use super::compile_regex::get_email_regex;
 
+pub const DEFAULT_SESSION_DURATION: chrono::Duration = chrono::Duration::hours(1);
+
 pub struct ServerState {
     app_name_version: String,
     server_start_time: tokio::time::Instant,
@@ -27,10 +29,10 @@ pub struct Session {
 }
 
 impl ServerState {
-    pub async fn new_session(&self, user_id: Uuid) {
+    pub async fn new_session(&self, user_id: Uuid, valid_for: Option<chrono::Duration>) {
         let session_id = Uuid::new_v4();
         let now = chrono::Utc::now();
-        let expires_at = now + chrono::Duration::minutes(30);
+        let expires_at = now + valid_for.unwrap_or(DEFAULT_SESSION_DURATION);
         match self
             .session_map
             .insert_async(
