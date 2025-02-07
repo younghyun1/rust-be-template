@@ -116,7 +116,7 @@ pub async fn signup_handler(
 }
 
 #[inline(always)]
-fn validate_username<'a>(username: &'a str) -> bool {
+fn validate_username(username: &str) -> bool {
     // Enhanced validation logic for username
     let is_non_empty = !username.is_empty();
     let is_valid_length = username.len() >= 3 && username.len() <= 20;

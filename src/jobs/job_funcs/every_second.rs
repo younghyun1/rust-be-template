@@ -30,7 +30,7 @@ fn next_scheduled_second_mark(
 
     // 4) If that target time is behind the current time, add one whole second.
     if target_time <= now {
-        target_time = target_time + chrono::Duration::seconds(1);
+        target_time += chrono::Duration::seconds(1);
     }
 
     Ok(target_time)
