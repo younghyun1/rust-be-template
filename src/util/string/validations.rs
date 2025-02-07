@@ -9,7 +9,7 @@ pub fn validate_username(username: &str) -> bool {
 }
 
 #[inline(always)]
-pub fn validate_password(password: &str) -> bool {
+pub fn validate_password_form(password: &str) -> bool {
     if password.len() < 8 {
         return false;
     }
@@ -19,9 +19,6 @@ pub fn validate_password(password: &str) -> bool {
     let mut has_ascii_digit: bool = false;
 
     for ch in password.chars() {
-        if !ch.is_alphanumeric() {
-            return false;
-        }
         if ch.is_lowercase() {
             has_lowercase = true;
         }

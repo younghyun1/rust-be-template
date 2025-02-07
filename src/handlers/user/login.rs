@@ -7,7 +7,7 @@ use crate::{
     errors::code_error::{code_err, CodeError, HandlerResponse},
     init::state::ServerState,
     schema::users,
-    util::{crypto::verify_pw::verify_pw, string::validations::validate_password},
+    util::{crypto::verify_pw::verify_pw, string::validations::validate_password_form},
 };
 use axum::{extract::State, response::IntoResponse, Json};
 use axum_extra::extract::cookie::Cookie;
@@ -24,7 +24,7 @@ pub async fn login(
         return Err(CodeError::EMAIL_INVALID.into());
     };
 
-    if !validate_password(&request.user_password) {
+    if !validate_password_form(&request.user_password) {
         return Err(CodeError::PASSWORD_INVALID.into());
     }
 
