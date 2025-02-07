@@ -16,7 +16,11 @@ use crate::{
     errors::code_error::{code_err, CodeError, HandlerResponse},
     init::state::ServerState,
     schema::{email_verification_tokens, users},
-    util::{crypto::hash_pw::hash_pw, time::now::tokio_now},
+    util::{
+        crypto::hash_pw::hash_pw,
+        string::validations::{validate_password, validate_username},
+        time::now::tokio_now,
+    },
 };
 
 pub async fn signup_handler(
@@ -30,6 +34,10 @@ pub async fn signup_handler(
         return Err(CodeError::USER_NAME_INVALID.into());
     }
 
+    if !validate_password(&request.user_password) {
+        return Err(CodeError::PASSWORD_INVALID.into());
+    }
+
     if !email_address::EmailAddress::is_valid(&request.user_email) {
         return Err(CodeError::EMAIL_INVALID.into());
     };
@@ -37,7 +45,7 @@ pub async fn signup_handler(
     let mut conn = state
         .get_conn()
         .await
-        .map_err(|e| code_err(CodeError::DB_CONNECTION_ERROR, e))?;
+        .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
     #[rustfmt::skip]
     let email_exists: bool = diesel::select(
@@ -113,14 +121,4 @@ pub async fn signup_handler(
         (),
         start,
     ))
-}
-
-#[inline(always)]
-fn validate_username(username: &str) -> bool {
-    // Enhanced validation logic for username
-    let is_non_empty = !username.is_empty();
-    let is_valid_length = username.len() >= 3 && username.len() <= 20;
-    let is_valid_char = username.chars().all(|c| c.is_alphanumeric()); // includes hangul, etc
-
-    is_non_empty && is_valid_length && is_valid_char
 }
