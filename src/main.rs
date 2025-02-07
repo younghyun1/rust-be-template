@@ -6,6 +6,7 @@ use tracing::{info, level_filters};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::Layer;
+use util::crypto::random_pw::generate_random_password;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
@@ -43,9 +44,9 @@ pub mod handlers {
     pub mod user {
         pub mod check_if_user_exists;
         pub mod login;
+        pub mod logout;
         pub mod signup;
         pub mod verify_user_email;
-        pub mod logout;
     }
     pub mod fallback;
     pub mod root;
@@ -78,6 +79,7 @@ pub mod util {
     }
     pub mod crypto {
         pub mod hash_pw;
+        pub mod random_pw;
         pub mod verify_pw;
     }
     pub mod time {
@@ -90,6 +92,8 @@ pub mod util {
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> anyhow::Result<()> {
     let start = tokio::time::Instant::now();
+    let pw = generate_random_password();
+    println!("{}\n{:?}", pw, start.elapsed());
 
     if std::env::var("IS_AWS").is_err() {
         dotenvy::dotenv().map_err(|e| anyhow::anyhow!("Failed to load .env: {}", e))?;
