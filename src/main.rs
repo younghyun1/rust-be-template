@@ -45,6 +45,7 @@ pub mod handlers {
         pub mod login;
         pub mod signup;
         pub mod verify_user_email;
+        pub mod logout;
     }
     pub mod fallback;
     pub mod root;
