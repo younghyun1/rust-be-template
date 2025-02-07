@@ -21,8 +21,6 @@ use crate::{
 use super::middleware::logging::log_middleware;
 
 pub fn build_router(state: Arc<ServerState>) -> axum::Router {
-    
-
     axum::Router::new()
         .route("/", get(root_handler))
         .route("/auth/signup", post(signup_handler))
