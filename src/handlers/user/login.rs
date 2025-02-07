@@ -65,7 +65,7 @@ pub async fn login(
     let session_id: Uuid = state
         .new_session(user.user_id, None)
         .await
-        .map_err(|e| code_err(CodeError::ALREADY_LOGGED_IN, e))?;
+        .map_err(|e| code_err(CodeError::SESSION_ID_ALREADY_EXISTS, e))?;
 
     let cookie = Cookie::build(("session_id", session_id.to_string()))
         .path("/")
