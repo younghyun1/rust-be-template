@@ -29,7 +29,7 @@ pub async fn verify_user_email(
     let mut conn = state
         .get_conn()
         .await
-        .map_err(|e| code_err(CodeError::DB_CONNECTION_ERROR, e))?;
+        .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
     let email_verification_token: EmailVerificationToken = email_verification_tokens::table
         .filter(

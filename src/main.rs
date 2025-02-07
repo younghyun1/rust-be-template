@@ -22,6 +22,7 @@ pub mod dto {
     pub mod requests {
         pub mod user {
             pub mod check_if_user_exists_request;
+            pub mod login_request;
             pub mod signup_request;
             pub mod verify_user_email_request;
         }
@@ -71,8 +72,12 @@ pub mod jobs {
     }
 }
 pub mod util {
+    pub mod string {
+        pub mod validations;
+    }
     pub mod crypto {
         pub mod hash_pw;
+        pub mod verify_pw;
     }
     pub mod time {
         pub mod duration_formatter;

@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 // use super::compile_regex::get_email_regex;
 
-pub const DEFAULT_SESSION_DURATION: chrono::Duration = chrono::Duration::hours(1);
+const DEFAULT_SESSION_DURATION: chrono::Duration = chrono::Duration::hours(1);
 
 pub struct ServerState {
     app_name_version: String,
@@ -29,7 +29,7 @@ pub struct Session {
 }
 
 impl ServerState {
-    pub async fn new_session(&self, user_id: Uuid, valid_for: Option<chrono::Duration>) {
+    pub async fn new_session(&self, user_id: Uuid, valid_for: Option<chrono::Duration>) -> Uuid {
         let session_id = Uuid::new_v4();
         let now = chrono::Utc::now();
         let expires_at = now + valid_for.unwrap_or(DEFAULT_SESSION_DURATION);
@@ -51,6 +51,8 @@ impl ServerState {
                 error!("Failed to insert session into scc::HashMap: {:?}", e.1);
             }
         };
+
+        session_id
     }
 
     pub async fn purge_expired_sessions(&self) -> (usize, usize) {

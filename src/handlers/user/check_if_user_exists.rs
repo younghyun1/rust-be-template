@@ -28,7 +28,7 @@ pub async fn check_if_user_exists_handler(
     let mut conn = state
         .get_conn()
         .await
-        .map_err(|e| code_err(CodeError::DB_CONNECTION_ERROR, e))?;
+        .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
     #[rustfmt::skip]
     let email_exists: bool = diesel::select(

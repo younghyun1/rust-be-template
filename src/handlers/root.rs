@@ -38,7 +38,7 @@ pub async fn root_handler(
     let mut conn = state
         .get_conn()
         .await
-        .map_err(|e| code_err(CodeError::DB_CONNECTION_ERROR, e))?;
+        .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
     let version: Version = sql_query("SELECT version()")
         .get_result(&mut conn)
