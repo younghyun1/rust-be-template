@@ -93,7 +93,8 @@ pub mod util {
 async fn main() -> anyhow::Result<()> {
     let start = tokio::time::Instant::now();
     let pw = generate_random_password();
-    println!("{}\n{:?}", pw, start.elapsed());
+    let dsa = start.elapsed();
+    println!("{}\n{:?}", pw, dsa);
 
     if std::env::var("IS_AWS").is_err() {
         dotenvy::dotenv().map_err(|e| anyhow::anyhow!("Failed to load .env: {}", e))?;
