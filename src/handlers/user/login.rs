@@ -69,7 +69,7 @@ pub async fn login(
 
     drop(conn);
 
-    return Ok(http_resp_with_cookies(
+    Ok(http_resp_with_cookies(
         serde_json::json!({
             "message": "Login successful",
             "user_id": user.user_id
@@ -78,5 +78,5 @@ pub async fn login(
         tokio::time::Instant::now(),
         Some(vec![cookie]),
         None,
-    ));
+    ))
 }
