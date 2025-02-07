@@ -137,6 +137,13 @@ impl CodeError {
         message: "Could not verify password!",
         log_level: Level::ERROR,
     };
+    pub const ALREADY_LOGGED_IN: CodeError = CodeError {
+        success: false,
+        error_code: 17,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "User is already logged in!",
+        log_level: Level::INFO,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {

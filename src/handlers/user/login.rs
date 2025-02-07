@@ -55,9 +55,12 @@ pub async fn login(
         Err(e) => return Err(code_err(CodeError::COULD_NOT_VERIFY_PW, e)),
     }
 
-    let session_id: Uuid = state.new_session(user.user_id, None).await;
+    let session_id: Uuid = state
+        .new_session(user.user_id, None)
+        .await
+        .map_err(|e| code_err(CodeError::ALREADY_LOGGED_IN, e))?;
 
-    let cookie = Cookie::build(session_id.to_string())
+    let cookie = Cookie::build(("session_id", session_id.to_string()))
         .path("/")
         .http_only(true)
         .secure(true)
