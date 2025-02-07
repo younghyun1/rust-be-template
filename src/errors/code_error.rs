@@ -134,8 +134,8 @@ impl CodeError {
         success: false,
         error_code: 16,
         http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
-        message: "Could not verify password!",
-        log_level: Level::ERROR,
+        message: "Wrong password!",
+        log_level: Level::INFO,
     };
     pub const ALREADY_LOGGED_IN: CodeError = CodeError {
         success: false,

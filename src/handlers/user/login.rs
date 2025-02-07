@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     domain::user::User,
     dto::{
@@ -7,7 +9,10 @@ use crate::{
     errors::code_error::{code_err, CodeError, HandlerResponse},
     init::state::ServerState,
     schema::users,
-    util::{crypto::verify_pw::verify_pw, string::validations::validate_password_form},
+    util::{
+        crypto::verify_pw::verify_pw, string::validations::validate_password_form,
+        time::now::tokio_now,
+    },
 };
 use axum::{extract::State, response::IntoResponse, Json};
 use axum_extra::extract::cookie::Cookie;
@@ -16,9 +21,11 @@ use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
 pub async fn login(
-    State(state): State<ServerState>,
+    State(state): State<Arc<ServerState>>,
     Json(request): Json<LoginRequest>,
 ) -> HandlerResponse<impl IntoResponse> {
+    let start = tokio_now();
+
     // Check forms first to save time; this should also be done in the FE
     if !email_address::EmailAddress::is_valid(&request.user_email) {
         return Err(CodeError::EMAIL_INVALID.into());
@@ -75,7 +82,7 @@ pub async fn login(
             "user_id": user.user_id
         }),
         (),
-        tokio::time::Instant::now(),
+        start,
         Some(vec![cookie]),
         None,
     ))

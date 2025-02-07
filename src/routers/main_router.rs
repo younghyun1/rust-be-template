@@ -11,8 +11,8 @@ use crate::{
         fallback::fallback_handler,
         root::root_handler,
         user::{
-            check_if_user_exists::check_if_user_exists_handler, signup::signup_handler,
-            verify_user_email::verify_user_email,
+            check_if_user_exists::check_if_user_exists_handler, login::login,
+            signup::signup_handler, verify_user_email::verify_user_email,
         },
     },
     init::state::ServerState,
@@ -28,6 +28,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
             "/auth/check-if-user-exists",
             post(check_if_user_exists_handler),
         )
+        .route("/auth/login", post(login))
         .route("/auth/verify-user-email", post(verify_user_email))
         .fallback(get(fallback_handler))
         .layer(from_fn_with_state(state.clone(), log_middleware))
