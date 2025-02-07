@@ -18,7 +18,7 @@ pub struct CodeError {
 }
 
 impl CodeError {
-    pub const DB_CONNECTION_ERROR: CodeError = CodeError {
+    pub const POOL_ERROR: CodeError = CodeError {
         success: false,
         error_code: 0,
         http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
@@ -108,6 +108,34 @@ impl CodeError {
         http_status_code: StatusCode::BAD_REQUEST,
         message: "User email is already verified!",
         log_level: Level::INFO,
+    };
+    pub const PASSWORD_INVALID: CodeError = CodeError {
+        success: false,
+        error_code: 13,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Invalid password form! Must contain lower and uppercase characters and digits.",
+        log_level: Level::INFO,
+    };
+    pub const USER_NOT_FOUND: CodeError = CodeError {
+        success: false,
+        error_code: 14,
+        http_status_code: StatusCode::NOT_FOUND,
+        message: "User not found!",
+        log_level: Level::INFO,
+    };
+    pub const WRONG_PW: CodeError = CodeError {
+        success: false,
+        error_code: 15,
+        http_status_code: StatusCode::UNAUTHORIZED,
+        message: "Incorrect password!",
+        log_level: Level::INFO,
+    };
+    pub const COULD_NOT_VERIFY_PW: CodeError = CodeError {
+        success: false,
+        error_code: 16,
+        http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
+        message: "Could not verify password!",
+        log_level: Level::ERROR,
     };
 }
 
