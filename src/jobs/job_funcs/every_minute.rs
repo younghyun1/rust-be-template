@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
-use chrono::{Timelike, Utc};
+use chrono::{SecondsFormat, Timelike, Utc};
 use tracing::{error, info};
 
-use crate::{init::state::ServerState, util::time::duration_formatter::format_dt_difference};
+use crate::init::state::ServerState;
 
 /// Calculate the next UTC DateTime that lands on the current/next minute,
 /// with a specific "seconds + milliseconds" offset from the start of that minute.
@@ -35,22 +35,15 @@ pub fn next_scheduled_mark(
     Ok(target_time)
 }
 
-/// A helper that returns both (delay, human-readable schedule message).
+/// A helper that returns both (delay, next_mark).
 /// It calculates how long until the next_scheduled_mark(...) from now.
 pub fn next_scheduled_delay(
-    task_descriptor: &str,
+    _task_descriptor: &str,
     second_offset: u32,
     millisecond_offset: u32,
-) -> Result<(tokio::time::Duration, String)> {
+) -> Result<(tokio::time::Duration, chrono::DateTime<chrono::Utc>)> {
     let now = Utc::now();
     let next_mark = next_scheduled_mark(now, second_offset, millisecond_offset)?;
-
-    // We'll produce a user-friendly scheduling message.
-    let schedule_msg = format!(
-        "Task '{}' will run in {}",
-        task_descriptor,
-        format_dt_difference(now, next_mark)
-    );
 
     // Convert that difference into std::time::Duration for tokio.
     let delay = next_mark - now;
@@ -61,7 +54,7 @@ pub fn next_scheduled_delay(
         )
     })?;
 
-    Ok((delay, schedule_msg))
+    Ok((delay, next_mark))
 }
 
 /// Schedules a task to run once per minute, but at a specific
@@ -79,9 +72,9 @@ where
 {
     loop {
         // Get how long until the next scheduled run.
-        let (delay, schedule_message) =
+        let (delay, next_mark) =
             match next_scheduled_delay(&task_descriptor, second_offset, millisecond_offset) {
-                Ok((d, m)) => (d, m),
+                Ok((d, nm)) => (d, nm),
                 Err(e) => {
                     error!(
                         "Could not calculate next scheduled time for {}: {:?}",
@@ -93,7 +86,11 @@ where
                 }
             };
 
-        info!("{}", schedule_message);
+        info!(
+            task_name = %task_descriptor,
+            next_run_time = %next_mark.to_rfc3339_opts(SecondsFormat::AutoSi, true),
+            "Scheduled task"
+        );
 
         // Sleep until that time arrives.
         tokio::time::sleep(delay).await;
