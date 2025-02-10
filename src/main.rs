@@ -8,6 +8,8 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::Layer;
 use util::crypto::random_pw::generate_random_password;
 
+pub const MEANING_OF_LIFE: u128 = 22_398_254_448_911u128;
+
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
@@ -68,6 +70,7 @@ pub mod jobs {
         pub mod invalidate_sessions;
     }
     pub mod job_funcs {
+        pub mod every_hour;
         pub mod every_minute;
         pub mod every_second;
         pub mod init_scheduler;

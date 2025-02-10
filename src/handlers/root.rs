@@ -33,21 +33,19 @@ pub async fn root_handler(
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
-    let db_start = tokio_now();
-
     let mut conn = state
         .get_conn()
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
+    let db_start = tokio_now();
     let version: Version = sql_query("SELECT version()")
         .get_result(&mut conn)
         .await
         .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+    let db_elapsed = db_start.elapsed();
 
     drop(conn);
-
-    let db_elapsed = db_start.elapsed();
 
     Ok(http_resp::<RootHandlerResponse, ()>(
         RootHandlerResponse {

@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use chrono::{DateTime, Timelike, Utc};
+use chrono::{DateTime, SecondsFormat, Timelike, Utc};
 use std::sync::Arc;
 use tracing::{error, info};
 
@@ -90,7 +90,7 @@ where
 
         info!(
             task_name = %task_descriptor,
-            next_run_time = %next_mark,
+            next_run_time = %next_mark.to_rfc3339_opts(SecondsFormat::AutoSi, true),
             "Scheduled task"
         );
 
