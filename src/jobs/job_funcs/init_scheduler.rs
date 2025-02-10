@@ -20,13 +20,16 @@ pub async fn task_init(state: Arc<ServerState>) -> anyhow::Result<()> {
     tokio::spawn(async move {
         schedule_task_every_hour_at(
             coroutine_state,
-            move |state: Arc<ServerState>| async move { invalidate_sessions(state).await },
+            move |coroutine_state: Arc<ServerState>| async move {
+                invalidate_sessions(coroutine_state).await
+            },
             String::from("INVALIDATE_EXPIRED_SESSIONS"),
             0,
             0,
         )
         .await
     });
+    
 
     Ok(())
 }
