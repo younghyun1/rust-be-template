@@ -60,6 +60,14 @@ impl ServerState {
         Ok(session_id)
     }
 
+    pub async fn remove_session(&self, session_id: Uuid) -> anyhow::Result<(Uuid, usize)> {
+        let cur_session_count = self.session_map.len();
+        match self.session_map.remove_async(&session_id).await {
+            Some((session_id, _)) => Ok((session_id, cur_session_count - 1)),
+            None => Err(anyhow::anyhow!("Session map out of sync!")),
+        }
+    }
+
     pub async fn purge_expired_sessions(&self) -> (usize, usize) {
         let now = chrono::Utc::now();
         let (mut pruned, mut remaining): (usize, usize) = (0usize, 0usize);
