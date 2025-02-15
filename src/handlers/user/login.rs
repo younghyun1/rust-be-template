@@ -4,7 +4,7 @@ use crate::{
     domain::user::User,
     dto::{
         requests::user::login_request::LoginRequest,
-        responses::response_data::http_resp_with_cookies,
+        responses::{response_data::http_resp_with_cookies, user::login_response::LoginResponse},
     },
     errors::code_error::{code_err, CodeError, HandlerResponse},
     init::state::ServerState,
@@ -77,10 +77,10 @@ pub async fn login(
     drop(conn);
 
     Ok(http_resp_with_cookies(
-        serde_json::json!({
-            "message": "Login successful",
-            "user_id": user.user_id
-        }),
+        LoginResponse {
+            message: "Login successful".to_string(),
+            user_id: user.user_id,
+        },
         (),
         start,
         Some(vec![cookie]),
