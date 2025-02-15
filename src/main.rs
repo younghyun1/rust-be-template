@@ -33,6 +33,8 @@ pub mod dto {
     pub mod responses {
         pub mod user {
             pub mod email_validate_response;
+            pub mod login_response;
+            pub mod logout_response;
             pub mod signup_response;
         }
         pub mod response_data;
