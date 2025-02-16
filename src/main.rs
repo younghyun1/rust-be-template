@@ -49,6 +49,7 @@ pub mod handlers {
         pub mod check_if_user_exists;
         pub mod login;
         pub mod logout;
+        pub mod reset_password_request;
         pub mod signup;
         pub mod verify_user_email;
     }
@@ -79,6 +80,9 @@ pub mod jobs {
     }
 }
 pub mod util {
+    pub mod email {
+        pub mod emails;
+    }
     pub mod string {
         pub mod validations;
     }
