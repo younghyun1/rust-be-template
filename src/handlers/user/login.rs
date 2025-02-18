@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use crate::{
     domain::user::User,
@@ -15,12 +15,14 @@ use crate::{
     },
 };
 use axum::{extract::State, response::IntoResponse, Json};
-use axum_extra::extract::cookie::Cookie;
+use axum_extra::extract::{cookie::Cookie, CookieJar};
 use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
+use tracing::{error, info};
 use uuid::Uuid;
 
 pub async fn login(
+    cookie_jar: CookieJar,
     State(state): State<Arc<ServerState>>,
     Json(request): Json<LoginRequest>,
 ) -> HandlerResponse<impl IntoResponse> {
@@ -60,6 +62,31 @@ pub async fn login(
         Ok(true) => (),
         Ok(false) => return Err(CodeError::WRONG_PW.into()),
         Err(e) => return Err(code_err(CodeError::COULD_NOT_VERIFY_PW, e)),
+    }
+
+    // Invalidate prior session here.
+
+    let old_session_id: Option<Uuid> = match cookie_jar.get("session_id") {
+        Some(cookie) => match Uuid::from_str(cookie.value()) {
+            Ok(id) => Some(id),
+            Err(e) => {
+                error!(session_id=%cookie.value(), error=%e, "Invalid session_id in submitted cookies.");
+                None
+            }
+        },
+        None => None,
+    };
+
+    if let Some(old_session_id) = old_session_id {
+        match state.remove_session(old_session_id).await {
+            Ok((removed_session_id, session_count)) => {
+                info!(removed_session_id = %removed_session_id, session_count = %session_count, "User re-logging-in; session removed.");
+            }
+            Err(e) => {
+                error!(error = %e, old_session_id = %old_session_id, "Could not remove session ID");
+                return Err(code_err(CodeError::COULD_NOT_REMOVE_OLD_SESSION, e));
+            }
+        };
     }
 
     let session_id: Uuid = state

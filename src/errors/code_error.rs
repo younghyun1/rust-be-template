@@ -144,6 +144,13 @@ impl CodeError {
         message: "Session ID already exists!",
         log_level: Level::INFO,
     };
+    pub const COULD_NOT_REMOVE_OLD_SESSION: CodeError = CodeError {
+        success: false,
+        error_code: 18,
+        http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
+        message: "Could not remove old session!",
+        log_level: Level::ERROR,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
