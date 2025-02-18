@@ -4,6 +4,12 @@ pub struct PasswordResetEmail {
     pub email: String,
 }
 
+impl Default for PasswordResetEmail {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PasswordResetEmail {
     pub fn new() -> PasswordResetEmail {
         PasswordResetEmail {
