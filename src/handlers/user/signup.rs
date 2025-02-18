@@ -5,6 +5,7 @@ use chrono::{DateTime, Utc};
 use diesel::{dsl::exists, ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
 use lettre::{AsyncTransport, Message};
+use tracing::error;
 use uuid::Uuid;
 
 use crate::{
@@ -22,6 +23,8 @@ use crate::{
         time::now::tokio_now,
     },
 };
+
+const EMAIL_VERIFICATION_TOKEN_VALID_DURATION: chrono::TimeDelta = chrono::Duration::days(1);
 
 pub async fn signup_handler(
     Extension(request_received_time): Extension<DateTime<Utc>>,
@@ -84,8 +87,8 @@ pub async fn signup_handler(
     let new_email_verification_token: NewEmailVerificationToken = NewEmailVerificationToken::new(
         &user_id,
         &email_verification_token,
-        request_received_time + chrono::Duration::days(1), // expires_at
-        request_received_time,                             // created_at
+        request_received_time + EMAIL_VERIFICATION_TOKEN_VALID_DURATION, // expires_at
+        request_received_time,                                           // created_at
     );
 
     let inserted_email_verification_token_verify_by: DateTime<Utc> =
@@ -100,8 +103,10 @@ pub async fn signup_handler(
 
     // TODO: Email resend handler in case this fails
     let user_email = request.user_email.clone();
+    
     tokio::spawn(async move {
         let email_client = state.get_email_client();
+        
         let email: Message = Message::builder()
             .from("Cyhdev Forums <donotreply@cyhdev.com>".parse().unwrap())
             .to(user_email.parse().unwrap())
@@ -109,7 +114,13 @@ pub async fn signup_handler(
             .header(lettre::message::header::ContentType::TEXT_HTML)
             .body(String::from("TEST"))
             .unwrap();
-        email_client.send(email).await.unwrap();
+        
+        match email_client.send(email).await {
+            Ok(_) => (),
+            Err(e) => {
+                error!(error = %e, "Could not send email.")
+            }
+        };
     });
 
     Ok(http_resp(

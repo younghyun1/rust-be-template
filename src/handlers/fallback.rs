@@ -15,7 +15,7 @@ pub async fn fallback_handler() -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
     Ok(http_resp::<FallbackHandlerResponse, ()>(
         FallbackHandlerResponse {
-            message: "Invalid path!",
+            message: "Invalid path! Probes, go away.",
         },
         (),
         start,
