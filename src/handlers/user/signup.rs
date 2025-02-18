@@ -103,10 +103,10 @@ pub async fn signup_handler(
 
     // TODO: Email resend handler in case this fails
     let user_email = request.user_email.clone();
-    
+
     tokio::spawn(async move {
         let email_client = state.get_email_client();
-        
+
         let email: Message = Message::builder()
             .from("Cyhdev Forums <donotreply@cyhdev.com>".parse().unwrap())
             .to(user_email.parse().unwrap())
@@ -114,7 +114,7 @@ pub async fn signup_handler(
             .header(lettre::message::header::ContentType::TEXT_HTML)
             .body(String::from("TEST"))
             .unwrap();
-        
+
         match email_client.send(email).await {
             Ok(_) => (),
             Err(e) => {
