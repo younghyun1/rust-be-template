@@ -1,6 +1,18 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    comments (comment_id) {
+        comment_id -> Uuid,
+        post_id -> Uuid,
+        user_id -> Uuid,
+        comment_content -> Text,
+        comment_created_at -> Timestamptz,
+        comment_updated_at -> Nullable<Timestamptz>,
+        parent_comment_id -> Nullable<Uuid>,
+    }
+}
+
+diesel::table! {
     email_verification_tokens (email_verification_token_id) {
         email_verification_token_id -> Uuid,
         user_id -> Uuid,
@@ -23,14 +35,17 @@ diesel::table! {
 }
 
 diesel::table! {
-    refresh_tokens (refresh_token_id) {
-        refresh_token_id -> Uuid,
+    posts (post_id) {
+        post_id -> Uuid,
         user_id -> Uuid,
-        refresh_token -> Uuid,
-        refresh_token_issued_at -> Timestamptz,
-        refresh_token_expires_at -> Timestamptz,
-        refresh_token_revoked -> Bool,
-        refresh_token_used_at -> Nullable<Timestamptz>,
+        post_title -> Varchar,
+        post_slug -> Varchar,
+        post_content -> Text,
+        post_summary -> Nullable<Text>,
+        post_created_at -> Timestamptz,
+        post_updated_at -> Timestamptz,
+        post_published_at -> Nullable<Timestamptz>,
+        post_is_published -> Bool,
     }
 }
 
@@ -46,13 +61,16 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(comments -> posts (post_id));
+diesel::joinable!(comments -> users (user_id));
 diesel::joinable!(email_verification_tokens -> users (user_id));
 diesel::joinable!(password_reset_tokens -> users (user_id));
-diesel::joinable!(refresh_tokens -> users (user_id));
+diesel::joinable!(posts -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    comments,
     email_verification_tokens,
     password_reset_tokens,
-    refresh_tokens,
+    posts,
     users,
 );
