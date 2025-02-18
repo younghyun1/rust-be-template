@@ -18,7 +18,7 @@ use axum::{extract::State, response::IntoResponse, Json};
 use axum_extra::extract::{cookie::Cookie, CookieJar};
 use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
-use tracing::{error, info};
+use tracing::{error, trace};
 use uuid::Uuid;
 
 pub async fn login(
@@ -80,7 +80,7 @@ pub async fn login(
     if let Some(old_session_id) = old_session_id {
         match state.remove_session(old_session_id).await {
             Ok((removed_session_id, session_count)) => {
-                info!(removed_session_id = %removed_session_id, session_count = %session_count, "User re-logging-in; session removed.");
+                trace!(removed_session_id = %removed_session_id, session_count = %session_count, "User re-logging-in; session removed.");
             }
             Err(e) => {
                 error!(error = %e, old_session_id = %old_session_id, "Could not remove session ID");

@@ -35,6 +35,7 @@ pub mod dto {
             pub mod email_validate_response;
             pub mod login_response;
             pub mod logout_response;
+            pub mod reset_password_request_response;
             pub mod signup_response;
         }
         pub mod response_data;
@@ -72,6 +73,7 @@ pub mod init {
 pub mod jobs {
     pub mod auth {
         pub mod invalidate_sessions;
+        pub mod purge_nonverified_users;
     }
     pub mod job_funcs {
         pub mod every_hour;

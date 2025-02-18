@@ -3,7 +3,7 @@ use diesel::{prelude::Insertable, Queryable, QueryableByName};
 use serde_derive::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::schema::{email_verification_tokens, users};
+use crate::schema::{email_verification_tokens, password_reset_tokens, users};
 
 #[derive(Serialize, Deserialize, QueryableByName, Queryable)]
 pub struct User {
@@ -98,20 +98,27 @@ pub struct PasswordResetToken {
     pub password_reset_token_used_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Serialize, Deserialize, QueryableByName, Queryable)]
-pub struct RefreshToken {
-    #[diesel(sql_type = diesel::sql_types::Uuid)]
-    pub refresh_token_id: uuid::Uuid,
-    #[diesel(sql_type = diesel::sql_types::Uuid)]
-    pub user_id: uuid::Uuid,
-    #[diesel(sql_type = diesel::sql_types::Uuid)]
-    pub refresh_token: uuid::Uuid,
-    #[diesel(sql_type = diesel::sql_types::Timestamptz)]
-    pub refresh_token_issued_at: DateTime<Utc>,
-    #[diesel(sql_type = diesel::sql_types::Timestamptz)]
-    pub refresh_token_expires_at: DateTime<Utc>,
-    #[diesel(sql_type = diesel::sql_types::Bool)]
-    pub refresh_token_revoked: bool,
-    #[diesel(sql_type = diesel::sql_types::Nullable<diesel::sql_types::Timestamptz>)]
-    pub refresh_token_used_at: Option<DateTime<Utc>>,
+#[derive(Insertable)]
+#[diesel(table_name = password_reset_tokens)]
+pub struct NewPasswordResetToken<'a> {
+    user_id: &'a Uuid,
+    password_reset_token: &'a Uuid,
+    password_reset_token_expires_at: DateTime<Utc>,
+    password_reset_token_created_at: DateTime<Utc>,
+}
+
+impl<'a> NewPasswordResetToken<'a> {
+    pub fn new(
+        user_id: &'a Uuid,
+        password_reset_token: &'a Uuid,
+        password_reset_token_expires_at: DateTime<Utc>,
+        password_reset_token_created_at: DateTime<Utc>,
+    ) -> Self {
+        Self {
+            user_id,
+            password_reset_token,
+            password_reset_token_expires_at,
+            password_reset_token_created_at,
+        }
+    }
 }

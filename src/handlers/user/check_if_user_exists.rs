@@ -15,6 +15,11 @@ use crate::{
     util::time::now::tokio_now,
 };
 
+#[derive(serde_derive::Serialize)]
+struct CheckIfUserExistsRespose {
+    email_exists: bool,
+}
+
 pub async fn check_if_user_exists_handler(
     State(state): State<Arc<ServerState>>,
     Json(request): Json<CheckIfUserExistsRequest>,
@@ -41,9 +46,9 @@ pub async fn check_if_user_exists_handler(
 
     drop(conn);
 
-    if email_exists {
-        return Err(CodeError::EMAIL_MUST_BE_UNIQUE.into());
-    }
-
-    Ok(http_resp((), (), start))
+    Ok(http_resp(
+        CheckIfUserExistsRespose { email_exists },
+        (),
+        start,
+    ))
 }
