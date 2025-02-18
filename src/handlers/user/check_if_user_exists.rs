@@ -15,6 +15,7 @@ use crate::{
     util::time::now::tokio_now,
 };
 
+// TODO: Move
 #[derive(serde_derive::Serialize)]
 struct CheckIfUserExistsRespose {
     email_exists: bool,
