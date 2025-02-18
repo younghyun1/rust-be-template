@@ -34,10 +34,9 @@ pub async fn logout(
     // Adjust the cookie to make it a removal cookie
     cookie.make_removal();
 
-    let session_id = match cookie_jar.get("session_id") {
-        Some(cook) => Some(cook.value().to_owned()),
-        None => None,
-    };
+    let session_id = cookie_jar
+        .get("session_id")
+        .map(|cook| cook.value().to_owned());
 
     tokio::spawn(async move {
         if let Some(session_id) = session_id {
