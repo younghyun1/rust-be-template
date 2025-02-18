@@ -6,7 +6,6 @@ use tracing::{info, level_filters};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::Layer;
-use util::crypto::random_pw::generate_random_password;
 
 pub const MEANING_OF_LIFE: u128 = 22_398_254_448_911u128;
 
@@ -26,6 +25,7 @@ pub mod dto {
         pub mod user {
             pub mod check_if_user_exists_request;
             pub mod login_request;
+            pub mod reset_password_request;
             pub mod signup_request;
             pub mod verify_user_email_request;
         }
@@ -58,6 +58,7 @@ pub mod handlers {
 }
 pub mod routers {
     pub mod middleware {
+        pub mod auth;
         pub mod logging;
     }
     pub mod main_router;
