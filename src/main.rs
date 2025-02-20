@@ -121,7 +121,7 @@ async fn main() -> anyhow::Result<()> {
     let filename = app_name_version.to_string();
 
     let file_appender =
-        tracing_appender::rolling::daily(format!("./log/{}", app_name_version), filename);
+        tracing_appender::rolling::daily(format!("./logs/{}", app_name_version), filename);
     let (non_blocking_file, _guard) = tracing_appender::non_blocking(file_appender);
 
     // Create a console layer
