@@ -11,7 +11,7 @@ use uuid::Uuid;
 use crate::{
     domain::user::{NewPasswordResetToken, User},
     dto::{
-        requests::user::reset_password_request::ResetPasswordRequest,
+        requests::auth::reset_password_request::ResetPasswordRequest,
         responses::{
             response_data::http_resp,
             user::reset_password_request_response::ResetPasswordRequestResponse,

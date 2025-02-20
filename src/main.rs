@@ -22,7 +22,7 @@ pub mod dto {
         pub mod verify_your_email;
     }
     pub mod requests {
-        pub mod user {
+        pub mod auth {
             pub mod check_if_user_exists_request;
             pub mod login_request;
             pub mod reset_password;
@@ -48,7 +48,7 @@ pub mod errors {
     pub mod code_error;
 }
 pub mod handlers {
-    pub mod user {
+    pub mod auth {
         pub mod check_if_user_exists;
         pub mod login;
         pub mod logout;
@@ -145,6 +145,8 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     info!("Initializing server...");
+
+    // Apparently, when you listen in from Tokio's main thread, that slows down performance due to delegation overhead as the main thread is reserved...
     let server_handle = tokio::spawn(async move { server_init_proc(start).await });
 
     server_handle.await??;
