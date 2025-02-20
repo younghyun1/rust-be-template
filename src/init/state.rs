@@ -1,5 +1,6 @@
 use std::sync::atomic::AtomicU64;
 
+use chrono::Utc;
 use diesel_async::pooled_connection::bb8::{Pool, PooledConnection};
 use diesel_async::AsyncPgConnection;
 use lettre::{AsyncSmtpTransport, Tokio1Executor};
@@ -17,14 +18,6 @@ pub struct ServerState {
     email_client: lettre::AsyncSmtpTransport<Tokio1Executor>,
     // regexes: [regex::Regex; 1],
     session_map: scc::HashMap<uuid::Uuid, Session>,
-}
-
-#[derive(Debug, Clone, serde_derive::Serialize, serde_derive::Deserialize)]
-pub struct Session {
-    session_id: uuid::Uuid,
-    user_id: uuid::Uuid,
-    created_at: chrono::DateTime<chrono::Utc>,
-    expires_at: chrono::DateTime<chrono::Utc>,
 }
 
 impl ServerState {
@@ -58,6 +51,17 @@ impl ServerState {
         };
 
         Ok(session_id)
+    }
+
+    pub async fn get_session(&self, session_id: &Uuid) -> anyhow::Result<Session> {
+        match self
+            .session_map
+            .read_async(session_id, |_, v| v.clone())
+            .await
+        {
+            Some(session) => Ok(session),
+            None => Err(anyhow::anyhow!("Session not found")),
+        }
     }
 
     pub async fn remove_session(&self, session_id: Uuid) -> anyhow::Result<(Uuid, usize)> {
@@ -168,5 +172,21 @@ impl ServerStateBuilder {
             // regexes: [get_email_regex()],
             session_map: scc::HashMap::new(),
         })
+    }
+}
+
+#[derive(Debug, Clone, serde_derive::Serialize, serde_derive::Deserialize)]
+pub struct Session {
+    session_id: uuid::Uuid,
+    user_id: uuid::Uuid,
+    created_at: chrono::DateTime<chrono::Utc>,
+    expires_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl Session {
+    pub fn is_valid(&self) -> bool {
+        let now = Utc::now();
+
+        self.created_at < now && self.expires_at > now
     }
 }
