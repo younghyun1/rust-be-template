@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use axum::{extract::State, response::IntoResponse};
 use axum_extra::extract::{
-    cookie::{Cookie, SameSite},
     CookieJar,
+    cookie::{Cookie, SameSite},
 };
 use tracing::{error, info};
 use uuid::Uuid;

@@ -8,13 +8,13 @@ use crate::{
             auth::email_validate_response::EmailValidateResponse, response_data::http_resp,
         },
     },
-    errors::code_error::{code_err, CodeError, HandlerResponse},
+    errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
     schema::{email_verification_tokens, users},
     util::time::now::tokio_now,
 };
 
-use axum::{extract::State, response::IntoResponse, Json};
+use axum::{Json, extract::State, response::IntoResponse};
 use chrono::Utc;
 use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::{AsyncConnection, RunQueryDsl};

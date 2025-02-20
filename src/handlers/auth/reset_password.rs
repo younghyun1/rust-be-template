@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use axum::{extract::State, response::IntoResponse, Json};
+use axum::{Json, extract::State, response::IntoResponse};
 use chrono::Utc;
 use diesel::{AsChangeset, ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
@@ -14,7 +14,7 @@ use crate::{
             auth::reset_password_response::ResetPasswordResponse, response_data::http_resp,
         },
     },
-    errors::code_error::{code_err, CodeError, HandlerResponse},
+    errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
     schema::users,
     util::{

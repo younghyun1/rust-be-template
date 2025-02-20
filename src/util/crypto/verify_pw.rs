@@ -1,5 +1,5 @@
 use anyhow::Result;
-use argon2::{password_hash::PasswordHash, Argon2, PasswordVerifier};
+use argon2::{Argon2, PasswordVerifier, password_hash::PasswordHash};
 pub async fn verify_pw(password: &str, expected_hash: &str) -> Result<bool> {
     let password = password.to_owned();
     let expected_hash = expected_hash.to_owned();

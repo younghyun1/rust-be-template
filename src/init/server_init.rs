@@ -1,8 +1,8 @@
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 
-use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
-use lettre::{transport::smtp::authentication::Credentials, AsyncSmtpTransport, Tokio1Executor};
+use diesel_async::pooled_connection::bb8::Pool;
+use lettre::{AsyncSmtpTransport, Tokio1Executor, transport::smtp::authentication::Credentials};
 use tracing::info;
 
 use crate::{

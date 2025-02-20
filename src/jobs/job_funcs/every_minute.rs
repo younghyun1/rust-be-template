@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::{SecondsFormat, Timelike, Utc};
 use tracing::{error, info};
 

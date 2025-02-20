@@ -1,4 +1,5 @@
 pub const PASSWORD_RESET_EMAIL: &str = include_str!("./password_reset.html");
+pub const VALIDATE_EMAIL_EMAIL: &str = include_str!("./validate_email.html");
 
 pub struct PasswordResetEmail {
     pub email: String,

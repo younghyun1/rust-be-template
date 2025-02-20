@@ -1,5 +1,5 @@
 use anyhow::Result;
-use argon2::{password_hash::SaltString, Argon2, PasswordHasher};
+use argon2::{Argon2, PasswordHasher, password_hash::SaltString};
 use rand::rngs::OsRng;
 
 pub async fn hash_pw(password: String) -> Result<String> {

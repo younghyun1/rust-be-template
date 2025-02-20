@@ -8,7 +8,7 @@ use serde_derive::Serialize;
 
 use crate::{
     dto::responses::response_data::http_resp,
-    errors::code_error::{code_err, CodeError, HandlerResponse},
+    errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
     util::{time::duration_formatter::format_duration, time::now::tokio_now},
 };
