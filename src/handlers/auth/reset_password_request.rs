@@ -13,8 +13,8 @@ use crate::{
     dto::{
         requests::auth::reset_password_request::ResetPasswordRequest,
         responses::{
-            response_data::http_resp,
             auth::reset_password_request_response::ResetPasswordRequestResponse,
+            response_data::http_resp,
         },
     },
     errors::code_error::{code_err, CodeError, HandlerResponse},
