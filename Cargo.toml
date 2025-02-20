@@ -10,7 +10,7 @@ debug = false
 incremental = false
 strip = true
 lto = true
-panic = "abort"
+panic = "unwind"
 
 [dependencies]
 # web framework

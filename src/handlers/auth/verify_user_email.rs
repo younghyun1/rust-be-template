@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     domain::user::EmailVerificationToken,
     dto::{
-        requests::user::verify_user_email_request::VerifyUserEmailRequest,
+        requests::auth::verify_user_email_request::VerifyUserEmailRequest,
         responses::{
             response_data::http_resp, user::email_validate_response::EmailValidateResponse,
         },

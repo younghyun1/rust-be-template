@@ -11,7 +11,7 @@ use uuid::Uuid;
 use crate::{
     domain::user::{NewEmailVerificationToken, NewUser},
     dto::{
-        requests::user::signup_request::SignupRequest,
+        requests::auth::signup_request::SignupRequest,
         responses::{response_data::http_resp, user::signup_response::SignupResponse},
     },
     errors::code_error::{code_err, CodeError, HandlerResponse},
