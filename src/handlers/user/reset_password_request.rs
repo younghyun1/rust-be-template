@@ -4,6 +4,8 @@ use axum::{extract::State, response::IntoResponse, Json};
 use chrono::{DateTime, Utc};
 use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
+use lettre::AsyncTransport;
+use tracing::error;
 use uuid::Uuid;
 
 use crate::{
@@ -18,7 +20,7 @@ use crate::{
     errors::code_error::{code_err, CodeError, HandlerResponse},
     init::state::ServerState,
     schema::{password_reset_tokens, users},
-    util::time::now::tokio_now,
+    util::{email::emails::PasswordResetEmail, time::now::tokio_now},
 };
 
 const PASSWORD_RESET_TOKEN_VALID_DURATION: chrono::TimeDelta = chrono::Duration::minutes(30);
@@ -74,6 +76,22 @@ pub async fn reset_password_request_process(
             .map_err(|e| code_err(CodeError::DB_INSERTION_ERROR, e))?;
 
     drop(conn);
+
+    let user_email = request.user_email.clone();
+
+    tokio::spawn(async move {
+        let email_client = state.get_email_client();
+        let password_reset_email = PasswordResetEmail::new()
+            .set_link("example.com")
+            .to_message(&user_email);
+
+        match email_client.send(password_reset_email).await {
+            Ok(_) => (),
+            Err(e) => {
+                error!(error = %e, "Could not send email.")
+            }
+        };
+    });
 
     Ok(http_resp(
         ResetPasswordRequestResponse {
