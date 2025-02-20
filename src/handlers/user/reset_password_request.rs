@@ -82,7 +82,7 @@ pub async fn reset_password_request_process(
     tokio::spawn(async move {
         let email_client = state.get_email_client();
         let password_reset_email = PasswordResetEmail::new()
-            .set_link("example.com")
+            .set_link("example.com") // TODO: Include token here
             .to_message(&user_email);
 
         match email_client.send(password_reset_email).await {
