@@ -37,6 +37,7 @@ pub mod dto {
             pub mod login_response;
             pub mod logout_response;
             pub mod reset_password_request_response;
+            pub mod reset_password_response;
             pub mod signup_response;
         }
         pub mod response_data;
