@@ -11,13 +11,24 @@ impl Default for PasswordResetEmail {
 }
 
 impl PasswordResetEmail {
-    pub fn new() -> PasswordResetEmail {
+    pub fn new() -> Self {
         PasswordResetEmail {
             email: PASSWORD_RESET_EMAIL.to_string(),
         }
     }
 
-    pub fn set_link(&mut self, link: &str) {
+    pub fn set_link(mut self, link: &str) -> Self {
         self.email = self.email.replace("$1", link);
+        self
+    }
+
+    pub fn to_message(self, user_email: &str) -> lettre::Message {
+        lettre::Message::builder()
+            .from("Cyhdev Forums <donotreply@cyhdev.com>".parse().unwrap())
+            .to(user_email.parse().unwrap())
+            .subject("Reset Your Password")
+            .header(lettre::message::header::ContentType::TEXT_HTML)
+            .body(self.email)
+            .unwrap()
     }
 }
