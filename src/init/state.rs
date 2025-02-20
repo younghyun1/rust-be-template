@@ -64,6 +64,10 @@ impl ServerState {
         }
     }
 
+    pub fn get_session_length(&self) -> usize {
+        self.session_map.len()
+    }
+
     pub async fn remove_session(&self, session_id: Uuid) -> anyhow::Result<(Uuid, usize)> {
         let cur_session_count = self.session_map.len();
         match self.session_map.remove_async(&session_id).await {

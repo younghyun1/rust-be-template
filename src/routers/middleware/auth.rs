@@ -1,10 +1,8 @@
-use std::{net::SocketAddr, str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc};
 
 use axum::{
     body::Body,
-    debug_middleware,
-    extract::{ConnectInfo, Request, State},
-    http::Response,
+    extract::{Request, State},
     middleware::Next,
     response::IntoResponse,
 };
@@ -16,7 +14,6 @@ use crate::{
     init::state::ServerState,
 };
 
-#[debug_middleware]
 pub async fn auth_middleware(
     State(state): State<Arc<ServerState>>,
     cookie_jar: CookieJar,
