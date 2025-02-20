@@ -8,7 +8,7 @@ use tower_http::compression::CompressionLayer;
 
 use crate::{
     handlers::{
-        server::{fallback::fallback_handler, root::root_handler},
+        server::{fallback::fallback_handler, healthcheck::healthcheck, root::root_handler},
         user::{
             check_if_user_exists::check_if_user_exists_handler, login::login, logout::logout,
             reset_password::reset_password, reset_password_request::reset_password_request_process,
@@ -23,6 +23,7 @@ use super::middleware::{auth::auth_middleware, logging::log_middleware};
 pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     axum::Router::new()
         .route("/", get(root_handler))
+        .route("/healthcheck", get(healthcheck))
         .route("/auth/signup", post(signup_handler))
         .route(
             "/auth/check-if-user-exists",
@@ -33,8 +34,11 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
             "/auth/logout",
             post(logout).layer(from_fn_with_state(state.clone(), auth_middleware)),
         )
-        .route("/auth/reset-password-request", post(reset_password))
-        .route("/auth/reset-password", post(reset_password_request_process))
+        .route(
+            "/auth/reset-password-request",
+            post(reset_password_request_process),
+        )
+        .route("/auth/reset-password", post(reset_password))
         .route("/auth/verify-user-email", post(verify_user_email))
         .fallback(get(fallback_handler))
         .layer(from_fn_with_state(state.clone(), log_middleware))
