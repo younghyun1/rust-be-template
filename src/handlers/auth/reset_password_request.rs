@@ -14,7 +14,7 @@ use crate::{
         requests::auth::reset_password_request::ResetPasswordRequest,
         responses::{
             response_data::http_resp,
-            user::reset_password_request_response::ResetPasswordRequestResponse,
+            auth::reset_password_request_response::ResetPasswordRequestResponse,
         },
     },
     errors::code_error::{code_err, CodeError, HandlerResponse},
