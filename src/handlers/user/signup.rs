@@ -102,6 +102,7 @@ pub async fn signup_handler(
     drop(conn);
 
     // TODO: Email resend handler in case this fails
+    // TODO: Send a proper bloody email
     let user_email = request.user_email.clone();
 
     tokio::spawn(async move {

@@ -151,6 +151,27 @@ impl CodeError {
         message: "Could not remove old session!",
         log_level: Level::ERROR,
     };
+    pub const PASSWORD_RESET_TOKEN_FABRICATED: CodeError = CodeError {
+        success: false,
+        error_code: 19,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Password reset token was fabricated; created_at was in the future!",
+        log_level: Level::ERROR,
+    };
+    pub const PASSWORD_RESET_TOKEN_ALREADY_USED: CodeError = CodeError {
+        success: false,
+        error_code: 20,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Password reset token has already been used!",
+        log_level: Level::INFO,
+    };
+    pub const PASSWORD_RESET_TOKEN_EXPIRED: CodeError = CodeError {
+        success: false,
+        error_code: 21,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Password reset token has expired!",
+        log_level: Level::INFO,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {

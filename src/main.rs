@@ -25,6 +25,7 @@ pub mod dto {
         pub mod user {
             pub mod check_if_user_exists_request;
             pub mod login_request;
+            pub mod reset_password;
             pub mod reset_password_request;
             pub mod signup_request;
             pub mod verify_user_email_request;
@@ -50,6 +51,7 @@ pub mod handlers {
         pub mod check_if_user_exists;
         pub mod login;
         pub mod logout;
+        pub mod reset_password;
         pub mod reset_password_request;
         pub mod signup;
         pub mod verify_user_email;

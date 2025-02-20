@@ -12,6 +12,7 @@ use crate::{
         root::root_handler,
         user::{
             check_if_user_exists::check_if_user_exists_handler, login::login, logout::logout,
+            reset_password::reset_password, reset_password_request::reset_password_request_process,
             signup::signup_handler, verify_user_email::verify_user_email,
         },
     },
@@ -30,6 +31,8 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         )
         .route("/auth/login", post(login))
         .route("/auth/logout", post(logout))
+        .route("/auth/reset-password-request", post(reset_password))
+        .route("/auth/reset-password", post(reset_password_request_process))
         .route("/auth/verify-user-email", post(verify_user_email))
         .fallback(get(fallback_handler))
         .layer(from_fn_with_state(state.clone(), log_middleware))
