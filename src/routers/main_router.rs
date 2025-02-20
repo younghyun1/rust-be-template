@@ -19,7 +19,7 @@ use crate::{
     init::state::ServerState,
 };
 
-use super::middleware::logging::log_middleware;
+use super::middleware::{auth::auth_middleware, logging::log_middleware};
 
 pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     axum::Router::new()
@@ -35,6 +35,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/auth/reset-password", post(reset_password_request_process))
         .route("/auth/verify-user-email", post(verify_user_email))
         .fallback(get(fallback_handler))
+        .layer(from_fn_with_state(state.clone(), auth_middleware))
         .layer(from_fn_with_state(state.clone(), log_middleware))
         .layer(CompressionLayer::new())
         .with_state(state)

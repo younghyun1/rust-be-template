@@ -172,6 +172,13 @@ impl CodeError {
         message: "Password reset token has expired!",
         log_level: Level::INFO,
     };
+    pub const UNAUTHORIZED_ACCESS: CodeError = CodeError {
+        success: false,
+        error_code: 22,
+        http_status_code: StatusCode::UNAUTHORIZED,
+        message: "Unauthorized access attempt!",
+        log_level: Level::WARN,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
