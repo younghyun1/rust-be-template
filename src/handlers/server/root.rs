@@ -18,6 +18,7 @@ pub struct RootHandlerResponse {
     timestamp: DateTime<Utc>,
     server_uptime: String, // TODO: ISO-compliance
     responses_handled: u64,
+    users_logged_in: usize,
     db_version: String,
     db_latency: String,
 }
@@ -52,6 +53,7 @@ pub async fn root_handler(
             timestamp: Utc::now(),
             server_uptime: format_duration(state.get_uptime()),
             responses_handled: state.get_responses_handled(),
+            users_logged_in: state.get_session_length(),
             db_version: version.version,
             db_latency: format!("{:?}", db_elapsed),
         },

@@ -8,8 +8,7 @@ use tower_http::compression::CompressionLayer;
 
 use crate::{
     handlers::{
-        fallback::fallback_handler,
-        root::root_handler,
+        server::{fallback::fallback_handler, root::root_handler},
         user::{
             check_if_user_exists::check_if_user_exists_handler, login::login, logout::logout,
             reset_password::reset_password, reset_password_request::reset_password_request_process,
@@ -30,12 +29,14 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
             post(check_if_user_exists_handler),
         )
         .route("/auth/login", post(login))
-        .route("/auth/logout", post(logout))
+        .route(
+            "/auth/logout",
+            post(logout).layer(from_fn_with_state(state.clone(), auth_middleware)),
+        )
         .route("/auth/reset-password-request", post(reset_password))
         .route("/auth/reset-password", post(reset_password_request_process))
         .route("/auth/verify-user-email", post(verify_user_email))
         .fallback(get(fallback_handler))
-        .layer(from_fn_with_state(state.clone(), auth_middleware))
         .layer(from_fn_with_state(state.clone(), log_middleware))
         .layer(CompressionLayer::new())
         .with_state(state)
