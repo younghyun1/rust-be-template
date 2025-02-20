@@ -12,7 +12,7 @@ use crate::{
     domain::user::{NewEmailVerificationToken, NewUser},
     dto::{
         requests::auth::signup_request::SignupRequest,
-        responses::{response_data::http_resp, user::signup_response::SignupResponse},
+        responses::{response_data::http_resp, auth::signup_response::SignupResponse},
     },
     errors::code_error::{code_err, CodeError, HandlerResponse},
     init::state::ServerState,
