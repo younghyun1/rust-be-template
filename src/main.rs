@@ -59,6 +59,7 @@ pub mod handlers {
     }
     pub mod server {
         pub mod fallback;
+        pub mod healthcheck;
         pub mod root;
     }
 }
