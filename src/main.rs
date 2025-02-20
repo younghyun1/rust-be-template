@@ -57,8 +57,10 @@ pub mod handlers {
         pub mod signup;
         pub mod verify_user_email;
     }
-    pub mod fallback;
-    pub mod root;
+    pub mod server {
+        pub mod fallback;
+        pub mod root;
+    }
 }
 pub mod routers {
     pub mod middleware {
