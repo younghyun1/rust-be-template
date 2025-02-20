@@ -11,7 +11,7 @@ use crate::{
     dto::{
         requests::auth::reset_password::ResetPasswordProcessRequest,
         responses::{
-            response_data::http_resp, user::reset_password_response::ResetPasswordResponse,
+            auth::reset_password_response::ResetPasswordResponse, response_data::http_resp,
         },
     },
     errors::code_error::{code_err, CodeError, HandlerResponse},
@@ -36,7 +36,7 @@ pub async fn reset_password(
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
     let now = Utc::now();
-    
+
     let mut conn = state
         .get_conn()
         .await
@@ -66,7 +66,7 @@ pub async fn reset_password(
     if password_reset_token.password_reset_token_expires_at < now {
         return Err(CodeError::PASSWORD_RESET_TOKEN_EXPIRED.into());
     }
-    
+
     let hashed_pw = hash_pw(request.new_password)
         .await
         .map_err(|e| code_err(CodeError::COULD_NOT_HASH_PW, e))?;

@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     dto::responses::{
-        response_data::http_resp_with_cookies, user::logout_response::LogoutResponse,
+        auth::logout_response::LogoutResponse, response_data::http_resp_with_cookies,
     },
     errors::code_error::HandlerResponse,
     init::state::ServerState,

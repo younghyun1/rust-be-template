@@ -32,7 +32,7 @@ pub mod dto {
         }
     }
     pub mod responses {
-        pub mod user {
+        pub mod auth {
             pub mod email_validate_response;
             pub mod login_response;
             pub mod logout_response;
