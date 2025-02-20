@@ -23,14 +23,14 @@ pub async fn auth_middleware(
     let session_id = match cookie_jar.get("session_id") {
         Some(session_cookie) => match Uuid::from_str(session_cookie.value()) {
             Ok(session_id) => session_id,
-            Err(e) => return Err(code_err(CodeError::UNAUTHORIZED_ACCESS.into(), e)),
+            Err(e) => return Err(code_err(CodeError::UNAUTHORIZED_ACCESS, e)),
         },
         None => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
     };
 
     let session = match state.get_session(&session_id).await {
         Ok(session) => session,
-        Err(e) => return Err(code_err(CodeError::UNAUTHORIZED_ACCESS.into(), e)),
+        Err(e) => return Err(code_err(CodeError::UNAUTHORIZED_ACCESS, e)),
     };
 
     if !session.is_valid() {
@@ -39,5 +39,5 @@ pub async fn auth_middleware(
 
     let response = next.run(request).await;
 
-    return Ok(response);
+    Ok(response)
 }

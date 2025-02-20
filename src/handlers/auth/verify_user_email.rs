@@ -5,7 +5,7 @@ use crate::{
     dto::{
         requests::auth::verify_user_email_request::VerifyUserEmailRequest,
         responses::{
-            response_data::http_resp, auth::email_validate_response::EmailValidateResponse,
+            auth::email_validate_response::EmailValidateResponse, response_data::http_resp,
         },
     },
     errors::code_error::{code_err, CodeError, HandlerResponse},

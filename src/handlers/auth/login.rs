@@ -4,9 +4,7 @@ use crate::{
     domain::user::User,
     dto::{
         requests::auth::login_request::LoginRequest,
-        responses::{
-            auth::login_response::LoginResponse, response_data::http_resp_with_cookies,
-        },
+        responses::{auth::login_response::LoginResponse, response_data::http_resp_with_cookies},
     },
     errors::code_error::{code_err, CodeError, HandlerResponse},
     init::state::ServerState,
