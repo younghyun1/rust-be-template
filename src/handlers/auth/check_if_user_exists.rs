@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use axum::{extract::State, response::IntoResponse, Json};
-use diesel::{dsl::exists, ExpressionMethods, QueryDsl};
+use axum::{Json, extract::State, response::IntoResponse};
+use diesel::{ExpressionMethods, QueryDsl, dsl::exists};
 use diesel_async::RunQueryDsl;
 
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
         requests::auth::check_if_user_exists_request::CheckIfUserExistsRequest,
         responses::response_data::http_resp,
     },
-    errors::code_error::{code_err, CodeError, HandlerResponse},
+    errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
     schema::users,
     util::time::now::tokio_now,

@@ -64,7 +64,7 @@ impl DbConfig {
             _ => {
                 return Err(anyhow!(
                     "Unsupported DB; only postgreSQL is supported for now."
-                ))
+                ));
             }
         };
 

@@ -10,7 +10,7 @@ use axum_extra::extract::CookieJar;
 use uuid::Uuid;
 
 use crate::{
-    errors::code_error::{code_err, CodeError, HandlerResponse},
+    errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
 };
 

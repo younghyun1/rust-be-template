@@ -3,9 +3,9 @@ pub mod schema;
 use init::server_init::server_init_proc;
 use mimalloc::MiMalloc;
 use tracing::{info, level_filters};
+use tracing_subscriber::Layer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::Layer;
 
 pub const MEANING_OF_LIFE: u128 = 22_398_254_448_911u128;
 
@@ -17,10 +17,6 @@ pub mod domain {
     pub mod user;
 }
 pub mod dto {
-    pub mod common {}
-    pub mod emails {
-        pub mod verify_your_email;
-    }
     pub mod requests {
         pub mod auth {
             pub mod check_if_user_exists_request;
@@ -122,26 +118,26 @@ async fn main() -> anyhow::Result<()> {
 
     let file_appender =
         tracing_appender::rolling::daily(format!("./logs/{}", app_name_version), filename);
-    let (non_blocking_file, _guard) = tracing_appender::non_blocking(file_appender);
+    // let (non_blocking_file, _guard) = tracing_appender::non_blocking(file_appender);
 
     // Create a console layer
-    let console_layer = tracing_subscriber::fmt::layer()
-        // .json()
-        .with_ansi(true)
-        .with_target(true)
-        .with_filter(level_filters::LevelFilter::INFO);
+    // let console_layer = tracing_subscriber::fmt::layer()
+    //     // .json()
+    //     .with_ansi(true)
+    //     .with_target(true)
+    //     .with_filter(level_filters::LevelFilter::INFO);
 
     // Create a file layer
-    let file_layer = tracing_subscriber::fmt::layer()
-        .with_target(true)
-        .json()
-        .with_writer(non_blocking_file)
-        .with_filter(level_filters::LevelFilter::DEBUG);
+    // let file_layer = tracing_subscriber::fmt::layer()
+    //     .with_target(true)
+    //     .json()
+    //     .with_writer(non_blocking_file)
+    //     .with_filter(level_filters::LevelFilter::DEBUG);
 
     // Build a subscriber that combines both layers
     tracing_subscriber::registry()
-        .with(console_layer)
-        .with(file_layer)
+        // .with(console_layer)
+        // .with(file_layer)
         .init();
 
     info!("Initializing server...");

@@ -1,8 +1,8 @@
 use std::sync::atomic::AtomicU64;
 
 use chrono::Utc;
-use diesel_async::pooled_connection::bb8::{Pool, PooledConnection};
 use diesel_async::AsyncPgConnection;
+use diesel_async::pooled_connection::bb8::{Pool, PooledConnection};
 use lettre::{AsyncSmtpTransport, Tokio1Executor};
 use uuid::Uuid;
 

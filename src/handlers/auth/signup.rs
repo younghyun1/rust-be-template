@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use axum::{extract::State, response::IntoResponse, Extension, Json};
+use axum::{Extension, Json, extract::State, response::IntoResponse};
 use chrono::{DateTime, Utc};
-use diesel::{dsl::exists, ExpressionMethods, QueryDsl};
+use diesel::{ExpressionMethods, QueryDsl, dsl::exists};
 use diesel_async::RunQueryDsl;
 use lettre::{AsyncTransport, Message};
 use tracing::error;
@@ -14,7 +14,7 @@ use crate::{
         requests::auth::signup_request::SignupRequest,
         responses::{auth::signup_response::SignupResponse, response_data::http_resp},
     },
-    errors::code_error::{code_err, CodeError, HandlerResponse},
+    errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
     schema::{email_verification_tokens, users},
     util::{

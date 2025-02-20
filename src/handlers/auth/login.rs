@@ -6,7 +6,7 @@ use crate::{
         requests::auth::login_request::LoginRequest,
         responses::{auth::login_response::LoginResponse, response_data::http_resp_with_cookies},
     },
-    errors::code_error::{code_err, CodeError, HandlerResponse},
+    errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
     schema::users,
     util::{
@@ -14,8 +14,8 @@ use crate::{
         time::now::tokio_now,
     },
 };
-use axum::{extract::State, response::IntoResponse, Json};
-use axum_extra::extract::{cookie::Cookie, CookieJar};
+use axum::{Json, extract::State, response::IntoResponse};
+use axum_extra::extract::{CookieJar, cookie::Cookie};
 use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
 use tracing::{error, trace};
