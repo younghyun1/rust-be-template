@@ -14,7 +14,7 @@ use crate::init::state::ServerState;
 
 // by default, debug and below not logged at all; hence why
 macro_rules! log_codeerror {
-    ($level:expr, $kind:expr, response.method = $method:expr, response.path = $path:expr, response.client_ip = $client_ip:expr, response.status = $status:expr, response.status_code = $status_code:expr, response.duration = $duration:expr, response.error_code = $error_code:expr, response.message = $message:expr, response.detail = $detail:expr) => {
+    ($level:expr_2021, $kind:expr_2021, response.method = $method:expr_2021, response.path = $path:expr_2021, response.client_ip = $client_ip:expr_2021, response.status = $status:expr_2021, response.status_code = $status_code:expr_2021, response.duration = $duration:expr_2021, response.error_code = $error_code:expr_2021, response.message = $message:expr_2021, response.detail = $detail:expr_2021) => {
         match $level {
             Level::ERROR => tracing::error!(kind = %$kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
             Level::WARN => tracing::warn!(kind = %$kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
