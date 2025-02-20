@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, SecondsFormat, Timelike, Utc};
 use std::sync::Arc;
 use tracing::{error, info};
