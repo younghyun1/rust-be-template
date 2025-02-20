@@ -6,7 +6,7 @@ use diesel_async::RunQueryDsl;
 
 use crate::{
     dto::{
-        requests::user::check_if_user_exists_request::CheckIfUserExistsRequest,
+        requests::auth::check_if_user_exists_request::CheckIfUserExistsRequest,
         responses::response_data::http_resp,
     },
     errors::code_error::{code_err, CodeError, HandlerResponse},

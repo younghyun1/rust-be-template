@@ -9,7 +9,7 @@ use tracing::error;
 use crate::{
     domain::user::{PasswordResetToken, User},
     dto::{
-        requests::user::reset_password::ResetPasswordProcessRequest,
+        requests::auth::reset_password::ResetPasswordProcessRequest,
         responses::{
             response_data::http_resp, user::reset_password_response::ResetPasswordResponse,
         },

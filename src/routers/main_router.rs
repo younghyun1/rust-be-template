@@ -9,7 +9,7 @@ use tower_http::compression::CompressionLayer;
 use crate::{
     handlers::{
         server::{fallback::fallback_handler, healthcheck::healthcheck, root::root_handler},
-        user::{
+        auth::{
             check_if_user_exists::check_if_user_exists_handler, login::login, logout::logout,
             reset_password::reset_password, reset_password_request::reset_password_request_process,
             signup::signup_handler, verify_user_email::verify_user_email,

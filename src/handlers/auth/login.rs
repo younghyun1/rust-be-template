@@ -3,7 +3,7 @@ use std::{str::FromStr, sync::Arc};
 use crate::{
     domain::user::User,
     dto::{
-        requests::user::login_request::LoginRequest,
+        requests::auth::login_request::LoginRequest,
         responses::{response_data::http_resp_with_cookies, user::login_response::LoginResponse},
     },
     errors::code_error::{code_err, CodeError, HandlerResponse},
