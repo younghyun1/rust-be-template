@@ -9,7 +9,9 @@ use crate::{
     domain::user::{PasswordResetToken, User},
     dto::{
         requests::user::reset_password::ResetPasswordProcessRequest,
-        responses::response_data::http_resp,
+        responses::{
+            response_data::http_resp, user::reset_password_response::ResetPasswordResponse,
+        },
     },
     errors::code_error::{code_err, CodeError, HandlerResponse},
     init::state::ServerState,
@@ -82,5 +84,14 @@ pub async fn reset_password(
 
     drop(conn);
 
-    Ok(http_resp((), (), start))
+    Ok(http_resp(
+        ResetPasswordResponse {
+            user_id: user.user_id,
+            user_name: user.user_name,
+            user_email: user.user_email,
+            user_updated_at: user.user_updated_at,
+        },
+        (),
+        start,
+    ))
 }
