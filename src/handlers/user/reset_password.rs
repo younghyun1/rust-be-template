@@ -36,6 +36,7 @@ pub async fn reset_password(
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
     let now = Utc::now();
+    
     let mut conn = state
         .get_conn()
         .await
@@ -44,14 +45,6 @@ pub async fn reset_password(
     if !validate_password_form(&request.new_password) {
         return Err(CodeError::PASSWORD_INVALID.into());
     }
-
-    let hashed_pw = hash_pw(request.new_password)
-        .await
-        .map_err(|e| code_err(CodeError::COULD_NOT_HASH_PW, e))?;
-
-    let update_data = UpdatePassword {
-        user_password_hash: &hashed_pw,
-    };
 
     let password_reset_token: PasswordResetToken = crate::schema::password_reset_tokens::table
         .filter(
@@ -73,6 +66,14 @@ pub async fn reset_password(
     if password_reset_token.password_reset_token_expires_at < now {
         return Err(CodeError::PASSWORD_RESET_TOKEN_EXPIRED.into());
     }
+    
+    let hashed_pw = hash_pw(request.new_password)
+        .await
+        .map_err(|e| code_err(CodeError::COULD_NOT_HASH_PW, e))?;
+
+    let update_data = UpdatePassword {
+        user_password_hash: &hashed_pw,
+    };
 
     // Now update the user in the users table where the id matches.
     let user: User =
