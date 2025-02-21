@@ -8,7 +8,7 @@ use uuid::Uuid;
 use diesel_async::RunQueryDsl;
 
 use crate::{
-    domain::blog::NewPost,
+    domain::blog::{NewPost, Post},
     dto::requests::blog::submit_post_request::SubmitPostRequest,
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::{ServerState, Session},
@@ -50,9 +50,10 @@ pub async fn submit_post(
 
     let new_post = NewPost::new(&user_id, &request.title, &slug, &request.content, true);
 
-    diesel::insert_into(posts::table)
+    let post: Post = diesel::insert_into(posts::table)
         .values(new_post)
-        .execute(&mut conn)
+        .returning(posts::all_columns)
+        .get_result(&mut conn)
         .await
         .map_err(|e| code_err(CodeError::DB_INSERTION_ERROR, e))?;
 
