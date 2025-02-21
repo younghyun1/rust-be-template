@@ -40,6 +40,9 @@ pub mod dto {
             pub mod reset_password_response;
             pub mod signup_response;
         }
+        pub mod blog {
+            
+        }
         pub mod response_data;
         pub mod response_meta;
     }
