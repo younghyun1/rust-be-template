@@ -24,6 +24,7 @@ pub struct NewPost<'a> {
     pub post_title: &'a str,
     pub post_slug: &'a str,
     pub post_content: &'a str,
+    pub post_is_published: bool,
 }
 
 impl<'a> NewPost<'a> {
@@ -32,12 +33,14 @@ impl<'a> NewPost<'a> {
         post_title: &'a str,
         post_slug: &'a str,
         post_content: &'a str,
+        post_is_published: bool,
     ) -> Self {
         Self {
             user_id,
             post_title,
             post_slug,
             post_content,
+            post_is_published,
         }
     }
 }
