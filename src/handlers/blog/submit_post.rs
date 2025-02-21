@@ -48,7 +48,7 @@ pub async fn submit_post(
     let slug: String = generate_slug(&request.title);
     drop(session);
 
-    let new_post = NewPost::new(&user_id, &request.title, &slug, &request.content);
+    let new_post = NewPost::new(&user_id, &request.title, &slug, &request.content, true);
 
     diesel::insert_into(posts::table)
         .values(new_post)
