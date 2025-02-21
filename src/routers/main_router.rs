@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use axum::{
+    http::HeaderValue,
     middleware::from_fn_with_state,
     routing::{get, post},
 };
-use tower_http::compression::CompressionLayer;
+use tower_http::{compression::CompressionLayer, cors::CorsLayer};
 
 use crate::{
     handlers::{
@@ -42,6 +43,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/auth/verify-user-email", post(verify_user_email))
         .fallback(get(fallback_handler))
         .layer(from_fn_with_state(state.clone(), log_middleware))
+        .layer(CorsLayer::very_permissive())
         .layer(CompressionLayer::new())
         .with_state(state)
 }
