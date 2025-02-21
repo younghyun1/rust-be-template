@@ -8,16 +8,16 @@ use crate::schema::posts;
 
 #[derive(serde_derive::Serialize, QueryableByName, Queryable)]
 pub struct Post {
-    post_id: uuid::Uuid,
-    user_id: uuid::Uuid,
-    post_title: String,
-    post_slug: String,
-    post_content: String,
-    post_summary: Option<String>,
-    post_created_at: DateTime<Utc>,
-    post_updated_at: DateTime<Utc>,
-    post_published_at: Option<DateTime<Utc>>,
-    post_is_published: bool,
+    pub post_id: uuid::Uuid,
+    pub user_id: uuid::Uuid,
+    pub post_title: String,
+    pub post_slug: String,
+    pub post_content: String,
+    pub post_summary: Option<String>,
+    pub post_created_at: DateTime<Utc>,
+    pub post_updated_at: DateTime<Utc>,
+    pub post_published_at: Option<DateTime<Utc>>,
+    pub post_is_published: bool,
 }
 
 #[derive(Insertable)]

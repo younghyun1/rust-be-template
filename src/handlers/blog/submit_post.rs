@@ -2,14 +2,16 @@ use std::sync::Arc;
 
 use axum::{Json, extract::State, response::IntoResponse};
 use axum_extra::extract::CookieJar;
-use chrono::Utc;
 use uuid::Uuid;
 
 use diesel_async::RunQueryDsl;
 
 use crate::{
     domain::blog::{NewPost, Post},
-    dto::requests::blog::submit_post_request::SubmitPostRequest,
+    dto::{
+        requests::blog::submit_post_request::SubmitPostRequest,
+        responses::{blog::submit_post_response::SubmitPostResponse, response_data::http_resp},
+    },
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::{ServerState, Session},
     schema::posts,
@@ -22,7 +24,6 @@ pub async fn submit_post(
     Json(request): Json<SubmitPostRequest>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
-    let now = Utc::now();
 
     let mut conn = state
         .get_conn()
@@ -59,5 +60,16 @@ pub async fn submit_post(
 
     drop(conn);
 
-    Ok(())
+    Ok(http_resp(
+        SubmitPostResponse {
+            user_id,
+            post_title: post.post_title,
+            post_slug: post.post_slug,
+            post_created_at: post.post_created_at,
+            post_updated_at: post.post_updated_at,
+            post_is_published: post.post_is_published,
+        },
+        (),
+        start,
+    ))
 }

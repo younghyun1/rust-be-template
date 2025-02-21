@@ -41,7 +41,8 @@ pub mod dto {
             pub mod signup_response;
         }
         pub mod blog {
-            
+
+            pub mod submit_post_response;
         }
         pub mod response_data;
         pub mod response_meta;
