@@ -14,6 +14,7 @@ static GLOBAL: MiMalloc = MiMalloc;
 
 // modules tree
 pub mod domain {
+    pub mod blog;
     pub mod user;
 }
 pub mod dto {
@@ -25,6 +26,9 @@ pub mod dto {
             pub mod reset_password_request;
             pub mod signup_request;
             pub mod verify_user_email_request;
+        }
+        pub mod blog {
+            pub mod submit_post_request;
         }
     }
     pub mod responses {
@@ -92,6 +96,7 @@ pub mod util {
         pub mod emails;
     }
     pub mod string {
+        pub mod generate_slug;
         pub mod validations;
     }
     pub mod crypto {

@@ -193,4 +193,8 @@ impl Session {
 
         self.created_at < now && self.expires_at > now
     }
+
+    pub fn get_user_id(&self) -> uuid::Uuid {
+        self.user_id
+    }
 }

@@ -1,11 +1,62 @@
 use std::sync::Arc;
 
-use axum::{extract::State, response::IntoResponse};
+use axum::{Json, extract::State, response::IntoResponse};
+use axum_extra::extract::CookieJar;
+use chrono::Utc;
+use uuid::Uuid;
 
-use crate::{errors::code_error::HandlerResponse, init::state::ServerState};
+use diesel_async::RunQueryDsl;
+
+use crate::{
+    domain::blog::NewPost,
+    dto::requests::blog::submit_post_request::SubmitPostRequest,
+    errors::code_error::{CodeError, HandlerResponse, code_err},
+    init::state::{ServerState, Session},
+    schema::posts,
+    util::{string::generate_slug::generate_slug, time::now::tokio_now},
+};
 
 pub async fn submit_post(
+    cookie_jar: CookieJar,
     State(state): State<Arc<ServerState>>,
+    Json(request): Json<SubmitPostRequest>,
 ) -> HandlerResponse<impl IntoResponse> {
+    let start = tokio_now();
+    let now = Utc::now();
+
+    let mut conn = state
+        .get_conn()
+        .await
+        .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
+
+    // Get user_id out of JSON session.
+    let session_id: Uuid = match cookie_jar.get("session_id") {
+        Some(session_id) => match session_id.value().parse::<Uuid>() {
+            Ok(user_id) => user_id,
+            Err(_) => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
+        },
+        None => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
+    };
+
+    // TODO: Consider new error code here
+    let session: Session = state
+        .get_session(&session_id)
+        .await
+        .map_err(|e| code_err(CodeError::UNAUTHORIZED_ACCESS, e))?;
+
+    let user_id: Uuid = session.get_user_id();
+    let slug: String = generate_slug(&request.title);
+    drop(session);
+
+    let new_post = NewPost::new(&user_id, &request.title, &slug, &request.content);
+
+    diesel::insert_into(posts::table)
+        .values(new_post)
+        .execute(&mut conn)
+        .await
+        .map_err(|e| code_err(CodeError::DB_INSERTION_ERROR, e))?;
+
+    drop(conn);
+
     Ok(())
 }
