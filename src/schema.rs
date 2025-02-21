@@ -35,6 +35,14 @@ diesel::table! {
 }
 
 diesel::table! {
+    permissions (permission_id) {
+        permission_id -> Uuid,
+        permission_name -> Text,
+        permission_description -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
     posts (post_id) {
         post_id -> Uuid,
         user_id -> Uuid,
@@ -46,6 +54,30 @@ diesel::table! {
         post_updated_at -> Timestamptz,
         post_published_at -> Nullable<Timestamptz>,
         post_is_published -> Bool,
+    }
+}
+
+diesel::table! {
+    role_permissions (role_permission_id) {
+        role_permission_id -> Uuid,
+        role_id -> Uuid,
+        permission_id -> Uuid,
+    }
+}
+
+diesel::table! {
+    roles (role_id) {
+        role_id -> Uuid,
+        role_name -> Text,
+        role_description -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
+    user_roles (user_role_id) {
+        user_role_id -> Uuid,
+        user_id -> Uuid,
+        role_id -> Uuid,
     }
 }
 
@@ -66,11 +98,19 @@ diesel::joinable!(comments -> users (user_id));
 diesel::joinable!(email_verification_tokens -> users (user_id));
 diesel::joinable!(password_reset_tokens -> users (user_id));
 diesel::joinable!(posts -> users (user_id));
+diesel::joinable!(role_permissions -> permissions (permission_id));
+diesel::joinable!(role_permissions -> roles (role_id));
+diesel::joinable!(user_roles -> roles (role_id));
+diesel::joinable!(user_roles -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     comments,
     email_verification_tokens,
     password_reset_tokens,
+    permissions,
     posts,
+    role_permissions,
+    roles,
+    user_roles,
     users,
 );

@@ -12,12 +12,17 @@ pub struct FallbackHandlerResponse<'a> {
 }
 
 pub async fn fallback_handler() -> HandlerResponse<impl IntoResponse> {
+    // Capture the current time as the start time
     let start = tokio_now();
+    // Return an HTTP response indicating an invalid path was accessed
     Ok(http_resp::<FallbackHandlerResponse, ()>(
         FallbackHandlerResponse {
+            // A message indicating that the accessed path is invalid
             message: "Invalid path! Probes, go away.",
         },
+        // No additional data is returned
         (),
+        // Include the start time for any relevant logging or metrics
         start,
     ))
 }

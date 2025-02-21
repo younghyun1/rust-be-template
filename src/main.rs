@@ -53,6 +53,9 @@ pub mod handlers {
         pub mod signup;
         pub mod verify_user_email;
     }
+    pub mod blog {
+        pub mod submit_post;
+    }
     pub mod server {
         pub mod fallback;
         pub mod healthcheck;
@@ -118,26 +121,24 @@ async fn main() -> anyhow::Result<()> {
 
     let file_appender =
         tracing_appender::rolling::daily(format!("./logs/{}", app_name_version), filename);
-    // let (non_blocking_file, _guard) = tracing_appender::non_blocking(file_appender);
+    let (non_blocking_file, _guard) = tracing_appender::non_blocking(file_appender);
 
-    // Create a console layer
-    // let console_layer = tracing_subscriber::fmt::layer()
-    //     // .json()
-    //     .with_ansi(true)
-    //     .with_target(true)
-    //     .with_filter(level_filters::LevelFilter::INFO);
+    let console_layer = tracing_subscriber::fmt::layer()
+        // .json()
+        .with_ansi(true)
+        .with_target(true)
+        .with_filter(level_filters::LevelFilter::INFO);
 
-    // Create a file layer
-    // let file_layer = tracing_subscriber::fmt::layer()
-    //     .with_target(true)
-    //     .json()
-    //     .with_writer(non_blocking_file)
-    //     .with_filter(level_filters::LevelFilter::DEBUG);
+    let file_layer = tracing_subscriber::fmt::layer()
+        .with_target(true)
+        .json()
+        .with_writer(non_blocking_file)
+        .with_filter(level_filters::LevelFilter::DEBUG);
 
     // Build a subscriber that combines both layers
     tracing_subscriber::registry()
-        // .with(console_layer)
-        // .with(file_layer)
+        .with(console_layer)
+        .with(file_layer)
         .init();
 
     info!("Initializing server...");
