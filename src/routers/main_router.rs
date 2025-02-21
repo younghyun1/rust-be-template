@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use axum::{
-    http::HeaderValue,
     middleware::from_fn_with_state,
     routing::{get, post},
 };
