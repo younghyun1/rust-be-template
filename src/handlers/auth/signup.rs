@@ -26,6 +26,7 @@ use crate::{
 
 const EMAIL_VERIFICATION_TOKEN_VALID_DURATION: chrono::TimeDelta = chrono::Duration::days(1);
 
+// TODO: Add profile picture storage func
 pub async fn signup_handler(
     Extension(request_received_time): Extension<DateTime<Utc>>,
     State(state): State<Arc<ServerState>>,
