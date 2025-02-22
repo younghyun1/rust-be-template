@@ -1,4 +1,4 @@
-ARG RUST_VERSION=1.84.1
+ARG RUST_VERSION=1.85.0
 ARG APP_NAME=rust-be-template
 
 FROM rust:${RUST_VERSION}-alpine AS build
