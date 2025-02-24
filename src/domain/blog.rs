@@ -20,6 +20,26 @@ pub struct Post {
     pub post_is_published: bool,
 }
 
+#[derive(
+    Clone,
+    serde_derive:: Serialize,
+    serde_derive::Deserialize,
+    Queryable,
+    QueryableByName,
+    Selectable,
+)]
+#[diesel(table_name = posts)]
+pub struct PostInfo {
+    pub post_id: uuid::Uuid,
+    pub user_id: uuid::Uuid,
+    pub post_title: String,
+    pub post_slug: String,
+    pub post_summary: Option<String>,
+    pub post_created_at: DateTime<Utc>,
+    pub post_updated_at: DateTime<Utc>,
+    pub post_published_at: Option<DateTime<Utc>>,
+}
+
 #[derive(Insertable)]
 #[diesel(table_name = posts)]
 pub struct NewPost<'a> {

@@ -41,6 +41,7 @@ pub mod dto {
         }
         pub mod blog {
 
+            pub mod get_posts;
             pub mod submit_post_response;
         }
         pub mod response_data;
@@ -78,6 +79,9 @@ pub mod routers {
     pub mod main_router;
 }
 pub mod init {
+    pub mod load_cache {
+        pub mod post_info;
+    }
     pub mod compile_regex;
     pub mod config;
     pub mod server_init;
