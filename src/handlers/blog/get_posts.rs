@@ -1,20 +1,12 @@
 use std::sync::Arc;
 
 use crate::{
-    domain::blog::Post,
     dto::requests::blog::get_posts_request::GetPostsRequest,
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
-    schema::posts,
     util::time::now::tokio_now,
 };
 use axum::{Json, extract::State, response::IntoResponse};
-use diesel::{
-    QueryDsl,
-    query_builder::BoxedSelectStatement,
-    sql_types::{Bool, Integer, Text, Uuid},
-};
-use diesel_async::RunQueryDsl;
 
 // GET: /blog/{slug}
 pub async fn get_posts(
