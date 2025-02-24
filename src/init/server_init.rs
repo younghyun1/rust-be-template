@@ -63,6 +63,7 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
             .build()
             .map_err(|e| anyhow::anyhow!("Failed to build ServerState: {}", e))?,
     );
+    state.synchronize_post_info_cache().await;
     info!("ServerState initialized.");
 
     // initialize scheduled jobs manager
