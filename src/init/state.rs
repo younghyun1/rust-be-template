@@ -4,7 +4,14 @@ use chrono::Utc;
 use diesel_async::AsyncPgConnection;
 use diesel_async::pooled_connection::bb8::{Pool, PooledConnection};
 use lettre::{AsyncSmtpTransport, Tokio1Executor};
+use tokio::sync::RwLock;
+use tracing::{error, info};
 use uuid::Uuid;
+
+use crate::domain::blog::PostInfo;
+use crate::util::time::now::tokio_now;
+
+use super::load_cache::post_info::load_post_info;
 
 // use super::compile_regex::get_email_regex;
 
@@ -18,6 +25,7 @@ pub struct ServerState {
     email_client: lettre::AsyncSmtpTransport<Tokio1Executor>,
     // regexes: [regex::Regex; 1],
     session_map: scc::HashMap<uuid::Uuid, Session>,
+    blog_posts_cache: RwLock<Vec<PostInfo>>,
 }
 
 impl ServerState {
@@ -124,6 +132,47 @@ impl ServerState {
         self.responses_handled
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     }
+
+    pub async fn synchronize_post_info_cache(&self) {
+        let start = tokio_now();
+
+        let post_info = match load_post_info(&self).await {
+            Ok(post_info) => post_info,
+            Err(e) => {
+                error!("Could not synchronize post metadata cache: {:?}", e);
+                return;
+            }
+        };
+
+        let mut cache_write_lock = self.blog_posts_cache.write().await;
+        *cache_write_lock = post_info;
+
+        let elapsed = start.elapsed();
+        info!(number_of_rows = %cache_write_lock.len(), elapsed=%format!("{elapsed:?}"), "Post metadata cache synchronized.");
+        drop(cache_write_lock);
+    }
+
+    pub async fn get_posts_from_cache(
+        &self,
+        page: usize,
+        page_size: usize,
+    ) -> (Vec<PostInfo>, usize) {
+        let start_index = (page.saturating_sub(1)) * page_size;
+        let end_index = start_index + page_size;
+
+        let cache_read_lock = self.blog_posts_cache.read().await;
+        let total_posts = cache_read_lock.len();
+        let total_pages = (total_posts + page_size - 1) / page_size; // Calculate total number of pages
+
+        if start_index >= total_posts {
+            return (vec![], total_pages);
+        }
+
+        let posts = cache_read_lock[start_index..end_index.min(total_posts)].to_vec();
+        (posts, total_pages)
+    }
+
+    // TODO: Insert post (write-through cache)
 }
 
 #[derive(Default)]
@@ -175,6 +224,7 @@ impl ServerStateBuilder {
                 .ok_or_else(|| anyhow::anyhow!("email_client is required"))?,
             // regexes: [get_email_regex()],
             session_map: scc::HashMap::new(),
+            blog_posts_cache: tokio::sync::RwLock::new(vec![]),
         })
     }
 }
