@@ -179,6 +179,13 @@ impl CodeError {
         message: "Unauthorized access attempt!",
         log_level: Level::WARN,
     };
+    pub const POST_TITLE_NOT_UNIQUE: CodeError = CodeError {
+        success: false,
+        error_code: 23,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Post title must be unique!",
+        log_level: Level::INFO,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
