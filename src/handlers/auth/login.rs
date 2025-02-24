@@ -18,7 +18,7 @@ use axum::{Json, extract::State, response::IntoResponse};
 use axum_extra::extract::{CookieJar, cookie::Cookie};
 use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
-use tracing::{error, trace};
+use tracing::{error, trace, warn};
 use uuid::Uuid;
 
 pub async fn login(
@@ -83,8 +83,7 @@ pub async fn login(
                 trace!(removed_session_id = %removed_session_id, session_count = %session_count, "User re-logging-in; session removed.");
             }
             Err(e) => {
-                error!(error = %e, old_session_id = %old_session_id, "Could not remove session ID");
-                return Err(code_err(CodeError::COULD_NOT_REMOVE_OLD_SESSION, e));
+                warn!(error = %e, old_session_id = %old_session_id, "Could not remove session ID! Server may have been re-started.");
             }
         };
     }

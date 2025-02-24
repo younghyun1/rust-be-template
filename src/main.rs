@@ -7,8 +7,6 @@ use tracing_subscriber::Layer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-pub const MEANING_OF_LIFE: u128 = 22_398_254_448_911u128;
-
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
@@ -28,6 +26,7 @@ pub mod dto {
             pub mod verify_user_email_request;
         }
         pub mod blog {
+            pub mod get_posts_request;
             pub mod submit_post_request;
         }
     }
@@ -62,6 +61,7 @@ pub mod handlers {
         pub mod verify_user_email;
     }
     pub mod blog {
+        pub mod get_posts;
         pub mod submit_post;
     }
     pub mod server {

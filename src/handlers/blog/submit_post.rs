@@ -56,7 +56,13 @@ pub async fn submit_post(
         .returning(posts::all_columns)
         .get_result(&mut conn)
         .await
-        .map_err(|e| code_err(CodeError::DB_INSERTION_ERROR, e))?;
+        .map_err(|e| match e {
+            diesel::result::Error::DatabaseError(
+                diesel::result::DatabaseErrorKind::UniqueViolation,
+                _,
+            ) => code_err(CodeError::POST_TITLE_NOT_UNIQUE, e),
+            _ => code_err(CodeError::DB_INSERTION_ERROR, e),
+        })?;
 
     drop(conn);
 

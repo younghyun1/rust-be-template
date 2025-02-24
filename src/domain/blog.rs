@@ -1,12 +1,12 @@
 use chrono::{DateTime, Utc};
 use diesel::{
-    Insertable,
+    Insertable, Selectable,
     prelude::{Queryable, QueryableByName},
 };
 
 use crate::schema::posts;
 
-#[derive(serde_derive::Serialize, QueryableByName, Queryable)]
+#[derive(serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
 pub struct Post {
     pub post_id: uuid::Uuid,
     pub user_id: uuid::Uuid,
