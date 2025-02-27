@@ -46,10 +46,16 @@ pub async fn submit_post(
         .map_err(|e| code_err(CodeError::UNAUTHORIZED_ACCESS, e))?;
 
     let user_id: Uuid = session.get_user_id();
-    let slug: String = generate_slug(&request.title);
+    let slug: String = generate_slug(&request.post_title);
     drop(session);
 
-    let new_post = NewPost::new(&user_id, &request.title, &slug, &request.content, true);
+    let new_post = NewPost::new(
+        &user_id,
+        &request.post_title,
+        &slug,
+        &request.post_content,
+        request.post_is_published,
+    );
 
     let post: Post = diesel::insert_into(posts::table)
         .values(new_post)
