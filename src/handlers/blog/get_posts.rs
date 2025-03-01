@@ -12,6 +12,8 @@ use crate::{
 };
 use axum::{Json, extract::State, response::IntoResponse};
 
+/// GET /blog/get-posts
+/// Get posts metadata for post list. 
 pub async fn get_posts(
     State(state): State<Arc<ServerState>>,
     Json(request): Json<GetPostsRequest>,
