@@ -6,7 +6,7 @@ use diesel::{
 
 use crate::schema::posts;
 
-#[derive(serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
+#[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
 pub struct Post {
     pub post_id: uuid::Uuid,
     pub user_id: uuid::Uuid,
@@ -38,6 +38,21 @@ pub struct PostInfo {
     pub post_created_at: DateTime<Utc>,
     pub post_updated_at: DateTime<Utc>,
     pub post_published_at: Option<DateTime<Utc>>,
+}
+
+impl From<Post> for PostInfo {
+    fn from(post: Post) -> Self {
+        Self {
+            post_id: post.post_id,
+            user_id: post.user_id,
+            post_title: post.post_title,
+            post_slug: post.post_slug,
+            post_summary: post.post_summary,
+            post_created_at: post.post_created_at,
+            post_updated_at: post.post_updated_at,
+            post_published_at: post.post_published_at,
+        }
+    }
 }
 
 #[derive(Insertable)]

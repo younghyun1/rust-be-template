@@ -7,7 +7,7 @@ use uuid::Uuid;
 use diesel_async::RunQueryDsl;
 
 use crate::{
-    domain::blog::{NewPost, Post},
+    domain::blog::{NewPost, Post, PostInfo},
     dto::{
         requests::blog::submit_post_request::SubmitPostRequest,
         responses::{blog::submit_post_response::SubmitPostResponse, response_data::http_resp},
@@ -71,6 +71,9 @@ pub async fn submit_post(
         })?;
 
     drop(conn);
+
+    let post_info: PostInfo = post.clone().into();
+    state.insert_post_to_cache(&post_info).await;
 
     Ok(http_resp(
         SubmitPostResponse {
