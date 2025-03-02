@@ -186,6 +186,13 @@ impl CodeError {
         message: "Post title must be unique!",
         log_level: Level::INFO,
     };
+    pub const POST_NOT_FOUND: CodeError = CodeError {
+        success: false,
+        error_code: 24,
+        http_status_code: StatusCode::NOT_FOUND,
+        message: "Post not found or access denied!",
+        log_level: Level::INFO,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
