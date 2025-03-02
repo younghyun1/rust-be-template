@@ -13,7 +13,7 @@ use crate::{
             reset_password::reset_password, reset_password_request::reset_password_request_process,
             signup::signup_handler, verify_user_email::verify_user_email,
         },
-        blog::{get_posts::get_posts, submit_post::submit_post},
+        blog::{get_posts::get_posts, read_post::read_post, submit_post::submit_post},
         server::{fallback::fallback_handler, healthcheck::healthcheck, root::root_handler},
     },
     init::state::ServerState,
@@ -43,6 +43,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/auth/verify-user-email", post(verify_user_email))
         .route("/blog/submit-post", post(submit_post))
         .route("/blog/get-posts", get(get_posts))
+        .route("/blog/read-post", get(read_post))
         .fallback(get(fallback_handler))
         .layer(from_fn_with_state(state.clone(), log_middleware))
         .layer(CorsLayer::very_permissive())
