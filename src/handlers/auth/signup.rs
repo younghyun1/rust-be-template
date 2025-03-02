@@ -51,7 +51,6 @@ pub async fn signup_handler(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    #[rustfmt::skip]
     let email_exists: bool = diesel::select(
         exists(
             users::table.filter(users::user_email.eq(&request.user_email)),
