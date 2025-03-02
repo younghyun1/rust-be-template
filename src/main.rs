@@ -66,6 +66,8 @@ pub mod handlers {
         pub mod get_posts;
         pub mod read_post;
         pub mod submit_post;
+        pub mod upvote_comment;
+        pub mod upvote_post;
     }
     pub mod server {
         pub mod fallback;
