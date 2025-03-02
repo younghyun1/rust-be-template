@@ -68,13 +68,18 @@ pub async fn submit_post(
             diesel::dsl::select(diesel::dsl::exists(
                 posts::table
                     .filter(posts::post_id.eq(post_id))
-                    .filter(posts::user_id.eq(user_id))
+                    .filter(posts::user_id.eq(user_id)),
             ))
             .get_result::<bool>(&mut conn)
             .await
             .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?
             .then_some(())
-            .ok_or_else(|| code_err(CodeError::POST_NOT_FOUND, "Post not found or not owned by user"))?;
+            .ok_or_else(|| {
+                code_err(
+                    CodeError::POST_NOT_FOUND,
+                    "Post not found or not owned by user",
+                )
+            })?;
 
             // Update the existing post
             diesel::update(posts::table.filter(posts::post_id.eq(post_id)))
@@ -123,7 +128,7 @@ pub async fn submit_post(
 
     Ok(http_resp(
         SubmitPostResponse {
-            user_id,
+            post_id: post.post_id,
             post_title: post.post_title,
             post_slug: post.post_slug,
             post_created_at: post.post_created_at,

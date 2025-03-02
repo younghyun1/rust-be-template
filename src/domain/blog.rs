@@ -24,6 +24,7 @@ pub struct Post {
     pub post_metadata: serde_json::Value,
 }
 
+// TODO: return user info w. profile picture link and stuff
 #[derive(
     Clone,
     serde_derive:: Serialize,
