@@ -64,6 +64,7 @@ pub mod handlers {
     }
     pub mod blog {
         pub mod get_posts;
+        pub mod read_post;
         pub mod submit_post;
     }
     pub mod server {
