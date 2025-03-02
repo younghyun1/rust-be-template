@@ -54,6 +54,10 @@ diesel::table! {
         post_updated_at -> Timestamptz,
         post_published_at -> Nullable<Timestamptz>,
         post_is_published -> Bool,
+        post_view_count -> Int8,
+        post_upvote_count -> Int8,
+        post_share_count -> Int8,
+        post_metadata -> Jsonb,
     }
 }
 
