@@ -27,6 +27,7 @@ pub mod dto {
         }
         pub mod blog {
             pub mod get_posts_request;
+            pub mod read_post;
             pub mod submit_post_request;
         }
     }
