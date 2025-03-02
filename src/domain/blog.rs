@@ -18,6 +18,10 @@ pub struct Post {
     pub post_updated_at: DateTime<Utc>,
     pub post_published_at: Option<DateTime<Utc>>,
     pub post_is_published: bool,
+    pub post_view_count: i64,
+    pub post_upvote_count: i64,
+    pub post_share_count: i64,
+    pub post_metadata: serde_json::Value,
 }
 
 #[derive(
