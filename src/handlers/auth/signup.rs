@@ -9,7 +9,7 @@ use tracing::error;
 use uuid::Uuid;
 
 use crate::{
-    domain::user::{NewEmailVerificationToken, NewUser},
+    domain::user::{NewEmailVerificationToken, User},
     dto::{
         requests::auth::signup_request::SignupRequest,
         responses::{auth::signup_response::SignupResponse, response_data::http_resp},
@@ -68,25 +68,18 @@ pub async fn signup_handler(
         .await
         .map_err(|e| code_err(CodeError::COULD_NOT_HASH_PW, e))?;
 
-    let new_user: NewUser = NewUser::new(&request.user_name, &request.user_email, &hashed_pw);
-
-    let user_id: Uuid = diesel::insert_into(users::table)
-        .values(new_user)
-        .returning(users::user_id)
-        .get_result(&mut conn)
-        .await
-        .map_err(|e| match e {
-            diesel::result::Error::DatabaseError(
-                diesel::result::DatabaseErrorKind::UniqueViolation,
-                _,
-            ) => code_err(CodeError::EMAIL_MUST_BE_UNIQUE, e),
-            _ => code_err(CodeError::DB_INSERTION_ERROR, e),
-        })?;
+    let new_user_id: Uuid = User::insert_one(
+        &mut conn,
+        &request.user_name,
+        &request.user_email,
+        &hashed_pw,
+    )
+    .await?;
 
     let email_verification_token: Uuid = Uuid::new_v4();
 
     let new_email_verification_token: NewEmailVerificationToken = NewEmailVerificationToken::new(
-        &user_id,
+        &new_user_id,
         &email_verification_token,
         request_received_time + EMAIL_VERIFICATION_TOKEN_VALID_DURATION, // expires_at
         request_received_time,                                           // created_at
