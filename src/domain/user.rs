@@ -1,9 +1,13 @@
 use chrono::{DateTime, Utc};
 use diesel::{Queryable, QueryableByName, prelude::Insertable};
+use diesel_async::{AsyncPgConnection, RunQueryDsl, pooled_connection::bb8::PooledConnection};
 use serde_derive::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::schema::{email_verification_tokens, password_reset_tokens, users};
+use crate::{
+    errors::code_error::{CodeError, CodeErrorResp, code_err},
+    schema::{email_verification_tokens, password_reset_tokens, users},
+};
 
 #[derive(Serialize, Deserialize, QueryableByName, Queryable)]
 pub struct User {
@@ -23,15 +27,39 @@ pub struct User {
     pub user_is_email_verified: bool,
 }
 
+impl User {
+    pub async fn insert_one<'a, 'conn>(
+        conn: &'conn mut PooledConnection<'_, AsyncPgConnection>,
+        user_name: &'a str,
+        user_email: &'a str,
+        user_password_hash: &'a str,
+    ) -> Result<Uuid, CodeErrorResp> {
+        let new_user = UserInsertable::new(user_name, user_email, user_password_hash);
+
+        diesel::insert_into(users::table)
+            .values(new_user)
+            .returning(users::user_id)
+            .get_result::<Uuid>(conn)
+            .await
+            .map_err(|e| match e {
+                diesel::result::Error::DatabaseError(
+                    diesel::result::DatabaseErrorKind::UniqueViolation,
+                    _,
+                ) => code_err(CodeError::EMAIL_MUST_BE_UNIQUE, e),
+                _ => code_err(CodeError::DB_INSERTION_ERROR, e),
+            })
+    }
+}
+
 #[derive(Insertable)]
 #[diesel(table_name = users)]
-pub struct NewUser<'nu> {
+pub struct UserInsertable<'nu> {
     user_name: &'nu str,
     user_email: &'nu str,
     user_password_hash: &'nu str,
 }
 
-impl<'nu> NewUser<'nu> {
+impl<'nu> UserInsertable<'nu> {
     pub fn new(user_name: &'nu str, user_email: &'nu str, user_password_hash: &'nu str) -> Self {
         Self {
             user_name,
