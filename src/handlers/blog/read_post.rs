@@ -13,6 +13,7 @@ use crate::{
     util::time::now::tokio_now,
 };
 
+// TODO: Iterate view count any time this happens.
 pub async fn read_post(
     State(state): State<Arc<ServerState>>,
     Json(request): Json<ReadPostRequest>,
