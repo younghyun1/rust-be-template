@@ -25,9 +25,10 @@ pub async fn read_post(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    let post: Post = posts::table
-        .select(posts::all_columns)
+    let post: Post = diesel::update(posts::table)
         .filter(posts::post_id.eq(request.post_id))
+        .set(posts::post_view_count.eq(posts::post_view_count + 1))
+        .returning(posts::all_columns)
         .get_result(&mut conn)
         .await
         .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
