@@ -136,7 +136,7 @@ impl ServerState {
     pub async fn synchronize_post_info_cache(&self) {
         let start = tokio_now();
 
-        let post_info = match load_post_info(&self).await {
+        let post_info = match load_post_info(self).await {
             Ok(post_info) => post_info,
             Err(e) => {
                 error!("Could not synchronize post metadata cache: {:?}", e);
@@ -162,7 +162,7 @@ impl ServerState {
 
         let cache_read_lock = self.blog_posts_cache.read().await;
         let total_posts = cache_read_lock.len();
-        let total_pages = (total_posts + page_size - 1) / page_size; // Calculate total number of pages
+        let total_pages = total_posts.div_ceil(page_size); // Calculate total number of pages
 
         if start_index >= total_posts {
             return (vec![], total_pages);
