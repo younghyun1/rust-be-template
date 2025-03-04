@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use axum::{Json, extract::State, response::IntoResponse};
-use diesel::{ExpressionMethods, QueryDsl};
+use diesel::ExpressionMethods;
 use diesel_async::RunQueryDsl;
 
 use crate::{
