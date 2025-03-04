@@ -1,4 +1,3 @@
-{{REWRITTEN_CODE}}
 -- Table for ISO 639 language codes
 CREATE TABLE iso_language (
     language_code INTEGER PRIMARY KEY,
