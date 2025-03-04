@@ -140,6 +140,13 @@ impl ServerState {
         self.api_keys_set.contains_async(key).await
     }
 
+    pub async fn insert_api_key(&self, key: Uuid) -> anyhow::Result<()> {
+        match self.api_keys_set.insert_async(key).await {
+            Ok(_) => Ok(()),
+            Err(e) => Err(anyhow::anyhow!("Failed to insert API key: {:?}", e)),
+        }
+    }
+
     pub fn add_responses_handled(&self) {
         self.responses_handled
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -184,7 +191,6 @@ impl ServerState {
         (posts, total_pages)
     }
 
-    // TODO: Insert post (write-through cache)
     pub async fn insert_post_to_cache(&self, post: &PostInfo) {
         let mut cache_write_lock = self.blog_posts_cache.write().await;
         cache_write_lock.push(post.to_owned());
