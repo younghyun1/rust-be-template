@@ -1,4 +1,14 @@
+
 // @generated automatically by Diesel CLI.
+
+diesel::table! {
+    comment_upvotes (upvote_id) {
+        upvote_id -> Uuid,
+        comment_id -> Uuid,
+        user_id -> Uuid,
+        created_at -> Timestamptz,
+    }
+}
 
 diesel::table! {
     comments (comment_id) {
@@ -43,6 +53,15 @@ diesel::table! {
 }
 
 diesel::table! {
+    post_upvotes (upvote_id) {
+        upvote_id -> Uuid,
+        post_id -> Uuid,
+        user_id -> Uuid,
+        upvoted_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     posts (post_id) {
         post_id -> Uuid,
         user_id -> Uuid,
@@ -55,7 +74,6 @@ diesel::table! {
         post_published_at -> Nullable<Timestamptz>,
         post_is_published -> Bool,
         post_view_count -> Int8,
-        post_upvote_count -> Int8,
         post_share_count -> Int8,
         post_metadata -> Jsonb,
     }
@@ -97,10 +115,14 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(comment_upvotes -> comments (comment_id));
+diesel::joinable!(comment_upvotes -> users (user_id));
 diesel::joinable!(comments -> posts (post_id));
 diesel::joinable!(comments -> users (user_id));
 diesel::joinable!(email_verification_tokens -> users (user_id));
 diesel::joinable!(password_reset_tokens -> users (user_id));
+diesel::joinable!(post_upvotes -> posts (post_id));
+diesel::joinable!(post_upvotes -> users (user_id));
 diesel::joinable!(posts -> users (user_id));
 diesel::joinable!(role_permissions -> permissions (permission_id));
 diesel::joinable!(role_permissions -> roles (role_id));
@@ -108,10 +130,12 @@ diesel::joinable!(user_roles -> roles (role_id));
 diesel::joinable!(user_roles -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    comment_upvotes,
     comments,
     email_verification_tokens,
     password_reset_tokens,
     permissions,
+    post_upvotes,
     posts,
     role_permissions,
     roles,

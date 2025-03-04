@@ -43,6 +43,7 @@ pub mod dto {
         pub mod blog {
 
             pub mod get_posts;
+            pub mod read_post_response;
             pub mod submit_post_response;
         }
         pub mod response_data;
