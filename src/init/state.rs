@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::atomic::AtomicU64;
 
 use chrono::Utc;
@@ -9,6 +10,7 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::domain::blog::PostInfo;
+use crate::util::geographic::ip_info_lookup::{IpEntry, decompress_and_deserialize};
 use crate::util::time::now::tokio_now;
 
 use super::load_cache::post_info::load_post_info;
@@ -26,6 +28,7 @@ pub struct ServerState {
     // regexes: [regex::Regex; 1],
     session_map: scc::HashMap<uuid::Uuid, Session>,
     blog_posts_cache: RwLock<Vec<PostInfo>>,
+    geo_ip_db: BTreeMap<u32, IpEntry>,
 }
 
 impl ServerState {
@@ -229,6 +232,11 @@ impl ServerStateBuilder {
             // regexes: [get_email_regex()],
             session_map: scc::HashMap::new(),
             blog_posts_cache: tokio::sync::RwLock::new(vec![]),
+            geo_ip_db: {
+                let (map, dur) = decompress_and_deserialize()?;
+                info!(elapsed=%format!("{dur:?}"), "Geo-IP database mapped to BTreeMap.");
+                map
+            },
         })
     }
 }

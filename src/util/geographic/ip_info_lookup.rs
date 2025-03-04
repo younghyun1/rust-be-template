@@ -1,11 +1,13 @@
 use bitcode::{Decode, Encode};
 use std::{collections::BTreeMap, io::Cursor, net::Ipv4Addr};
 use zstd::stream::decode_all;
+
+use crate::util::time::now::std_now;
 // open-source database bitcoded and then zstd'd
 const GEO_IP_DB: &[u8; 14911018] = include_bytes!("./geoip.db");
 
 #[derive(Encode, Decode, Debug, Clone)]
-struct IpEntry {
+pub struct IpEntry {
     start: u32,
     end: u32,
     country: [u8; 2],
@@ -22,15 +24,17 @@ pub struct IpInfo {
     pub longitude: f64,
 }
 
-fn decompress_and_deserialize() -> anyhow::Result<BTreeMap<u32, IpEntry>> {
+pub fn decompress_and_deserialize() -> anyhow::Result<(BTreeMap<u32, IpEntry>, std::time::Duration)>
+{
+    let start = std_now();
     let cursor = Cursor::new(GEO_IP_DB);
     let decompressed_data = decode_all(cursor)?;
     let deserialized_map: BTreeMap<u32, IpEntry> = bitcode::decode(&decompressed_data)?;
 
-    Ok(deserialized_map)
+    Ok((deserialized_map, start.elapsed()))
 }
 
-fn lookup_ip_location(geo_ip_db: &BTreeMap<u32, IpEntry>, ip: Ipv4Addr) -> Option<IpInfo> {
+pub fn lookup_ip_location(geo_ip_db: &BTreeMap<u32, IpEntry>, ip: Ipv4Addr) -> Option<IpInfo> {
     let ip_as_u32 = u32::from(ip);
     for (_start, entry) in geo_ip_db.range(..=ip_as_u32).rev() {
         if entry.start <= ip_as_u32 && ip_as_u32 <= entry.end {
