@@ -193,6 +193,13 @@ impl CodeError {
         message: "Post not found or access denied!",
         log_level: Level::INFO,
     };
+    pub const INVALID_IP_ADDRESS: CodeError = CodeError {
+        success: false,
+        error_code: 25,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Invalid IP address provided!",
+        log_level: Level::INFO,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {

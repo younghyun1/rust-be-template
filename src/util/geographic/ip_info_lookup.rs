@@ -34,7 +34,10 @@ pub fn decompress_and_deserialize() -> anyhow::Result<(BTreeMap<u32, IpEntry>, s
     Ok((deserialized_map, start.elapsed()))
 }
 
-pub fn lookup_ip_location(geo_ip_db: &BTreeMap<u32, IpEntry>, ip: Ipv4Addr) -> Option<IpInfo> {
+pub fn lookup_ip_location_from_map(
+    geo_ip_db: &BTreeMap<u32, IpEntry>,
+    ip: Ipv4Addr,
+) -> Option<IpInfo> {
     let ip_as_u32 = u32::from(ip);
     for (_start, entry) in geo_ip_db.range(..=ip_as_u32).rev() {
         if entry.start <= ip_as_u32 && ip_as_u32 <= entry.end {
