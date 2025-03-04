@@ -1,19 +1,22 @@
 use std::sync::Arc;
 
 use axum::{Json, extract::State, response::IntoResponse};
-use diesel::ExpressionMethods;
+use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
 
 use crate::{
-    domain::blog::Post,
-    dto::{requests::blog::read_post::ReadPostRequest, responses::response_data::http_resp},
+    domain::blog::{Comment, Post},
+    dto::{
+        requests::blog::read_post::ReadPostRequest,
+        responses::{blog::read_post_response::ReadPostResponse, response_data::http_resp},
+    },
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
-    schema::posts,
+    schema::{comments, posts},
     util::time::now::tokio_now,
 };
 
-// TODO: Iterate view count any time this happens.
+// TODO: Get comments too.
 pub async fn read_post(
     State(state): State<Arc<ServerState>>,
     Json(request): Json<ReadPostRequest>,
@@ -33,7 +36,13 @@ pub async fn read_post(
         .await
         .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
 
+    let comments: Vec<Comment> = comments::table
+        .filter(comments::post_id.eq(post.post_id))
+        .load::<Comment>(&mut conn)
+        .await
+        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+
     drop(conn);
 
-    Ok(http_resp(post, (), start))
+    Ok(http_resp(ReadPostResponse { post, comments }, (), start))
 }
