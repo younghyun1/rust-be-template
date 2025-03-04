@@ -14,7 +14,10 @@ use crate::{
             signup::signup_handler, verify_user_email::verify_user_email,
         },
         blog::{get_posts::get_posts, read_post::read_post, submit_post::submit_post},
-        server::{fallback::fallback_handler, healthcheck::healthcheck, root::root_handler},
+        server::{
+            fallback::fallback_handler, healthcheck::healthcheck,
+            lookup_ip_loc::lookup_ip_location, root::root_handler,
+        },
     },
     init::state::ServerState,
 };
@@ -25,6 +28,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     axum::Router::new()
         .route("/", get(root_handler))
         .route("/healthcheck", get(healthcheck))
+        .route("/geolocate", get(lookup_ip_location))
         .route("/auth/signup", post(signup_handler))
         .route(
             "/auth/check-if-user-exists",
