@@ -9,6 +9,7 @@ use crate::{
     schema::{email_verification_tokens, password_reset_tokens, users},
 };
 
+// TODO: update with new fields - country, subdivision, etc after filling out the data
 #[derive(Serialize, Deserialize, QueryableByName, Queryable)]
 pub struct User {
     #[diesel(sql_type = diesel::sql_types::Uuid)]
