@@ -19,7 +19,7 @@ pub struct IpEntry {
 #[derive(serde_derive::Serialize, Clone)]
 pub struct IpInfo {
     pub ip: Ipv4Addr,
-    pub country_code: [char; 2],
+    pub country_code: String,
     pub latitude: f64,
     pub longitude: f64,
 }
@@ -43,7 +43,9 @@ pub fn lookup_ip_location_from_map(
         if entry.start <= ip_as_u32 && ip_as_u32 <= entry.end {
             return Some(IpInfo {
                 ip,
-                country_code: [entry.country[0] as char, entry.country[1] as char],
+                country_code: std::str::from_utf8(&entry.country)
+                    .unwrap_or_default()
+                    .to_string(),
                 latitude: entry.lat,
                 longitude: entry.lon,
             });

@@ -1,7 +1,6 @@
 use anyhow::anyhow;
 use lettre::transport::smtp::authentication::Credentials;
 
-#[repr(u8)]
 enum DbType {
     Postgres,
     MySql,
