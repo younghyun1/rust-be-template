@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::net::Ipv4Addr;
 use std::sync::atomic::AtomicU64;
 
 use chrono::Utc;
@@ -10,7 +11,9 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::domain::blog::PostInfo;
-use crate::util::geographic::ip_info_lookup::{IpEntry, decompress_and_deserialize};
+use crate::util::geographic::ip_info_lookup::{
+    IpEntry, IpInfo, decompress_and_deserialize, lookup_ip_location_from_map,
+};
 use crate::util::time::now::tokio_now;
 
 use super::load_cache::post_info::load_post_info;
@@ -179,6 +182,10 @@ impl ServerState {
     pub async fn insert_post_to_cache(&self, post: &PostInfo) {
         let mut cache_write_lock = self.blog_posts_cache.write().await;
         cache_write_lock.push(post.to_owned());
+    }
+
+    pub fn lookup_ip_location(&self, ip: Ipv4Addr) -> Option<IpInfo> {
+        lookup_ip_location_from_map(&self.geo_ip_db, ip)
     }
 }
 
