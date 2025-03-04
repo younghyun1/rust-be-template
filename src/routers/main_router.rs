@@ -51,9 +51,9 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/blog/get-posts", get(get_posts))
         .route("/blog/read-post", get(read_post))
         .fallback(get(fallback_handler))
+        .layer(from_fn_with_state(state.clone(), api_key_check_middleware))
         .layer(from_fn_with_state(state.clone(), log_middleware))
         .layer(CorsLayer::very_permissive())
         .layer(CompressionLayer::new())
-        .layer(from_fn_with_state(state.clone(), api_key_check_middleware))
         .with_state(state)
 }
