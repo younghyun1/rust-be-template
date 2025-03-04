@@ -20,7 +20,7 @@ pub async fn api_key_check_middleware(
 ) -> HandlerResponse<impl IntoResponse> {
     let headers = request.headers();
     let api_key: Uuid = match headers
-        .get("X-API-Key")
+        .get("x-api-key")
         .and_then(|value| value.to_str().ok())
         .and_then(|key_str| uuid::Uuid::parse_str(key_str).ok())
     {
