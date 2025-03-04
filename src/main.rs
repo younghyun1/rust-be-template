@@ -121,6 +121,9 @@ pub mod util {
         pub mod duration_formatter;
         pub mod now;
     }
+    pub mod geographic {
+        pub mod ip_info_lookup;
+    }
 }
 
 // main function
