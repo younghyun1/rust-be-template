@@ -51,13 +51,12 @@ pub async fn signup_handler(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    let email_exists: bool = diesel::select(
-        exists(
-            users::table.filter(users::user_email.eq(&request.user_email)),
-        ))
-        .get_result(&mut conn)
-        .await
-        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+    let email_exists: bool = diesel::select(exists(
+        users::table.filter(users::user_email.eq(&request.user_email)),
+    ))
+    .get_result(&mut conn)
+    .await
+    .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
 
     if email_exists {
         return Err(CodeError::EMAIL_MUST_BE_UNIQUE.into());
@@ -72,6 +71,9 @@ pub async fn signup_handler(
         &request.user_name,
         &request.user_email,
         &hashed_pw,
+        request.user_country,
+        request.user_language,
+        request.user_subdivision,
     )
     .await?;
 
