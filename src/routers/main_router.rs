@@ -22,7 +22,9 @@ use crate::{
     init::state::ServerState,
 };
 
-use super::middleware::{auth::auth_middleware, logging::log_middleware};
+use super::middleware::{
+    api_key::api_key_check_middleware, auth::auth_middleware, logging::log_middleware,
+};
 
 pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     axum::Router::new()
@@ -52,5 +54,6 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .layer(from_fn_with_state(state.clone(), log_middleware))
         .layer(CorsLayer::very_permissive())
         .layer(CompressionLayer::new())
+        .layer(from_fn_with_state(state.clone(), api_key_check_middleware))
         .with_state(state)
 }
