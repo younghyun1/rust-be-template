@@ -7,6 +7,7 @@ use diesel::{
 use crate::schema::posts;
 
 #[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
+#[diesel(table_name = posts)]
 pub struct Post {
     pub post_id: uuid::Uuid,
     pub user_id: uuid::Uuid,
@@ -19,7 +20,6 @@ pub struct Post {
     pub post_published_at: Option<DateTime<Utc>>,
     pub post_is_published: bool,
     pub post_view_count: i64,
-    pub post_upvote_count: i64,
     pub post_share_count: i64,
     pub post_metadata: serde_json::Value,
 }
@@ -86,4 +86,18 @@ impl<'a> NewPost<'a> {
             post_is_published,
         }
     }
+}
+
+use crate::schema::comments;
+
+#[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
+#[diesel(table_name = comments)]
+pub struct Comment {
+    pub comment_id: uuid::Uuid,
+    pub post_id: uuid::Uuid,
+    pub user_id: uuid::Uuid,
+    pub comment_content: String,
+    pub comment_created_at: DateTime<Utc>,
+    pub comment_updated_at: Option<DateTime<Utc>>,
+    pub parent_comment_id: Option<uuid::Uuid>,
 }
