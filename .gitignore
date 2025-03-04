@@ -69,3 +69,6 @@ README.md
 
 log/
 logs/
+
+# raw data
+*.csv
