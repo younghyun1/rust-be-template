@@ -94,3 +94,6 @@ lettre = { version = "0.11.14", default-features = false, features = [
 
 # compression
 zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt"] }
+
+# numeric
+bigdecimal = { version = "0.4.7", features = ["serde"] }
