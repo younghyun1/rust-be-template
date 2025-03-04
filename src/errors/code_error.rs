@@ -200,6 +200,13 @@ impl CodeError {
         message: "Invalid IP address provided!",
         log_level: Level::INFO,
     };
+    pub const API_KEY_INVALID: CodeError = CodeError {
+        success: false,
+        error_code: 26,
+        http_status_code: StatusCode::UNAUTHORIZED,
+        message: "Invalid API key provided!",
+        log_level: Level::WARN,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {

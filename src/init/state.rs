@@ -6,6 +6,7 @@ use chrono::Utc;
 use diesel_async::AsyncPgConnection;
 use diesel_async::pooled_connection::bb8::{Pool, PooledConnection};
 use lettre::{AsyncSmtpTransport, Tokio1Executor};
+use scc::HashSet;
 use tokio::sync::RwLock;
 use tracing::{error, info};
 use uuid::Uuid;
@@ -29,9 +30,10 @@ pub struct ServerState {
     responses_handled: AtomicU64,
     email_client: lettre::AsyncSmtpTransport<Tokio1Executor>,
     // regexes: [regex::Regex; 1],
-    session_map: scc::HashMap<uuid::Uuid, Session>,
-    blog_posts_cache: RwLock<Vec<PostInfo>>,
-    geo_ip_db: BTreeMap<u32, IpEntry>,
+    session_map: scc::HashMap<uuid::Uuid, Session>, // read/write
+    blog_posts_cache: RwLock<Vec<PostInfo>>,        // read/write
+    geo_ip_db: BTreeMap<u32, IpEntry>,              // read-only
+    api_keys_set: HashSet<Uuid>,                    // read-only
 }
 
 impl ServerState {
@@ -132,6 +134,10 @@ impl ServerState {
     pub fn get_responses_handled(&self) -> u64 {
         self.responses_handled
             .load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    pub async fn check_api_key(&self, key: &Uuid) -> bool {
+        self.api_keys_set.contains_async(key).await
     }
 
     pub fn add_responses_handled(&self) {
@@ -244,6 +250,7 @@ impl ServerStateBuilder {
                 info!(elapsed=%format!("{dur:?}"), "Geo-IP database mapped to BTreeMap.");
                 map
             },
+            api_keys_set: scc::HashSet::<Uuid>::new(),
         })
     }
 }
