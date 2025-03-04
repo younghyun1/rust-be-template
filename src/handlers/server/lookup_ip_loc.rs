@@ -1,6 +1,6 @@
-use std::net::Ipv4Addr;
+use std::{net::Ipv4Addr, sync::Arc};
 
-use axum::{Json, extract::State, response::IntoResponse};
+use axum::{Json, debug_handler, extract::State, response::IntoResponse};
 
 use crate::{
     dto::responses::response_data::http_resp,
@@ -14,8 +14,9 @@ pub struct LookupIpLocationRequest {
     ip_address: String,
 }
 
+#[debug_handler]
 pub async fn lookup_ip_location(
-    State(state): State<ServerState>,
+    State(state): State<Arc<ServerState>>,
     Json(request): Json<LookupIpLocationRequest>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
