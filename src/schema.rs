@@ -1,4 +1,3 @@
-
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
@@ -30,6 +29,64 @@ diesel::table! {
         email_verification_token_expires_at -> Timestamptz,
         email_verification_token_created_at -> Timestamptz,
         email_verification_token_used_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    iso_country (country_code) {
+        country_code -> Int4,
+        #[max_length = 2]
+        country_alpha2 -> Bpchar,
+        #[max_length = 3]
+        country_alpha3 -> Bpchar,
+        #[max_length = 255]
+        country_eng_name -> Varchar,
+        country_primary_language -> Nullable<Int4>,
+        country_currency -> Nullable<Int4>,
+    }
+}
+
+diesel::table! {
+    iso_country_subdivision (subdivision_id) {
+        subdivision_id -> Int4,
+        country_code -> Int4,
+        #[max_length = 10]
+        subdivision_code -> Varchar,
+        #[max_length = 255]
+        subdivision_name -> Varchar,
+        #[max_length = 50]
+        subdivision_type -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
+    iso_currency (currency_code) {
+        currency_code -> Int4,
+        #[max_length = 3]
+        currency_alpha3 -> Bpchar,
+        #[max_length = 255]
+        currency_name -> Varchar,
+    }
+}
+
+diesel::table! {
+    iso_language (language_code) {
+        language_code -> Int4,
+        #[max_length = 2]
+        language_alpha2 -> Bpchar,
+        #[max_length = 3]
+        language_alpha3 -> Bpchar,
+        #[max_length = 255]
+        language_eng_name -> Varchar,
+    }
+}
+
+diesel::table! {
+    iso_phone_prefix (prefix_id) {
+        prefix_id -> Int4,
+        country_code -> Int4,
+        #[max_length = 10]
+        phone_prefix -> Varchar,
     }
 }
 
@@ -112,6 +169,9 @@ diesel::table! {
         user_created_at -> Timestamptz,
         user_updated_at -> Timestamptz,
         user_is_email_verified -> Bool,
+        user_country -> Int4,
+        user_language -> Int4,
+        user_subdivision -> Nullable<Int4>,
     }
 }
 
@@ -120,6 +180,10 @@ diesel::joinable!(comment_upvotes -> users (user_id));
 diesel::joinable!(comments -> posts (post_id));
 diesel::joinable!(comments -> users (user_id));
 diesel::joinable!(email_verification_tokens -> users (user_id));
+diesel::joinable!(iso_country -> iso_currency (country_currency));
+diesel::joinable!(iso_country -> iso_language (country_primary_language));
+diesel::joinable!(iso_country_subdivision -> iso_country (country_code));
+diesel::joinable!(iso_phone_prefix -> iso_country (country_code));
 diesel::joinable!(password_reset_tokens -> users (user_id));
 diesel::joinable!(post_upvotes -> posts (post_id));
 diesel::joinable!(post_upvotes -> users (user_id));
@@ -128,11 +192,19 @@ diesel::joinable!(role_permissions -> permissions (permission_id));
 diesel::joinable!(role_permissions -> roles (role_id));
 diesel::joinable!(user_roles -> roles (role_id));
 diesel::joinable!(user_roles -> users (user_id));
+diesel::joinable!(users -> iso_country (user_country));
+diesel::joinable!(users -> iso_country_subdivision (user_subdivision));
+diesel::joinable!(users -> iso_language (user_language));
 
 diesel::allow_tables_to_appear_in_same_query!(
     comment_upvotes,
     comments,
     email_verification_tokens,
+    iso_country,
+    iso_country_subdivision,
+    iso_currency,
+    iso_language,
+    iso_phone_prefix,
     password_reset_tokens,
     permissions,
     post_upvotes,

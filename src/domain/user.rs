@@ -26,6 +26,12 @@ pub struct User {
     pub user_updated_at: DateTime<Utc>,
     #[diesel(sql_type = diesel::sql_types::Bool)]
     pub user_is_email_verified: bool,
+    #[diesel(sql_type = diesel::sql_types::Integer)]
+    pub user_country: i32,
+    #[diesel(sql_type = diesel::sql_types::Integer)]
+    pub user_language: i32,
+    #[diesel(sql_type = diesel::sql_types::Nullable<diesel::sql_types::Integer>)]
+    pub user_subdivision: Option<i32>,
 }
 
 impl User {
@@ -34,8 +40,18 @@ impl User {
         user_name: &'a str,
         user_email: &'a str,
         user_password_hash: &'a str,
+        user_country: i32,
+        user_language: i32,
+        user_subdivision: Option<i32>,
     ) -> Result<Uuid, CodeErrorResp> {
-        let new_user = UserInsertable::new(user_name, user_email, user_password_hash);
+        let new_user = UserInsertable::new(
+            user_name,
+            user_email,
+            user_password_hash,
+            user_country,
+            user_language,
+            user_subdivision,
+        );
 
         diesel::insert_into(users::table)
             .values(new_user)
@@ -58,14 +74,27 @@ pub struct UserInsertable<'nu> {
     user_name: &'nu str,
     user_email: &'nu str,
     user_password_hash: &'nu str,
+    user_country: i32,
+    user_language: i32,
+    user_subdivision: Option<i32>,
 }
 
 impl<'nu> UserInsertable<'nu> {
-    pub fn new(user_name: &'nu str, user_email: &'nu str, user_password_hash: &'nu str) -> Self {
+    pub fn new(
+        user_name: &'nu str,
+        user_email: &'nu str,
+        user_password_hash: &'nu str,
+        user_country: i32,
+        user_language: i32,
+        user_subdivision: Option<i32>,
+    ) -> Self {
         Self {
             user_name,
             user_email,
             user_password_hash,
+            user_country,
+            user_language,
+            user_subdivision,
         }
     }
 }
