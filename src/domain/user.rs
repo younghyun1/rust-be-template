@@ -5,8 +5,10 @@ use serde_derive::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
+    dto::requests::auth::signup_request::SignupRequest,
     errors::code_error::{CodeError, CodeErrorResp, code_err},
     schema::{email_verification_tokens, password_reset_tokens, users},
+    util::crypto::hash_pw::hash_pw,
 };
 
 // TODO: update with new fields - country, subdivision, etc after filling out the data
@@ -39,21 +41,11 @@ pub struct User {
 impl User {
     pub async fn insert_one<'a, 'conn>(
         conn: &'conn mut PooledConnection<'_, AsyncPgConnection>,
-        user_name: &'a str,
-        user_email: &'a str,
-        user_password_hash: &'a str,
-        user_country: i32,
-        user_language: i32,
-        user_subdivision: Option<i32>,
+        request: &SignupRequest,
     ) -> Result<Uuid, CodeErrorResp> {
-        let new_user = UserInsertable::new(
-            user_name,
-            user_email,
-            user_password_hash,
-            user_country,
-            user_language,
-            user_subdivision,
-        );
+        let new_user = UserInsertable::from(request)
+            .await
+            .map_err(|e| code_err(CodeError::COULD_NOT_HASH_PW, e))?;
 
         diesel::insert_into(users::table)
             .values(new_user)
@@ -72,32 +64,25 @@ impl User {
 
 #[derive(Insertable)]
 #[diesel(table_name = users)]
-pub struct UserInsertable<'nu> {
-    user_name: &'nu str,
-    user_email: &'nu str,
-    user_password_hash: &'nu str,
+pub struct UserInsertable {
+    user_name: String,
+    user_email: String,
+    user_password_hash: String,
     user_country: i32,
     user_language: i32,
     user_subdivision: Option<i32>,
 }
 
-impl<'nu> UserInsertable<'nu> {
-    pub fn new(
-        user_name: &'nu str,
-        user_email: &'nu str,
-        user_password_hash: &'nu str,
-        user_country: i32,
-        user_language: i32,
-        user_subdivision: Option<i32>,
-    ) -> Self {
-        Self {
-            user_name,
-            user_email,
-            user_password_hash,
-            user_country,
-            user_language,
-            user_subdivision,
-        }
+impl UserInsertable {
+    async fn from(request: &SignupRequest) -> anyhow::Result<Self> {
+        Ok(Self {
+            user_name: request.user_name.clone(),
+            user_email: request.user_email.clone(),
+            user_password_hash: hash_pw(request.user_password.clone()).await?,
+            user_country: request.user_country,
+            user_language: request.user_language,
+            user_subdivision: request.user_subdivision,
+        })
     }
 }
 
