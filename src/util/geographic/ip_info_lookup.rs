@@ -41,11 +41,10 @@ pub fn lookup_ip_location_from_map(
     let ip_as_u32 = u32::from(ip);
     for (_start, entry) in geo_ip_db.range(..=ip_as_u32).rev() {
         if entry.start <= ip_as_u32 && ip_as_u32 <= entry.end {
+            let country_code = std::str::from_utf8(&entry.country).ok()?;
             return Some(IpInfo {
                 ip,
-                country_code: std::str::from_utf8(&entry.country)
-                    .unwrap_or_default()
-                    .to_string(),
+                country_code: country_code.to_string(),
                 latitude: entry.lat,
                 longitude: entry.lon,
             });
