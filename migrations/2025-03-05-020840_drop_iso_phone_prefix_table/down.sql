@@ -1,3 +1,6 @@
+DROP INDEX IF EXISTS idx_phone_prefix;
+ALTER TABLE public.iso_country DROP COLUMN IF EXISTS phone_prefix;
+
 CREATE TABLE public.iso_phone_prefix (
     prefix_id int4 NOT NULL,
     country_code int4 NOT NULL,
