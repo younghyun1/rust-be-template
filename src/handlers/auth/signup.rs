@@ -18,7 +18,6 @@ use crate::{
     init::state::ServerState,
     schema::{email_verification_tokens, users},
     util::{
-        crypto::hash_pw::hash_pw,
         string::validations::{validate_password_form, validate_username},
         time::now::tokio_now,
     },
@@ -62,20 +61,7 @@ pub async fn signup_handler(
         return Err(CodeError::EMAIL_MUST_BE_UNIQUE.into());
     }
 
-    let hashed_pw = hash_pw(request.user_password)
-        .await
-        .map_err(|e| code_err(CodeError::COULD_NOT_HASH_PW, e))?;
-
-    let new_user_id: Uuid = User::insert_one(
-        &mut conn,
-        &request.user_name,
-        &request.user_email,
-        &hashed_pw,
-        request.user_country,
-        request.user_language,
-        request.user_subdivision,
-    )
-    .await?;
+    let new_user_id: Uuid = User::insert_one(&mut conn, &request).await?;
 
     let email_verification_token: Uuid = Uuid::new_v4();
 
