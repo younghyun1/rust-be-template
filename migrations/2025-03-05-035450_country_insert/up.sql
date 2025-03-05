@@ -96,7 +96,7 @@ VALUES
   (624, 'GW', 'GNB', 'Guinea-Bissau', 'pt', 952, '245'),
   (328, 'GY', 'GUY', 'Guyana', 'en', 328, '592'),
   (332, 'HT', 'HTI', 'Haiti', 'fr', 332, '509'),
-  (334, 'HM', 'HMD', 'Heard Island and McDonald Islands', 'en', 36, NULL),
+  (334, 'HM', 'HMD', 'Heard Island and McDonald Islands', 'en', 36, '61'),
   (336, 'VA', 'VAT', 'Holy See', 'it', 978, '39'),
   (340, 'HN', 'HND', 'Honduras', 'es', 340, '504'),
   (344, 'HK', 'HKG', 'Hong Kong', 'en', 344, '852'),
