@@ -1,3 +1,7 @@
+ALTER TABLE public.iso_country ALTER COLUMN country_primary_language SET NOT NULL;
+ALTER TABLE public.iso_country ALTER COLUMN country_currency SET NOT NULL;
+ALTER TABLE public.iso_country ALTER COLUMN phone_prefix SET NOT NULL;
+
 INSERT INTO public.iso_country (country_code, country_alpha2, country_alpha3, country_eng_name, country_primary_language, country_currency, phone_prefix)
 VALUES
   (4, 'AF', 'AFG', 'Afghanistan', 'ps', 971, '93'),
