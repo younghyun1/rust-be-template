@@ -186,7 +186,6 @@ VALUES
     (944, 'AZN', 'Azerbaijan Manat'),
     (945, 'AYM', 'Azerbaijan Manat'),
     (946, 'RON', 'Romanian Leu'),
-    (946, 'RON', 'New Romanian Leu'),
     (947, 'CHE', 'WIR Euro'),
     (949, 'TRY', 'Turkish Lira'),
     (950, 'XAF', 'CFA Franc BEAC'),
