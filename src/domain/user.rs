@@ -34,6 +34,8 @@ pub struct User {
     pub user_subdivision: Option<i32>,
 }
 
+// TODO: Formalize DTO-Insertion Object relations
+
 impl User {
     pub async fn insert_one<'a, 'conn>(
         conn: &'conn mut PooledConnection<'_, AsyncPgConnection>,
