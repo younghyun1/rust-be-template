@@ -1,1 +1,1 @@
-TRUNCATE TABLE iso_languages;
+TRUNCATE TABLE iso_language;
