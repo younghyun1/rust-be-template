@@ -257,6 +257,65 @@ SET
         ELSE 'X'
     END;
 
+UPDATE public.iso_country
+SET
+    is_country = false
+WHERE
+    country_code IN (
+        248,
+        16,
+        660,
+        533,
+        535,
+        74,
+        86,
+        136,
+        162,
+        166,
+        184,
+        531,
+        238,
+        234,
+        254,
+        258,
+        260,
+        292,
+        304,
+        312,
+        316,
+        831,
+        344,
+        833,
+        832,
+        446,
+        474,
+        175,
+        500,
+        540,
+        570,
+        574,
+        580,
+        612,
+        630,
+        638,
+        652,
+        654,
+        663,
+        666,
+        534,
+        239,
+        744,
+        772,
+        796,
+        581,
+        92,
+        850,
+        876,
+        732,
+        334
+    )
+    AND country_code <> 158;
+
 ALTER TABLE public.iso_country
 ALTER COLUMN country_flag
 SET
