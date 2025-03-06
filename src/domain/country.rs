@@ -1,9 +1,13 @@
 use std::collections::HashMap;
 
 use diesel::{Queryable, QueryableByName};
+use diesel_async::{AsyncPgConnection, RunQueryDsl, pooled_connection::bb8::PooledConnection};
 use serde_derive::{Deserialize, Serialize};
 
+use crate::schema::iso_country;
+
 #[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable)]
+#[diesel(table_name = iso_country)]
 pub struct IsoCountry {
     #[diesel(sql_type = diesel::sql_types::Integer)]
     pub country_code: i32,
@@ -60,10 +64,18 @@ impl IsoCountryTable {
             .get(code)
             .map(|&idx| self.rows[idx].clone())
     }
+
+    pub async fn load_from_db<'conn>(
+        mut conn: &mut PooledConnection<'_, AsyncPgConnection>,
+    ) -> anyhow::Result<Self> {
+        let countries: Vec<IsoCountry> = iso_country::table.load(&mut conn).await?;
+        Ok(countries.into())
+    }
 }
 
 // 1. ISO Country Subdivision
 #[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable)]
+#[diesel(table_name = iso_country_subdivision)]
 pub struct IsoCountrySubdivision {
     #[diesel(sql_type = diesel::sql_types::Integer)]
     pub subdivision_id: i32,
@@ -124,6 +136,7 @@ impl IsoCountrySubdivisionTable {
 
 // 2. ISO Currency
 #[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable)]
+#[diesel(table_name = iso_currency)]
 pub struct IsoCurrency {
     #[diesel(sql_type = diesel::sql_types::Integer)]
     pub currency_code: i32,
@@ -171,6 +184,7 @@ impl IsoCurrencyTable {
 
 // 3. ISO Language
 #[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable)]
+#[diesel(table_name = iso_language)]
 pub struct IsoLanguage {
     #[diesel(sql_type = diesel::sql_types::Integer)]
     pub language_code: i32,
