@@ -1,1 +1,1 @@
-DELETE FROM iso_country_subdivisions;
+DELETE FROM iso_country_subdivision;
