@@ -3,8 +3,8 @@ use std::net::Ipv4Addr;
 use std::sync::atomic::AtomicU64;
 
 use chrono::Utc;
-use diesel_async::AsyncPgConnection;
 use diesel_async::pooled_connection::bb8::{Pool, PooledConnection};
+use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use lettre::{AsyncSmtpTransport, Tokio1Executor};
 use scc::HashSet;
 use tokio::sync::RwLock;
@@ -12,6 +12,11 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::domain::blog::PostInfo;
+use crate::domain::country::{
+    CountryAndSubdivisionsTable, IsoCountry, IsoCountrySubdivision, IsoCurrency,
+    IsoCurrencyTable, IsoLanguage, IsoLanguageTable,
+};
+use crate::schema::{iso_country, iso_country_subdivision, iso_currency, iso_language};
 use crate::util::geographic::ip_info_lookup::{
     IpEntry, IpInfo, decompress_and_deserialize, lookup_ip_location_from_map,
 };
@@ -34,6 +39,9 @@ pub struct ServerState {
     blog_posts_cache: RwLock<Vec<PostInfo>>,        // read/write
     geo_ip_db: BTreeMap<u32, IpEntry>,              // read-only
     api_keys_set: HashSet<Uuid>,                    // read-only
+    country_map: RwLock<CountryAndSubdivisionsTable>,
+    languages_map: RwLock<IsoLanguageTable>,
+    currency_map: RwLock<IsoCurrencyTable>,
 }
 
 impl ServerState {
@@ -132,8 +140,10 @@ impl ServerState {
     }
 
     pub fn get_responses_handled(&self) -> u64 {
-        self.responses_handled
-            .load(std::sync::atomic::Ordering::SeqCst)
+        std::sync::atomic::AtomicU64::load(
+            &self.responses_handled,
+            std::sync::atomic::Ordering::SeqCst,
+        )
     }
 
     pub async fn check_api_key(&self, key: &Uuid) -> bool {
@@ -167,7 +177,7 @@ impl ServerState {
         *cache_write_lock = post_info;
 
         let elapsed = start.elapsed();
-        info!(number_of_rows = %cache_write_lock.len(), elapsed=%format!("{elapsed:?}"), "Post metadata cache synchronized.");
+        info!(rows_synchronized = %cache_write_lock.len(), elapsed=%format!("{elapsed:?}"), "Post metadata cache synchronized.");
         drop(cache_write_lock);
     }
 
@@ -198,6 +208,72 @@ impl ServerState {
 
     pub fn lookup_ip_location(&self, ip: Ipv4Addr) -> Option<IpInfo> {
         lookup_ip_location_from_map(&self.geo_ip_db, ip)
+    }
+
+    pub async fn sync_country_data(&self) -> anyhow::Result<()> {
+        let start = tokio::time::Instant::now();
+
+        let country_fut = async {
+            let mut conn = self.get_conn().await?;
+            let countries: Vec<IsoCountry> = iso_country::table.load(&mut conn).await?;
+            let subdivisions: Vec<IsoCountrySubdivision> =
+                iso_country_subdivision::table.load(&mut conn).await?;
+            let total_rows = countries.len() + subdivisions.len();
+            Ok::<(CountryAndSubdivisionsTable, usize), anyhow::Error>((
+                CountryAndSubdivisionsTable::new(countries, subdivisions),
+                total_rows,
+            ))
+        };
+
+        let language_fut = async {
+            let mut conn = self.get_conn().await?;
+            let languages: Vec<IsoLanguage> = iso_language::table.load(&mut conn).await?;
+            Ok::<(IsoLanguageTable, usize), anyhow::Error>((
+                IsoLanguageTable::from(languages.clone()),
+                languages.len(),
+            ))
+        };
+
+        let currency_fut = async {
+            let mut conn = self.get_conn().await?;
+            let currencies: Vec<IsoCurrency> = iso_currency::table.load(&mut conn).await?;
+            Ok::<(IsoCurrencyTable, usize), anyhow::Error>((
+                IsoCurrencyTable::from(currencies.clone()),
+                currencies.len(),
+            ))
+        };
+
+        let (country_res, lang_res, curr_res) =
+            tokio::join!(country_fut, language_fut, currency_fut);
+
+        if let Ok((new_country_map, country_rows)) = country_res {
+            let mut lock = self.country_map.write().await;
+            *lock = new_country_map;
+            info!(rows_synchronized = %country_rows, "Synchronized country data data.");
+        } else if let Err(e) = country_res {
+            tracing::error!("Error synchronizing country data: {:?}", e);
+        }
+
+        if let Ok((new_langs_map, lang_rows)) = lang_res {
+            let mut lock = self.languages_map.write().await;
+            *lock = new_langs_map;
+            info!(rows_synchronized = %lang_rows, "Synchronized language data.");
+        } else if let Err(e) = lang_res {
+            tracing::error!("Error synchronizing languages data: {:?}", e);
+        }
+
+        if let Ok((new_currency_map, curr_rows)) = curr_res {
+            let mut lock = self.currency_map.write().await;
+            *lock = new_currency_map;
+            info!(rows_synchronized = %curr_rows, "Synchronized currency data.");
+        } else if let Err(e) = curr_res {
+            tracing::error!("Error synchronizing currency data: {:?}", e);
+        }
+
+        let elapsed = start.elapsed();
+        info!(elapsed = %format!("{:?}", elapsed), "Country data cache synchronized.");
+
+        Ok(())
     }
 }
 
@@ -257,6 +333,9 @@ impl ServerStateBuilder {
                 map
             },
             api_keys_set: scc::HashSet::<Uuid>::new(),
+            country_map: RwLock::new(CountryAndSubdivisionsTable::new_empty()),
+            languages_map: RwLock::new(IsoLanguageTable::new_empty()),
+            currency_map: RwLock::new(IsoCurrencyTable::new_empty()),
         })
     }
 }

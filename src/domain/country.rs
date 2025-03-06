@@ -71,6 +71,14 @@ impl IsoCountryTable {
         let countries: Vec<IsoCountry> = iso_country::table.load(&mut conn).await?;
         Ok(countries.into())
     }
+
+    pub fn new_empty() -> Self {
+        IsoCountryTable {
+            rows: Vec::new(),
+            alpha2_index: HashMap::new(),
+            alpha3_index: HashMap::new(),
+        }
+    }
 }
 
 // 1. ISO Country Subdivision
@@ -123,6 +131,7 @@ impl IsoCountrySubdivisionTable {
     pub fn lookup_by_subdivision_id(&self, id: i32) -> Option<IsoCountrySubdivision> {
         self.by_id.get(&id).map(|&idx| self.rows[idx].clone())
     }
+
     pub fn lookup_by_country_and_code(
         &self,
         country_code: i32,
@@ -131,6 +140,14 @@ impl IsoCountrySubdivisionTable {
         self.by_country_and_code
             .get(&(country_code, code.to_owned()))
             .map(|&idx| self.rows[idx].clone())
+    }
+
+    pub fn new_empty() -> Self {
+        IsoCountrySubdivisionTable {
+            rows: Vec::new(),
+            by_id: HashMap::new(),
+            by_country_and_code: HashMap::new(),
+        }
     }
 }
 
@@ -175,10 +192,19 @@ impl IsoCurrencyTable {
     pub fn lookup_by_code(&self, code: i32) -> Option<IsoCurrency> {
         self.by_code.get(&code).map(|&idx| self.rows[idx].clone())
     }
+
     pub fn lookup_by_alpha3(&self, alpha3: &str) -> Option<IsoCurrency> {
         self.by_alpha3
             .get(alpha3)
             .map(|&idx| self.rows[idx].clone())
+    }
+
+    pub fn new_empty() -> Self {
+        IsoCurrencyTable {
+            rows: Vec::new(),
+            by_code: HashMap::new(),
+            by_alpha3: HashMap::new(),
+        }
     }
 }
 
@@ -230,15 +256,26 @@ impl IsoLanguageTable {
     pub fn lookup_by_code(&self, code: i32) -> Option<IsoLanguage> {
         self.by_code.get(&code).map(|&idx| self.rows[idx].clone())
     }
+    
     pub fn lookup_by_alpha2(&self, alpha2: &str) -> Option<IsoLanguage> {
         self.by_alpha2
             .get(alpha2)
             .map(|&idx| self.rows[idx].clone())
     }
+    
     pub fn lookup_by_alpha3(&self, alpha3: &str) -> Option<IsoLanguage> {
         self.by_alpha3
             .get(alpha3)
             .map(|&idx| self.rows[idx].clone())
+    }
+
+    pub fn new_empty() -> Self {
+        IsoLanguageTable {
+            rows: Vec::new(),
+            by_code: HashMap::new(),
+            by_alpha2: HashMap::new(),
+            by_alpha3: HashMap::new(),
+        }
     }
 }
 
@@ -300,6 +337,14 @@ impl CountryAndSubdivisionsTable {
             rows,
             by_country_alpha2,
             by_country_alpha3,
+        }
+    }
+
+    pub fn new_empty() -> Self {
+        CountryAndSubdivisionsTable {
+            rows: Vec::new(),
+            by_country_alpha2: HashMap::new(),
+            by_country_alpha3: HashMap::new(),
         }
     }
 

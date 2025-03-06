@@ -93,7 +93,7 @@ lettre = { version = "0.11.14", default-features = false, features = [
 ] }
 
 # compression
-zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt"] }
+zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt", "pkg-config"] }
 
 # numeric
 bigdecimal = { version = "0.4.7", features = ["serde"] }
