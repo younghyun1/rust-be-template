@@ -13,8 +13,8 @@ use uuid::Uuid;
 
 use crate::domain::blog::PostInfo;
 use crate::domain::country::{
-    CountryAndSubdivisionsTable, IsoCountry, IsoCountrySubdivision, IsoCurrency,
-    IsoCurrencyTable, IsoLanguage, IsoLanguageTable,
+    CountryAndSubdivisionsTable, IsoCountry, IsoCountrySubdivision, IsoCurrency, IsoCurrencyTable,
+    IsoLanguage, IsoLanguageTable,
 };
 use crate::schema::{iso_country, iso_country_subdivision, iso_currency, iso_language};
 use crate::util::geographic::ip_info_lookup::{
@@ -39,9 +39,9 @@ pub struct ServerState {
     blog_posts_cache: RwLock<Vec<PostInfo>>,        // read/write
     geo_ip_db: BTreeMap<u32, IpEntry>,              // read-only
     api_keys_set: HashSet<Uuid>,                    // read-only
-    country_map: RwLock<CountryAndSubdivisionsTable>,
-    languages_map: RwLock<IsoLanguageTable>,
-    currency_map: RwLock<IsoCurrencyTable>,
+    pub country_map: RwLock<CountryAndSubdivisionsTable>,
+    pub languages_map: RwLock<IsoLanguageTable>,
+    pub currency_map: RwLock<IsoCurrencyTable>,
 }
 
 impl ServerState {
