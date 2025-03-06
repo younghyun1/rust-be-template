@@ -41,8 +41,14 @@ diesel::table! {
         country_alpha3 -> Bpchar,
         #[max_length = 255]
         country_eng_name -> Varchar,
-        country_primary_language -> Nullable<Int4>,
-        country_currency -> Nullable<Int4>,
+        #[max_length = 2]
+        country_primary_language -> Bpchar,
+        country_currency -> Int4,
+        #[max_length = 10]
+        phone_prefix -> Varchar,
+        #[max_length = 2]
+        country_flag -> Bpchar,
+        is_country -> Bool,
     }
 }
 
@@ -78,15 +84,6 @@ diesel::table! {
         language_alpha3 -> Bpchar,
         #[max_length = 255]
         language_eng_name -> Varchar,
-    }
-}
-
-diesel::table! {
-    iso_phone_prefix (prefix_id) {
-        prefix_id -> Int4,
-        country_code -> Int4,
-        #[max_length = 10]
-        phone_prefix -> Varchar,
     }
 }
 
@@ -181,9 +178,7 @@ diesel::joinable!(comments -> posts (post_id));
 diesel::joinable!(comments -> users (user_id));
 diesel::joinable!(email_verification_tokens -> users (user_id));
 diesel::joinable!(iso_country -> iso_currency (country_currency));
-diesel::joinable!(iso_country -> iso_language (country_primary_language));
 diesel::joinable!(iso_country_subdivision -> iso_country (country_code));
-diesel::joinable!(iso_phone_prefix -> iso_country (country_code));
 diesel::joinable!(password_reset_tokens -> users (user_id));
 diesel::joinable!(post_upvotes -> posts (post_id));
 diesel::joinable!(post_upvotes -> users (user_id));
@@ -204,7 +199,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     iso_country_subdivision,
     iso_currency,
     iso_language,
-    iso_phone_prefix,
     password_reset_tokens,
     permissions,
     post_upvotes,
