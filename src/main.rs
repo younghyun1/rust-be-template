@@ -77,6 +77,10 @@ pub mod handlers {
         pub mod lookup_ip_loc;
         pub mod root;
     }
+    pub mod countries {
+
+        pub mod get_languages;
+    }
 }
 pub mod routers {
     pub mod middleware {
