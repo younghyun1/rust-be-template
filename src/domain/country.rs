@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use diesel::{Queryable, QueryableByName};
 use diesel_async::{AsyncPgConnection, RunQueryDsl, pooled_connection::bb8::PooledConnection};
@@ -231,6 +231,7 @@ pub struct IsoLanguageTable {
     pub by_code: HashMap<i32, usize>,
     pub by_alpha2: HashMap<String, usize>,
     pub by_alpha3: HashMap<String, usize>,
+    pub serialized_map: String,
 }
 
 impl From<Vec<IsoLanguage>> for IsoLanguageTable {
@@ -243,11 +244,28 @@ impl From<Vec<IsoLanguage>> for IsoLanguageTable {
             by_alpha2.insert(row.language_alpha2.clone(), idx);
             by_alpha3.insert(row.language_alpha3.clone(), idx);
         }
+
+        let mut languages: BTreeMap<i32, TruncatedLanguage> = BTreeMap::new();
+
+        rows.iter().for_each(|row| {
+            languages.insert(
+                row.language_code,
+                TruncatedLanguage {
+                    language_alpha2: row.language_alpha2.clone(),
+                    language_alpha3: row.language_alpha3.clone(),
+                    language_eng_name: row.language_eng_name.clone(),
+                },
+            );
+        });
+
+        let serialized_map: String = serde_json::to_string(&languages).unwrap();
+
         IsoLanguageTable {
             rows,
             by_code,
             by_alpha2,
             by_alpha3,
+            serialized_map,
         }
     }
 }
@@ -256,13 +274,13 @@ impl IsoLanguageTable {
     pub fn lookup_by_code(&self, code: i32) -> Option<IsoLanguage> {
         self.by_code.get(&code).map(|&idx| self.rows[idx].clone())
     }
-    
+
     pub fn lookup_by_alpha2(&self, alpha2: &str) -> Option<IsoLanguage> {
         self.by_alpha2
             .get(alpha2)
             .map(|&idx| self.rows[idx].clone())
     }
-    
+
     pub fn lookup_by_alpha3(&self, alpha3: &str) -> Option<IsoLanguage> {
         self.by_alpha3
             .get(alpha3)
@@ -275,6 +293,7 @@ impl IsoLanguageTable {
             by_code: HashMap::new(),
             by_alpha2: HashMap::new(),
             by_alpha3: HashMap::new(),
+            serialized_map: String::new(),
         }
     }
 }
@@ -374,4 +393,11 @@ impl CountryAndSubdivisionsTable {
         }
         None
     }
+}
+
+#[derive(Serialize)]
+pub struct TruncatedLanguage {
+    pub language_alpha2: String,
+    pub language_alpha3: String,
+    pub language_eng_name: String,
 }
