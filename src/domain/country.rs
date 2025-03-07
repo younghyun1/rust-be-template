@@ -34,20 +34,28 @@ pub struct IsoCountryTable {
     rows: Vec<IsoCountry>,
     alpha2_index: HashMap<String, usize>,
     alpha3_index: HashMap<String, usize>,
+    serialized_list: serde_json::Value,
 }
 
 impl From<Vec<IsoCountry>> for IsoCountryTable {
-    fn from(rows: Vec<IsoCountry>) -> Self {
+    fn from(mut rows: Vec<IsoCountry>) -> Self {
+        // Sort the rows by the English country name so that they appear in order.
+        rows.sort_by_key(|row| row.country_eng_name.clone());
+
         let mut alpha2_index = HashMap::new();
         let mut alpha3_index = HashMap::new();
         for (idx, row) in rows.iter().enumerate() {
             alpha2_index.insert(row.country_alpha2.clone(), idx);
             alpha3_index.insert(row.country_alpha3.clone(), idx);
         }
+
+        let serialized_list = serde_json::json!({ "countries": rows });
+
         IsoCountryTable {
             rows,
             alpha2_index,
             alpha3_index,
+            serialized_list,
         }
     }
 }
@@ -77,6 +85,7 @@ impl IsoCountryTable {
             rows: Vec::new(),
             alpha2_index: HashMap::new(),
             alpha3_index: HashMap::new(),
+            serialized_list: serde_json::Value::Null,
         }
     }
 }
@@ -305,21 +314,25 @@ pub struct CountryAndSubdivisions {
     pub subdivisions: Vec<IsoCountrySubdivision>,
 }
 
-// A table-like wrapper that holds many combined records, plus indexes.
+// A table‐like wrapper that holds many combined records, plus indexes.
+// An extra JSON snapshot is included to be dispatched directly.
 #[derive(Serialize)]
 pub struct CountryAndSubdivisionsTable {
     /// Combined records keyed by country.
     pub rows: Vec<CountryAndSubdivisions>,
-    /// An index from a country's alpha-2 code to its combined record.
+    pub by_id: HashMap<i32, usize>,
+    /// An index from a country's alpha‑2 code to its combined record.
     pub by_country_alpha2: HashMap<String, usize>,
-    /// An index from a country's alpha-3 code to its combined record.
+    /// An index from a country's alpha‑3 code to its combined record.
     pub by_country_alpha3: HashMap<String, usize>,
+    /// A JSON representation of the combined table ready for dispatch.
+    pub serialized_country_list: serde_json::Value,
 }
 
 impl CountryAndSubdivisionsTable {
-    /// Build the combined table given a vector of IsoCountry records and a vector of subdivisions.
+    /// Build the combined table given vectors of IsoCountry records and subdivisions.
     pub fn new(countries: Vec<IsoCountry>, subdivisions: Vec<IsoCountrySubdivision>) -> Self {
-        // First, build a temporary lookup for countries by country_code.
+        // First, build a temporary lookup for countries keyed by country_code.
         let mut country_map: HashMap<i32, IsoCountry> = HashMap::new();
         for country in countries {
             country_map.insert(country.country_code, country);
@@ -334,64 +347,69 @@ impl CountryAndSubdivisionsTable {
                 .push(subdiv);
         }
 
-        // Now, combine the data, even if there are no subdivisions.
-        let mut rows = Vec::new();
-        for (country_code, country) in country_map.into_iter() {
-            let subs = subdivisions_map.remove(&country_code).unwrap_or_default();
-            rows.push(CountryAndSubdivisions {
-                country,
-                subdivisions: subs,
-            });
-        }
+        // Combine the data, even if there are no subdivisions for a given country.
+        let mut rows: Vec<CountryAndSubdivisions> = country_map
+            .into_iter()
+            .map(|(country_code, country)| {
+                let subs = subdivisions_map.remove(&country_code).unwrap_or_default();
+                CountryAndSubdivisions {
+                    country,
+                    subdivisions: subs,
+                }
+            })
+            .collect();
+
+        // Sort the combined records by the country's English name.
+        rows.sort_by_key(|combined| combined.country.country_eng_name.clone());
 
         // Build the indexes.
+        let mut by_id = HashMap::new();
         let mut by_country_alpha2 = HashMap::new();
         let mut by_country_alpha3 = HashMap::new();
         for (idx, combined) in rows.iter().enumerate() {
+            by_id.insert(combined.country.country_code.clone(), idx);
             by_country_alpha2.insert(combined.country.country_alpha2.clone(), idx);
             by_country_alpha3.insert(combined.country.country_alpha3.clone(), idx);
         }
 
+        // Build a JSON representation ready to be dispatched, excluding subdivisions.
+        let dispatch_json = serde_json::json!({
+            "countries": rows.iter().map(|combined| &combined.country).collect::<Vec<_>>()
+        });
+
         CountryAndSubdivisionsTable {
             rows,
+            by_id,
             by_country_alpha2,
             by_country_alpha3,
+            serialized_country_list: dispatch_json,
         }
     }
 
+    /// Create an empty table.
     pub fn new_empty() -> Self {
         CountryAndSubdivisionsTable {
             rows: Vec::new(),
+            by_id: HashMap::new(),
             by_country_alpha2: HashMap::new(),
             by_country_alpha3: HashMap::new(),
+            serialized_country_list: serde_json::json!({ "countries": [] }),
         }
     }
 
-    // Lookup by country's alpha2 code.
-    pub fn lookup_by_country_alpha2(&self, code: &str) -> Option<&CountryAndSubdivisions> {
+    /// Lookup a combined record by its country's alpha-2 code.
+    pub fn lookup_by_alpha2(&self, code: &str) -> Option<&CountryAndSubdivisions> {
         self.by_country_alpha2.get(code).map(|&idx| &self.rows[idx])
     }
 
-    // Lookup by country's alpha3 code.
-    pub fn lookup_by_country_alpha3(&self, code: &str) -> Option<&CountryAndSubdivisions> {
+    /// Lookup a combined record by its country's alpha-3 code.
+    pub fn lookup_by_alpha3(&self, code: &str) -> Option<&CountryAndSubdivisions> {
         self.by_country_alpha3.get(code).map(|&idx| &self.rows[idx])
     }
 
-    // Additionally, if you need to search for a subdivision across all countries by its subdivision ID:
-    pub fn lookup_subdivision_by_id(
-        &self,
-        subdivision_id: i32,
-    ) -> Option<(&IsoCountry, &IsoCountrySubdivision)> {
-        for combined in &self.rows {
-            if let Some(subdiv) = combined
-                .subdivisions
-                .iter()
-                .find(|s| s.subdivision_id == subdivision_id)
-            {
-                return Some((&combined.country, subdiv));
-            }
-        }
-        None
+    /// Optionally retrieve the JSON representation on demand.
+    pub fn as_dispatch_json(&self) -> serde_json::Value {
+        serde_json::json!({ "countries": self.rows })
     }
 }
 
