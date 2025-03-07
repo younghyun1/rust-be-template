@@ -9,24 +9,24 @@ use crate::schema::iso_country;
 #[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable)]
 #[diesel(table_name = iso_country)]
 pub struct IsoCountry {
-    #[diesel(sql_type = diesel::sql_types::Integer)]
+    #[diesel(sql_type = diesel::sql_types::Integer, column_name = country_code)]
     pub country_code: i32,
-    #[diesel(sql_type = diesel::sql_types::VarChar)]
+    #[diesel(sql_type = diesel::sql_types::VarChar, column_name = country_alpha2)]
     pub country_alpha2: String,
-    #[diesel(sql_type = diesel::sql_types::VarChar)]
+    #[diesel(sql_type = diesel::sql_types::VarChar, column_name = country_alpha3)]
     pub country_alpha3: String,
-    #[diesel(sql_type = diesel::sql_types::VarChar)]
+    #[diesel(sql_type = diesel::sql_types::VarChar, column_name = country_eng_name)]
     pub country_eng_name: String,
-    #[diesel(sql_type = diesel::sql_types::VarChar)]
-    pub country_primary_language: String,
-    #[diesel(sql_type = diesel::sql_types::Integer)]
+    #[diesel(sql_type = diesel::sql_types::Integer, column_name = country_currency)]
     pub country_currency: i32,
-    #[diesel(sql_type = diesel::sql_types::VarChar)]
+    #[diesel(sql_type = diesel::sql_types::VarChar, column_name = phone_prefix)]
     pub phone_prefix: String,
-    #[diesel(sql_type = diesel::sql_types::VarChar)]
+    #[diesel(sql_type = diesel::sql_types::VarChar, column_name = country_flag)]
     pub country_flag: String,
-    #[diesel(sql_type = diesel::sql_types::Bool)]
+    #[diesel(sql_type = diesel::sql_types::Bool, column_name = is_country)]
     pub is_country: bool,
+    #[diesel(sql_type = diesel::sql_types::Integer, column_name = country_primary_language)]
+    pub country_primary_language: i32,
 }
 
 #[derive(Serialize)]

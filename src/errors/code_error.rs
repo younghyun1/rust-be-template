@@ -207,6 +207,13 @@ impl CodeError {
         message: "Invalid API key provided!",
         log_level: Level::WARN,
     };
+    pub const LANGUAGE_NOT_FOUND: CodeError = CodeError {
+        success: false,
+        error_code: 27,
+        http_status_code: StatusCode::NOT_FOUND,
+        message: "Language not found!",
+        log_level: Level::INFO,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
