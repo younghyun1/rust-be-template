@@ -1,23 +1,31 @@
 use std::sync::Arc;
 
-use axum::{extract::State, response::IntoResponse};
-
-use crate::{
-    dto::responses::response_data::http_resp, errors::code_error::HandlerResponse,
-    init::state::ServerState, util::time::now::tokio_now,
+use axum::{
+    extract::{Query, State},
+    response::IntoResponse,
 };
 
-// pub async fn get_languages(
-//     State(state): State<Arc<ServerState>>,
-//     Query()
-// ) -> HandlerResponse<impl IntoResponse> {
-//     let start = tokio_now();
+use crate::{
+    dto::responses::response_data::http_resp,
+    errors::code_error::{CodeError, HandlerResponse, code_err},
+    init::state::ServerState,
+    util::time::now::tokio_now,
+};
 
-//     let languages_map_lock = state.languages_map.read().await;
+pub async fn get_language(
+    State(state): State<Arc<ServerState>>,
+    Query(language_id): Query<i32>,
+) -> HandlerResponse<impl IntoResponse> {
+    let start = tokio_now();
 
-//     let languages_list = languages_map_lock.rows.clone();
+    let languages_map_lock = state.languages_map.read().await;
 
-//     drop(languages_map_lock);
+    let language = languages_map_lock
+        .lookup_by_code(language_id)
+        .ok_or(())
+        .map_err(|_| code_err(CodeError::LANGUAGE_NOT_FOUND, "Language not found!"))?;
 
-//     Ok(http_resp(languages_list, (), start))
-// }
+    drop(languages_map_lock);
+
+    Ok(http_resp(language, (), start))
+}
