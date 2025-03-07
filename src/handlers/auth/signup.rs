@@ -26,6 +26,7 @@ use crate::{
 const EMAIL_VERIFICATION_TOKEN_VALID_DURATION: chrono::TimeDelta = chrono::Duration::days(1);
 
 // TODO: Add profile picture storage func
+// TODO: Validate that request's subdivision does belong to user_country using in-RAM cache
 pub async fn signup_handler(
     Extension(request_received_time): Extension<DateTime<Utc>>,
     State(state): State<Arc<ServerState>>,
