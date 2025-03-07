@@ -231,7 +231,7 @@ pub struct IsoLanguageTable {
     pub by_code: HashMap<i32, usize>,
     pub by_alpha2: HashMap<String, usize>,
     pub by_alpha3: HashMap<String, usize>,
-    pub serialized_map: String,
+    pub serialized_map: serde_json::Value,
 }
 
 impl From<Vec<IsoLanguage>> for IsoLanguageTable {
@@ -258,7 +258,7 @@ impl From<Vec<IsoLanguage>> for IsoLanguageTable {
             );
         });
 
-        let serialized_map: String = serde_json::to_string(&languages).unwrap();
+        let serialized_map: serde_json::Value = serde_json::to_value(&languages).unwrap();
 
         IsoLanguageTable {
             rows,
@@ -293,7 +293,7 @@ impl IsoLanguageTable {
             by_code: HashMap::new(),
             by_alpha2: HashMap::new(),
             by_alpha3: HashMap::new(),
-            serialized_map: String::new(),
+            serialized_map: serde_json::Value::Null,
         }
     }
 }
