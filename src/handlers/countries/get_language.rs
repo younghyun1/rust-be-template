@@ -12,16 +12,21 @@ use crate::{
     util::time::now::tokio_now,
 };
 
+#[derive(serde::Deserialize)]
+pub struct LanguageQuery {
+    language_id: i32,
+}
+
 pub async fn get_language(
     State(state): State<Arc<ServerState>>,
-    Query(language_id): Query<i32>,
+    Query(query): Query<LanguageQuery>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
     let languages_map_lock = state.languages_map.read().await;
 
     let language = languages_map_lock
-        .lookup_by_code(language_id)
+        .lookup_by_code(query.language_id)
         .ok_or(())
         .map_err(|_| code_err(CodeError::LANGUAGE_NOT_FOUND, "Language not found!"))?;
 

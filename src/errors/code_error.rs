@@ -214,6 +214,13 @@ impl CodeError {
         message: "Language not found!",
         log_level: Level::INFO,
     };
+    pub const COUNTRY_NOT_FOUND: CodeError = CodeError {
+        success: false,
+        error_code: 28,
+        http_status_code: StatusCode::NOT_FOUND,
+        message: "Country not found!",
+        log_level: Level::INFO,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
