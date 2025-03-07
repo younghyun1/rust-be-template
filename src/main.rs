@@ -80,6 +80,7 @@ pub mod handlers {
     pub mod countries {
 
         pub mod get_languages;
+        pub mod get_language;
     }
 }
 pub mod routers {
