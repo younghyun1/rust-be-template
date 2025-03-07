@@ -14,9 +14,9 @@ pub async fn get_languages(
 
     let languages_map_lock = state.languages_map.read().await;
 
-    let serialized_map = languages_map_lock.serialized_map.clone();
+    let languages_list = languages_map_lock.rows.clone();
 
     drop(languages_map_lock);
 
-    Ok(http_resp(serialized_map, (), start))
+    Ok(http_resp(languages_list, (), start))
 }
