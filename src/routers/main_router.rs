@@ -14,7 +14,10 @@ use crate::{
             signup::signup_handler, verify_user_email::verify_user_email,
         },
         blog::{get_posts::get_posts, read_post::read_post, submit_post::submit_post},
-        countries::{get_language::get_language, get_languages::get_languages},
+        countries::{
+            get_countries::get_countries, get_country::get_country, get_language::get_language,
+            get_languages::get_languages,
+        },
         server::{
             fallback::fallback_handler, healthcheck::healthcheck,
             lookup_ip_loc::lookup_ip_location, root::root_handler,
@@ -32,6 +35,8 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/", get(root_handler))
         .route("/dropdown/language/get-all", get(get_languages))
         .route("/dropdown/language", get(get_language))
+        .route("/dropdown/country/get-all", get(get_countries))
+        .route("/dropdown/country", get(get_country))
         .route("/healthcheck", get(healthcheck))
         .route("/geolocate", get(lookup_ip_location))
         .route("/auth/signup", post(signup_handler))

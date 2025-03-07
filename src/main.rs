@@ -79,8 +79,10 @@ pub mod handlers {
     }
     pub mod countries {
 
-        pub mod get_languages;
+        pub mod get_countries;
+        pub mod get_country;
         pub mod get_language;
+        pub mod get_languages;
     }
 }
 pub mod routers {
