@@ -1,2 +1,2 @@
 [build]
-rustflags = ["-Ctarget-cpu=apple-m3"]
+rustflags = ["-Ctarget-cpu=native"]
