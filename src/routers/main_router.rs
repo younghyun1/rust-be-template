@@ -17,6 +17,7 @@ use crate::{
         countries::{
             get_countries::get_countries, get_country::get_country, get_language::get_language,
             get_languages::get_languages,
+            get_subdivisions_for_country::get_subdivisions_for_country,
         },
         server::{
             fallback::fallback_handler, healthcheck::healthcheck,
@@ -37,6 +38,10 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/dropdown/language", get(get_language))
         .route("/dropdown/country/get-all", get(get_countries))
         .route("/dropdown/country", get(get_country))
+        .route(
+            "/dropdown/country/subdivision",
+            get(get_subdivisions_for_country),
+        )
         .route("/healthcheck", get(healthcheck))
         .route("/geolocate", get(lookup_ip_location))
         .route("/auth/signup", post(signup_handler))
