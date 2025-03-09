@@ -3,8 +3,8 @@ use std::sync::Arc;
 use axum::{extract::State, response::IntoResponse};
 
 use crate::{
-    dto::responses::response_data::http_resp, errors::code_error::HandlerResponse,
-    init::state::ServerState, util::time::now::tokio_now,
+    domain::country::IsoLanguage, dto::responses::response_data::http_resp,
+    errors::code_error::HandlerResponse, init::state::ServerState, util::time::now::tokio_now,
 };
 
 pub async fn get_languages(
@@ -14,7 +14,7 @@ pub async fn get_languages(
 
     let languages_map_lock = state.languages_map.read().await;
 
-    let languages_list = languages_map_lock.rows.clone();
+    let languages_list: Vec<IsoLanguage> = languages_map_lock.rows.clone();
 
     drop(languages_map_lock);
 
