@@ -98,6 +98,7 @@ pub async fn login(
         .http_only(true)
         .same_site(axum_extra::extract::cookie::SameSite::None)
         .secure(true)
+        .partitioned(true)
         .build();
 
     drop(conn);
