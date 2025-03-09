@@ -96,9 +96,9 @@ pub async fn login(
     let cookie = Cookie::build(("session_id", session_id.to_string()))
         .path("/")
         .http_only(true)
-        .same_site(axum_extra::extract::cookie::SameSite::None)
+        .same_site(axum_extra::extract::cookie::SameSite::None) // TODO: turn off for prod
         .secure(true)
-        .partitioned(true)
+        .partitioned(true) // TODO: turn off for prod
         .build();
 
     drop(conn);
