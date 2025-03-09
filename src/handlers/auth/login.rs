@@ -96,8 +96,8 @@ pub async fn login(
     let cookie = Cookie::build(("session_id", session_id.to_string()))
         .path("/")
         .http_only(true)
+        .same_site(axum_extra::extract::cookie::SameSite::None)
         .secure(true)
-        .same_site(axum_extra::extract::cookie::SameSite::Strict)
         .build();
 
     drop(conn);

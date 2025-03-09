@@ -83,6 +83,7 @@ pub mod handlers {
         pub mod get_country;
         pub mod get_language;
         pub mod get_languages;
+        pub mod get_subdivisions_for_country;
     }
 }
 pub mod routers {
@@ -147,21 +148,22 @@ async fn main() -> anyhow::Result<()> {
         format: Option<image::ImageFormat>,
     ) -> anyhow::Result<Vec<u8>> {
         use std::path::Path;
-        let input_path = Path::new("/Users/jiyeonghyeon/Downloads/pexels-maoriginalphotography-1485894.jpg");
+        let input_path =
+            Path::new("/Users/jiyeonghyeon/Downloads/pexels-maoriginalphotography-1485894.jpg");
         let output_path = input_path.with_extension("avif");
 
         // Open the image file from disk
         let img = image::open(input_path).unwrap().to_rgba8();
 
         // Save the image in AVIF format to the same directory
-        img.save_with_format(&output_path, image::ImageFormat::Avif).unwrap();
+        img.save_with_format(&output_path, image::ImageFormat::Avif)
+            .unwrap();
 
         // Read the saved AVIF image into a byte vector
         let output_bytes = tokio::fs::read(&output_path).await?;
         Ok(output_bytes)
     }
-    
-    
+
     let start = tokio::time::Instant::now();
 
     if std::env::var("IS_AWS").is_err() {
