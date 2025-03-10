@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use diesel::{ExpressionMethods, QueryDsl};
+use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, serialize::IsNull};
 use diesel_async::RunQueryDsl;
 use tracing::{error, info};
 
@@ -25,7 +25,13 @@ pub async fn purge_nonverified_users(state: Arc<ServerState>) {
             users::user_id.eq_any(
                 email_verification_tokens::table
                     .select(email_verification_tokens::user_id)
-                    .filter(email_verification_tokens::email_verification_token_expires_at.lt(now)),
+                    .filter(
+                        email_verification_tokens::email_verification_token_expires_at
+                            .lt(now)
+                            .and(
+                                email_verification_tokens::email_verification_token_used_at.is_null(),
+                            ),
+                    ),
             ),
         ),
     )

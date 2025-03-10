@@ -38,7 +38,7 @@ diesel-async = { version = "0.5.2", features = ["bb8", "postgres"] }
 dotenvy = "0.15.7"
 
 # async runtime
-tokio = { version = "1.43.0", features = ["full"] }
+tokio = { version = "1.44.0", features = ["full"] }
 
 # loggers
 tracing = { version = "0.1.41", features = ["std"] }
@@ -52,8 +52,8 @@ anyhow = "1.0.97"
 num_cpus = "1.16.0"
 
 # serialization/deserialization
-serde = "1.0.218"
-serde_derive = "1.0.218"
+serde = "1.0.219"
+serde_derive = "1.0.219"
 serde_json = { version = "1.0.140", features = ["preserve_order"] }
 bitcode = "0.6.5"
 
@@ -63,7 +63,6 @@ chrono-tz = { version = "0.10.1", features = ["serde"] }
 scc = "2.3.3"
 uuid = { version = "1.15.1", features = [
     "v4",
-    "v7",
     "serde",
     "zerocopy",
     "fast-rng",
