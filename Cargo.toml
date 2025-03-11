@@ -34,6 +34,7 @@ diesel = { version = "2.2.8", features = [
 ] }
 diesel-async = { version = "0.5.2", features = ["bb8", "postgres"] }
 
+
 # .env loading
 dotenvy = "0.15.7"
 
@@ -97,4 +98,6 @@ zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt", "pkg-config"] }
 
 # numeric
 bigdecimal = { version = "0.4.7", features = ["serde"] }
+
+# image processing
 image = "0.25.5"
