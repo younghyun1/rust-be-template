@@ -44,7 +44,7 @@ pub async fn submit_post(
     // Authentication logic remains the same
     let session_id: Uuid = match cookie_jar.get("session_id") {
         Some(session_id) => match session_id.value().parse::<Uuid>() {
-            Ok(user_id) => user_id,
+            Ok(session_id) => session_id,
             Err(_) => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
         },
         None => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
