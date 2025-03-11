@@ -221,6 +221,13 @@ impl CodeError {
         message: "Country not found!",
         log_level: Level::INFO,
     };
+    pub const UPVOTE_MUST_BE_UNIQUE: CodeError = CodeError {
+        success: false,
+        error_code: 29,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Upvote must be unique!",
+        log_level: Level::INFO,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {

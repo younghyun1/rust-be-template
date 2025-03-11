@@ -17,25 +17,46 @@ use crate::{
 pub async fn auth_middleware(
     State(state): State<Arc<ServerState>>,
     cookie_jar: CookieJar,
-    request: Request<Body>,
+    mut request: Request<Body>,
     next: Next,
 ) -> HandlerResponse<impl IntoResponse> {
     let session_id = match cookie_jar.get("session_id") {
         Some(session_cookie) => match Uuid::from_str(session_cookie.value()) {
             Ok(session_id) => session_id,
-            Err(e) => return Err(code_err(CodeError::UNAUTHORIZED_ACCESS, e)),
+            Err(e) => {
+                return Err(code_err(
+                    CodeError::UNAUTHORIZED_ACCESS,
+                    format!("Failed to parse session cookie: {}", e),
+                ));
+            }
         },
-        None => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
+        None => {
+            return Err(code_err(
+                CodeError::UNAUTHORIZED_ACCESS,
+                format!("Session cookie is missing"),
+            ));
+        }
     };
 
     let session = match state.get_session(&session_id).await {
         Ok(session) => session,
-        Err(e) => return Err(code_err(CodeError::UNAUTHORIZED_ACCESS, e)),
+        Err(e) => {
+            return Err(code_err(
+                CodeError::UNAUTHORIZED_ACCESS,
+                format!("Failed to retrieve session: {}", e),
+            ));
+        }
     };
 
     if !session.is_valid() {
-        return Err(CodeError::UNAUTHORIZED_ACCESS.into());
+        return Err(code_err(
+            CodeError::UNAUTHORIZED_ACCESS,
+            format!("Session is invalid"),
+        ));
     }
+
+    // Assuming your Session carries a field `user_id` of type Uuid.
+    request.extensions_mut().insert(session.get_user_id());
 
     let response = next.run(request).await;
 
