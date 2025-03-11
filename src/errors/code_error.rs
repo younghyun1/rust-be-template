@@ -228,6 +228,20 @@ impl CodeError {
         message: "Upvote must be unique!",
         log_level: Level::INFO,
     };
+    pub const DB_DELETION_ERROR: CodeError = CodeError {
+        success: false,
+        error_code: 30,
+        http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
+        message: "Database deletion failed!",
+        log_level: Level::ERROR,
+    };
+    pub const UPVOTE_DOES_NOT_EXIST: CodeError = CodeError {
+        success: false,
+        error_code: 31,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Upvote does not exist - could not delete.",
+        log_level: Level::INFO,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {

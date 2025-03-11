@@ -4,7 +4,7 @@ use diesel::{
     prelude::{Queryable, QueryableByName},
 };
 
-use crate::schema::{comment_upvotes, posts};
+use crate::schema::{comment_upvotes, post_upvotes, posts};
 
 #[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
 #[diesel(table_name = posts)]
@@ -124,5 +124,27 @@ impl<'a> NewCommentUpvote<'a> {
             comment_id,
             user_id,
         }
+    }
+}
+
+#[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
+#[diesel(table_name = post_upvotes)]
+pub struct PostUpvote {
+    pub upvote_id: uuid::Uuid,
+    pub post_id: uuid::Uuid,
+    pub user_id: uuid::Uuid,
+    pub upvoted_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = post_upvotes)]
+pub struct NewPostUpvote<'a> {
+    pub post_id: &'a uuid::Uuid,
+    pub user_id: &'a uuid::Uuid,
+}
+
+impl<'a> NewPostUpvote<'a> {
+    pub fn new(post_id: &'a uuid::Uuid, user_id: &'a uuid::Uuid) -> Self {
+        Self { post_id, user_id }
     }
 }
