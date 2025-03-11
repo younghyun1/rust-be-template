@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use axum::{Extension, Json, extract::State, response::IntoResponse};
-use chrono::Utc;
 use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 

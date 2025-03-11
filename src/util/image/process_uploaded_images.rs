@@ -1,5 +1,8 @@
 use anyhow::anyhow;
-use image::{GenericImageView, ImageFormat};
+use image::{
+    GenericImageView, ImageFormat, imageops::FilterType, load_from_memory,
+    load_from_memory_with_format,
+};
 use std::io::Cursor;
 
 pub async fn process_uploaded_image(
@@ -7,7 +10,6 @@ pub async fn process_uploaded_image(
     format: Option<image::ImageFormat>,
 ) -> anyhow::Result<Vec<u8>> {
     tokio::task::spawn_blocking(move || {
-        use image::{imageops::FilterType, load_from_memory, load_from_memory_with_format};
         // Attempt to decode the image from memory, using the provided format if auto-detection fails.
         let img = match load_from_memory(&bits) {
             Ok(img) => img,
