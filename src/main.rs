@@ -30,6 +30,7 @@ pub mod dto {
             pub mod get_posts_request;
             pub mod read_post;
             pub mod submit_post_request;
+            pub mod upvote_comment_request;
         }
     }
     pub mod responses {
