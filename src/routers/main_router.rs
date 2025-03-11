@@ -63,6 +63,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/blog/submit-post", post(submit_post))
         .route("/blog/get-posts", get(get_posts))
         .route("/blog/read-post", get(read_post))
+        // TODO: Clean up layering, middleware, add vote related stuff, RESTify
         .fallback(get(fallback_handler))
         .layer(from_fn_with_state(state.clone(), api_key_check_middleware))
         .layer(from_fn_with_state(state.clone(), log_middleware))

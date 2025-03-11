@@ -1,21 +1,21 @@
 use std::sync::Arc;
 
 use axum::{Extension, Json, extract::State, response::IntoResponse};
+use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
 use crate::{
-    domain::blog::NewPostUpvote,
     dto::{
         requests::blog::upvote_post_request::UpvotePostRequest, responses::response_data::http_resp,
     },
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
-    schema::post_upvotes,
+    schema::post_upvotes::dsl as pu,
     util::time::now::tokio_now,
 };
 
-pub async fn upvote_post(
+pub async fn rescind_post_upvote(
     Extension(user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,
     Json(request): Json<UpvotePostRequest>,
@@ -27,20 +27,20 @@ pub async fn upvote_post(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    let new_post_upvote: NewPostUpvote = NewPostUpvote::new(&request.post_id, &user_id);
+    let affected_rows = diesel::delete(
+        pu::post_upvotes.filter(
+            pu::post_id
+                .eq(&request.post_id)
+                .and(pu::user_id.eq(user_id)),
+        ),
+    )
+    .execute(&mut conn)
+    .await
+    .map_err(|e| code_err(CodeError::DB_DELETION_ERROR, e))?;
 
-    match diesel::insert_into(post_upvotes::table)
-        .values(new_post_upvote)
-        .execute(&mut conn)
-        .await
-    {
-        Ok(_) => (),
-        Err(diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::UniqueViolation,
-            _,
-        )) => return Err(CodeError::UPVOTE_MUST_BE_UNIQUE.into()),
-        Err(e) => return Err(code_err(CodeError::DB_INSERTION_ERROR, e)),
-    };
+    if affected_rows == 0 {
+        return Err(CodeError::UPVOTE_DOES_NOT_EXIST.into());
+    }
 
-    return Ok(http_resp((), (), start));
+    Ok(http_resp((), (), start))
 }

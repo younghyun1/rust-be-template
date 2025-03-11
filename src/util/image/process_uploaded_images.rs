@@ -41,8 +41,8 @@ pub async fn process_uploaded_image(
         {
             let mut cursor = Cursor::new(&mut output_buffer);
             resized_img
-                .write_to(&mut cursor, ImageFormat::Avif)
-                .map_err(|e| anyhow!("Failed to encode image as AVIF: {:?}", e))?;
+                .write_to(&mut cursor, ImageFormat::WebP)
+                .map_err(|e| anyhow!("Failed to encode image as WebP: {:?}", e))?;
         }
         Ok(output_buffer)
     })
