@@ -1,9 +1,18 @@
 use std::{
     net::{IpAddr, SocketAddr},
+    path::PathBuf,
     sync::Arc,
     time::Duration,
 };
 
+use axum::{
+    BoxError,
+    handler::HandlerWithoutStateExt,
+    http::{StatusCode, Uri, uri::Authority},
+    response::Redirect,
+};
+use axum_extra::extract::Host;
+use axum_server::tls_rustls::RustlsConfig;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_async::pooled_connection::bb8::Pool;
 use lettre::{AsyncSmtpTransport, Tokio1Executor, transport::smtp::authentication::Credentials};
@@ -31,7 +40,9 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
 
     let host_socket_addr: SocketAddr = SocketAddr::new(host_ip, host_port);
 
-    info!("Loaded host configuration: {}", host_socket_addr);
+    info!(host_socket_addr = %host_socket_addr, "Loaded host configuration.");
+
+    info!("Loaded keys.");
 
     let db_config = DbConfig::from_env()
         .map_err(|e| anyhow::anyhow!("Failed to get DB config from environment: {}", e))?
@@ -99,10 +110,23 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
     // initialize scheduled jobs manager
     task_init(state.clone()).await?;
 
-    // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind(host_socket_addr)
+    tokio::spawn(redirect_http_to_https(Ports {
+        http: 80,
+        https: host_port,
+    }));
+
+    let cert_chain_path: PathBuf = std::env::var("CERT_CHAIN_DIR")
+        .map_err(|_| anyhow::anyhow!("CERT_CHAIN_DIR environment variable is not set"))
+        .map(PathBuf::from)?;
+
+    let priv_key_path: PathBuf = std::env::var("PRIV_KEY_DIR")
+        .map_err(|_| anyhow::anyhow!("PRIV_KEY_DIR environment variable is not set"))
+        .map(PathBuf::from)?;
+
+    // configure certificate and private key used by https
+    let config = RustlsConfig::from_pem_file(cert_chain_path, priv_key_path)
         .await
-        .map_err(|e| anyhow::anyhow!("Failed to bind TCP listener: {}", e))?;
+        .unwrap();
 
     info!("Listening to Port {}...", host_port);
 
@@ -110,13 +134,61 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
         "Initialization complete in {:?}. Starting server now...",
         start.elapsed()
     );
-
-    axum::serve(
-        listener,
-        build_router(state).into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .await
-    .map_err(|e| anyhow::anyhow!("Failed to serve application: {}", e))?;
+    
+    axum_server::bind_rustls(host_socket_addr, config)
+        .serve(build_router(state).into_make_service())
+        .await
+        .unwrap();
 
     Ok(())
+}
+
+#[derive(Clone, Copy)]
+struct Ports {
+    http: u16,
+    https: u16,
+}
+
+async fn redirect_http_to_https(ports: Ports) {
+    fn make_https(host: &str, uri: Uri, https_port: u16) -> Result<Uri, BoxError> {
+        let mut parts = uri.into_parts();
+
+        parts.scheme = Some(axum::http::uri::Scheme::HTTPS);
+
+        if parts.path_and_query.is_none() {
+            parts.path_and_query = Some("/".parse().unwrap());
+        }
+
+        let authority: Authority = host.parse()?;
+        let bare_host = match authority.port() {
+            Some(port_struct) => authority
+                .as_str()
+                .strip_suffix(port_struct.as_str())
+                .unwrap()
+                .strip_suffix(':')
+                .unwrap(), // if authority.port() is Some(port) then we can be sure authority ends with :{port}
+            None => authority.as_str(),
+        };
+
+        parts.authority = Some(format!("{bare_host}:{https_port}").parse()?);
+
+        Ok(Uri::from_parts(parts)?)
+    }
+
+    let redirect = move |Host(host): Host, uri: Uri| async move {
+        match make_https(&host, uri, ports.https) {
+            Ok(uri) => Ok(Redirect::permanent(&uri.to_string())),
+            Err(error) => {
+                tracing::warn!(%error, "failed to convert URI to HTTPS");
+                Err(StatusCode::BAD_REQUEST)
+            }
+        }
+    };
+
+    let addr = SocketAddr::from(([127, 0, 0, 1], ports.http));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    tracing::debug!("listening on {}", listener.local_addr().unwrap());
+    axum::serve(listener, redirect.into_make_service())
+        .await
+        .unwrap();
 }
