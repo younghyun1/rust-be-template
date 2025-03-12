@@ -1,15 +1,16 @@
 use std::sync::Arc;
 
-use axum::{Json, extract::State, response::IntoResponse};
+use axum::{
+    extract::{Path, State},
+    response::IntoResponse,
+};
 use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
+use uuid::Uuid;
 
 use crate::{
     domain::blog::{Comment, Post},
-    dto::{
-        requests::blog::read_post::ReadPostRequest,
-        responses::{blog::read_post_response::ReadPostResponse, response_data::http_resp},
-    },
+    dto::responses::{blog::read_post_response::ReadPostResponse, response_data::http_resp},
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
     schema::{comments, posts},
@@ -19,7 +20,7 @@ use crate::{
 // TODO: Get comments too.
 pub async fn read_post(
     State(state): State<Arc<ServerState>>,
-    Json(request): Json<ReadPostRequest>,
+    Path(post_id): Path<Uuid>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
@@ -29,7 +30,7 @@ pub async fn read_post(
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
     let post: Post = diesel::update(posts::table)
-        .filter(posts::post_id.eq(request.post_id))
+        .filter(posts::post_id.eq(post_id))
         .set(posts::post_view_count.eq(posts::post_view_count + 1))
         .returning(posts::all_columns)
         .get_result(&mut conn)
