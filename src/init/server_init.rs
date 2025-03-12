@@ -6,7 +6,6 @@ use std::{
 };
 
 use axum::{
-    BoxError,
     handler::HandlerWithoutStateExt,
     http::{StatusCode, Uri, uri::Authority},
     response::Redirect,
@@ -41,6 +40,14 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
     let host_socket_addr: SocketAddr = SocketAddr::new(host_ip, host_port);
 
     info!(host_socket_addr = %host_socket_addr, "Loaded host configuration.");
+
+    let cert_chain_path: PathBuf = std::env::var("CERT_CHAIN_DIR")
+        .map_err(|_| anyhow::anyhow!("CERT_CHAIN_DIR environment variable is not set"))
+        .map(PathBuf::from)?;
+
+    let priv_key_path: PathBuf = std::env::var("PRIV_KEY_DIR")
+        .map_err(|_| anyhow::anyhow!("PRIV_KEY_DIR environment variable is not set"))
+        .map(PathBuf::from)?;
 
     info!("Loaded keys.");
 
@@ -115,18 +122,10 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
         https: host_port,
     }));
 
-    let cert_chain_path: PathBuf = std::env::var("CERT_CHAIN_DIR")
-        .map_err(|_| anyhow::anyhow!("CERT_CHAIN_DIR environment variable is not set"))
-        .map(PathBuf::from)?;
-
-    let priv_key_path: PathBuf = std::env::var("PRIV_KEY_DIR")
-        .map_err(|_| anyhow::anyhow!("PRIV_KEY_DIR environment variable is not set"))
-        .map(PathBuf::from)?;
-
     // configure certificate and private key used by https
     let config = RustlsConfig::from_pem_file(cert_chain_path, priv_key_path)
         .await
-        .unwrap();
+        .map_err(|e| anyhow::anyhow!("Failed to load TLS config: {}", e))?;
 
     info!("Listening to Port {}...", host_port);
 
@@ -138,7 +137,7 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
     axum_server::bind_rustls(host_socket_addr, config)
         .serve(build_router(state).into_make_service())
         .await
-        .unwrap();
+        .map_err(|e| anyhow::anyhow!("Server error: {}", e))?;
 
     Ok(())
 }
@@ -149,30 +148,44 @@ struct Ports {
     https: u16,
 }
 
-async fn redirect_http_to_https(ports: Ports) {
-    fn make_https(host: &str, uri: Uri, https_port: u16) -> Result<Uri, BoxError> {
+async fn redirect_http_to_https(ports: Ports) -> anyhow::Result<()> {
+    fn make_https(host: &str, uri: Uri, https_port: u16) -> anyhow::Result<Uri> {
         let mut parts = uri.into_parts();
 
         parts.scheme = Some(axum::http::uri::Scheme::HTTPS);
 
         if parts.path_and_query.is_none() {
-            parts.path_and_query = Some("/".parse().unwrap());
+            parts.path_and_query = Some(
+                "/".parse()
+                    .map_err(|e| anyhow::anyhow!("Failed to parse '/' as path: {}", e))?,
+            );
         }
 
-        let authority: Authority = host.parse()?;
+        let authority: Authority = host
+            .parse()
+            .map_err(|e| anyhow::anyhow!("Failed to parse host into Authority: {}", e))?;
         let bare_host = match authority.port() {
             Some(port_struct) => authority
                 .as_str()
                 .strip_suffix(port_struct.as_str())
-                .unwrap()
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "Failed to remove port ({}) from authority string",
+                        port_struct
+                    )
+                })?
                 .strip_suffix(':')
-                .unwrap(), // if authority.port() is Some(port) then we can be sure authority ends with :{port}
+                .ok_or_else(|| anyhow::anyhow!("Failed to remove colon from authority string"))?,
             None => authority.as_str(),
         };
 
-        parts.authority = Some(format!("{bare_host}:{https_port}").parse()?);
+        parts.authority = Some(
+            format!("{bare_host}:{https_port}")
+                .parse()
+                .map_err(|e| anyhow::anyhow!("Failed to parse new authority: {}", e))?,
+        );
 
-        Ok(Uri::from_parts(parts)?)
+        Uri::from_parts(parts).map_err(|e| anyhow::anyhow!("Failed to construct HTTPS URI: {}", e))
     }
 
     let redirect = move |Host(host): Host, uri: Uri| async move {
@@ -186,9 +199,16 @@ async fn redirect_http_to_https(ports: Ports) {
     };
 
     let addr = SocketAddr::from(([127, 0, 0, 1], ports.http));
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    tracing::debug!("listening on {}", listener.local_addr().unwrap());
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to bind TCP listener: {}", e))?;
+    tracing::debug!(
+        "listening on {}",
+        listener
+            .local_addr()
+            .map_err(|e| anyhow::anyhow!("Failed to get local address: {}", e))?
+    );
     axum::serve(listener, redirect.into_make_service())
         .await
-        .unwrap();
+        .map_err(|e| anyhow::anyhow!("Failed to serve redirection: {}", e))
 }
