@@ -135,7 +135,7 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
     );
 
     axum_server::bind_rustls(host_socket_addr, config)
-        .serve(build_router(state).into_make_service())
+        .serve(build_router(state).into_make_service_with_connect_info::<SocketAddr>())
         .await
         .map_err(|e| anyhow::anyhow!("Server error: {}", e))?;
 
