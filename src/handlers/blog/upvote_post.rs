@@ -51,5 +51,5 @@ pub async fn upvote_post(
         e => code_err(CodeError::DB_INSERTION_ERROR, e),
     })?;
 
-    return Ok(http_resp(count_row.count, (), start));
+    Ok(http_resp(count_row.count, (), start))
 }
