@@ -1,4 +1,8 @@
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::{
+    net::{IpAddr, SocketAddr},
+    sync::Arc,
+    time::Duration,
+};
 
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_async::pooled_connection::bb8::Pool;
@@ -14,6 +18,20 @@ use super::{config::DbConfig, state::ServerState};
 
 pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()> {
     let num_cores: u32 = num_cpus::get_physical() as u32;
+
+    let host_ip: IpAddr = std::env::var("HOST_IP")
+        .map_err(|e| anyhow::anyhow!("Failed to load HOST_IP from .env: {}", e))?
+        .parse::<std::net::IpAddr>()
+        .map_err(|e| anyhow::anyhow!("Failed to parse HOST_IP as IP address: {}", e))?;
+
+    let host_port: u16 = std::env::var("HOST_PORT")
+        .map_err(|e| anyhow::anyhow!("Failed to load HOST_PORT from .env: {}", e))?
+        .parse()
+        .map_err(|e| anyhow::anyhow!("Failed to parse HOST_PORT as u16: {}", e))?;
+
+    let host_socket_addr: SocketAddr = SocketAddr::new(host_ip, host_port);
+
+    info!("Loaded host configuration: {}", host_socket_addr);
 
     let db_config = DbConfig::from_env()
         .map_err(|e| anyhow::anyhow!("Failed to get DB config from environment: {}", e))?
@@ -82,10 +100,11 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
     task_init(state.clone()).await?;
 
     // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+    let listener = tokio::net::TcpListener::bind(host_socket_addr)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to bind TCP listener: {}", e))?;
-    info!("Listening to Port 3000...");
+
+    info!("Listening to Port {}...", host_port);
 
     info!(
         "Initialization complete in {:?}. Starting server now...",
