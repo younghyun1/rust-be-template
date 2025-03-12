@@ -84,9 +84,11 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
 
     // Configure ServeDir to serve static files and fall back to index.html
     let spa_fallback_service = get(spa_fallback);
+    
     let serve_dir = ServeDir::new("fe")
         .append_index_html_on_directories(true)
         .not_found_service(spa_fallback_service);
+    
     let static_files = get_service(serve_dir).handle_error(|error| async move {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
