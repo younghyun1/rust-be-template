@@ -4,7 +4,7 @@ use axum::{
     middleware::from_fn_with_state,
     routing::{get, post},
 };
-use tower_http::{compression::CompressionLayer, cors::CorsLayer};
+use tower_http::{compression::CompressionLayer, cors::CorsLayer, services::ServeDir};
 
 use crate::{
     handlers::{
@@ -35,7 +35,10 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let auth_middleware = from_fn_with_state(state.clone(), auth_middleware);
     let api_key_check_middleware = from_fn_with_state(state.clone(), api_key_check_middleware);
     let log_middleware = from_fn_with_state(state.clone(), log_middleware);
+    let compression_middleware = CompressionLayer::new().gzip(true);
+    let cors_layer = CorsLayer::very_permissive();
 
+    // API router with API-specific middleware (api_key_check and cors)
     let api_router = axum::Router::new()
         .route("/api/healthcheck/server", get(healthcheck))
         .route("/api/healthcheck/state", get(root_handler))
@@ -61,15 +64,23 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         )
         .route("/api/auth/reset-password", post(reset_password))
         .route("/api/auth/verify-user-email", post(verify_user_email))
-        .route("/api/blog/posts", get(get_posts)) // TODO: RESTify
+        .route("/api/blog/posts", get(get_posts))
         .route("/api/blog/posts/{post_id}", get(read_post))
         .route("/api/blog/posts", post(submit_post))
         .fallback(get(fallback_handler))
         .layer(api_key_check_middleware)
-        .layer(log_middleware)
-        .layer(CorsLayer::very_permissive())
-        .layer(CompressionLayer::new().gzip(true))
-        .with_state(state);
+        .layer(cors_layer)
+        .with_state(state.clone());
 
-    api_router
+    // Frontend router to serve static files
+    let fe_router = axum::Router::new().nest_service("/", ServeDir::new("fe"));
+
+    // Merged router with common middleware (compression and logging)
+    let merged_router = axum::Router::new()
+        .merge(api_router)
+        .merge(fe_router)
+        .layer(compression_middleware)
+        .layer(log_middleware);
+
+    merged_router
 }
