@@ -134,7 +134,7 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
         "Initialization complete in {:?}. Starting server now...",
         start.elapsed()
     );
-    
+
     axum_server::bind_rustls(host_socket_addr, config)
         .serve(build_router(state).into_make_service())
         .await
