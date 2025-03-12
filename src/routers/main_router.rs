@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use axum::{
+    http::StatusCode,
     middleware::from_fn_with_state,
+    response::Html,
     routing::{get, post},
 };
 use tower_http::{compression::CompressionLayer, cors::CorsLayer, services::ServeDir};
@@ -19,10 +21,7 @@ use crate::{
             get_languages::get_languages,
             get_subdivisions_for_country::get_subdivisions_for_country,
         },
-        server::{
-            fallback::fallback_handler, healthcheck::healthcheck,
-            lookup_ip_loc::lookup_ip_location, root::root_handler,
-        },
+        server::{healthcheck::healthcheck, lookup_ip_loc::lookup_ip_location, root::root_handler},
     },
     init::state::ServerState,
 };
@@ -30,6 +29,17 @@ use crate::{
 use super::middleware::{
     api_key::api_key_check_middleware, auth::auth_middleware, logging::log_middleware,
 };
+
+async fn spa_fallback_handler() -> Result<Html<String>, (StatusCode, String)> {
+    // You can read the 'index.html' normally (or cache it at startup) and reply with it.
+    match std::fs::read_to_string("fe/index.html") {
+        Ok(content) => Ok(Html(content)),
+        Err(_) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Unable to load index file.".into(),
+        )),
+    }
+}
 
 pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let auth_middleware = from_fn_with_state(state.clone(), auth_middleware);
@@ -67,13 +77,13 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/api/blog/posts", get(get_posts))
         .route("/api/blog/posts/{post_id}", get(read_post))
         .route("/api/blog/posts", post(submit_post))
-        .fallback(get(fallback_handler))
+        // .fallback(get(fallback_handler))
         .layer(api_key_check_middleware)
         .layer(cors_layer)
         .with_state(state.clone());
 
     // Frontend router to serve static files
-    let fe_router = axum::Router::new().nest_service("/", ServeDir::new("fe"));
+    let fe_router = axum::Router::new().fallback(get(spa_fallback_handler));
 
     // Merged router with common middleware (compression and logging)
     let merged_router = axum::Router::new()
