@@ -13,6 +13,7 @@ pub mod schema;
 pub mod domain {
     pub mod blog;
     pub mod country;
+    pub mod domain_traits;
     pub mod user;
 }
 pub mod dto {
