@@ -100,4 +100,4 @@ zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt", "pkg-config"] }
 bigdecimal = { version = "0.4.7", features = ["serde"] }
 
 # image processing
-image = "0.25.5"
+# image = "0.25.5"
