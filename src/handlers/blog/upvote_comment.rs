@@ -43,5 +43,5 @@ pub async fn upvote_comment(
         Err(e) => return Err(code_err(CodeError::DB_INSERTION_ERROR, e)),
     };
 
-    return Ok(http_resp((), (), start));
+    Ok(http_resp((), (), start))
 }
