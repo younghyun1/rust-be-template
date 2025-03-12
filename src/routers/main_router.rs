@@ -3,8 +3,8 @@ use std::sync::Arc;
 use axum::{
     http::StatusCode,
     middleware::from_fn_with_state,
-    response::Html,
-    routing::{get, post},
+    response::IntoResponse,
+    routing::{get, get_service, post},
 };
 use tower_http::{compression::CompressionLayer, cors::CorsLayer, services::ServeDir};
 
@@ -30,14 +30,15 @@ use super::middleware::{
     api_key::api_key_check_middleware, auth::auth_middleware, logging::log_middleware,
 };
 
-async fn spa_fallback_handler() -> Result<Html<String>, (StatusCode, String)> {
-    // You can read the 'index.html' normally (or cache it at startup) and reply with it.
-    match std::fs::read_to_string("fe/index.html") {
-        Ok(content) => Ok(Html(content)),
-        Err(_) => Err((
+#[axum::debug_handler]
+async fn spa_fallback() -> impl axum::response::IntoResponse {
+    match tokio::fs::read_to_string("fe/index.html").await {
+        Ok(html) => axum::response::Html(html).into_response(),
+        Err(_) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            "Unable to load index file.".into(),
-        )),
+            "Internal Server Error".to_string(),
+        )
+            .into_response(),
     }
 }
 
@@ -47,6 +48,16 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let log_middleware = from_fn_with_state(state.clone(), log_middleware);
     let compression_middleware = CompressionLayer::new().gzip(true);
     let cors_layer = CorsLayer::very_permissive();
+
+    let static_files = axum::Router::new().nest_service(
+        "/assets", // or "/" if files are directly under 'fe'
+        get_service(ServeDir::new("fe")).handle_error(|error| async move {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Static file error: {}", error),
+            )
+        }),
+    );
 
     // API router with API-specific middleware (api_key_check and cors)
     let api_router = axum::Router::new()
@@ -82,8 +93,10 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .layer(cors_layer)
         .with_state(state.clone());
 
-    // Frontend router to serve static files
-    let fe_router = axum::Router::new().fallback(get(spa_fallback_handler));
+    // Frontend router to serve static files and fallback to the SPA handler
+    let fe_router = axum::Router::new()
+        .merge(static_files)
+        .fallback(get(spa_fallback));
 
     // Merged router with common middleware (compression and logging)
     let merged_router = axum::Router::new()
