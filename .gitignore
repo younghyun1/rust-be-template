@@ -73,3 +73,7 @@ logs/
 # raw data
 *.csv
 deploy.sh
+
+# certs
+/certs
+*/certs/
