@@ -4,5 +4,10 @@
 4) Make a 'delete account' function.
 5) OAuth
 6) Increased FE integration
-7) FE
 8) Soft deletion
+9) Profile Image disk persistence and fileserving manager
+10) HTTPS
+11) Session map disk persistence
+12) Markdown interpretation as HTML? IDEK.
+13) Image cropping (webp)
+14)
