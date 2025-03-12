@@ -343,7 +343,7 @@ impl CountryAndSubdivisionsTable {
         for subdiv in subdivisions {
             subdivisions_map
                 .entry(subdiv.country_code)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(subdiv);
         }
 
@@ -367,7 +367,7 @@ impl CountryAndSubdivisionsTable {
         let mut by_country_alpha2 = HashMap::new();
         let mut by_country_alpha3 = HashMap::new();
         for (idx, combined) in rows.iter().enumerate() {
-            by_id.insert(combined.country.country_code.clone(), idx);
+            by_id.insert(combined.country.country_code, idx);
             by_country_alpha2.insert(combined.country.country_alpha2.clone(), idx);
             by_country_alpha3.insert(combined.country.country_alpha3.clone(), idx);
         }

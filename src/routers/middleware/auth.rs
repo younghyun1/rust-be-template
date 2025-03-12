@@ -33,7 +33,7 @@ pub async fn auth_middleware(
         None => {
             return Err(code_err(
                 CodeError::UNAUTHORIZED_ACCESS,
-                format!("Session cookie is missing"),
+                "Session cookie is missing".to_string(),
             ));
         }
     };
@@ -51,7 +51,7 @@ pub async fn auth_middleware(
     if !session.is_valid() {
         return Err(code_err(
             CodeError::UNAUTHORIZED_ACCESS,
-            format!("Session is invalid"),
+            "Session is invalid".to_string(),
         ));
     }
 
