@@ -5,15 +5,19 @@ use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
 use crate::{
-    domain::blog::NewPostUpvote,
     dto::{
         requests::blog::upvote_post_request::UpvotePostRequest, responses::response_data::http_resp,
     },
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
-    schema::post_upvotes,
     util::time::now::tokio_now,
 };
+
+#[derive(Debug, diesel::QueryableByName)]
+pub struct CountRow {
+    #[sql_type = "diesel::sql_types::BigInt"]
+    count: i64,
+}
 
 pub async fn upvote_post(
     Extension(user_id): Extension<Uuid>,
@@ -27,20 +31,25 @@ pub async fn upvote_post(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    let new_post_upvote: NewPostUpvote = NewPostUpvote::new(&request.post_id, &user_id);
-
-    match diesel::insert_into(post_upvotes::table)
-        .values(new_post_upvote)
-        .execute(&mut conn)
-        .await
-    {
-        Ok(_) => (),
-        Err(diesel::result::Error::DatabaseError(
+    let count_row: CountRow = diesel::sql_query(
+        "WITH ins AS (
+             INSERT INTO post_upvotes (post_id, user_id)
+             VALUES ($1, $2)
+             RETURNING 1
+         )
+         SELECT count(*) as count FROM ins",
+    )
+    .bind::<diesel::sql_types::Uuid, _>(request.post_id)
+    .bind::<diesel::sql_types::Uuid, _>(user_id)
+    .get_result(&mut conn)
+    .await
+    .map_err(|e| match e {
+        diesel::result::Error::DatabaseError(
             diesel::result::DatabaseErrorKind::UniqueViolation,
             _,
-        )) => return Err(CodeError::UPVOTE_MUST_BE_UNIQUE.into()),
-        Err(e) => return Err(code_err(CodeError::DB_INSERTION_ERROR, e)),
-    };
+        ) => CodeError::UPVOTE_MUST_BE_UNIQUE.into(),
+        e => code_err(CodeError::DB_INSERTION_ERROR, e),
+    })?;
 
-    return Ok(http_resp((), (), start));
+    return Ok(http_resp(count_row.count, (), start));
 }
