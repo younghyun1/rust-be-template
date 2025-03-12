@@ -6,25 +6,20 @@ use crate::{
 };
 
 use axum::{
-    extract::{Query, State},
+    extract::{Path, State},
     response::IntoResponse,
 };
 use std::sync::Arc;
 
-#[derive(serde_derive::Deserialize)]
-pub struct GetSubdivisionsForCountryQueryParams {
-    country_id: i32,
-}
-
 pub async fn get_subdivisions_for_country(
     State(state): State<Arc<ServerState>>,
-    Query(query_params): Query<GetSubdivisionsForCountryQueryParams>,
+    Path(country_id): Path<i32>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
     let country_map_lock = state.country_map.read().await;
 
-    let subdivisions = match country_map_lock.by_id.get(&query_params.country_id) {
+    let subdivisions = match country_map_lock.by_id.get(&country_id) {
         Some(id) => country_map_lock.rows[*id].subdivisions.clone(),
         None => return Err(CodeError::COUNTRY_NOT_FOUND.into()),
     };

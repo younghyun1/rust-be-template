@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::{Query, State},
+    extract::{Path, Query, State},
     response::IntoResponse,
 };
 
@@ -12,14 +12,9 @@ use crate::{
     util::time::now::tokio_now,
 };
 
-#[derive(serde_derive::Deserialize)]
-pub struct GetCountryQueryParams {
-    country_id: i32,
-}
-
 pub async fn get_country(
     State(state): State<Arc<ServerState>>,
-    Query(query): Query<GetCountryQueryParams>,
+    Path(country_id): Path<i32>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
@@ -27,7 +22,7 @@ pub async fn get_country(
 
     let country_id = *country_map_lock
         .by_id
-        .get(&query.country_id)
+        .get(&country_id)
         .ok_or("No country found by ID!")
         .map_err(|e| code_err(CodeError::COUNTRY_NOT_FOUND, e))?;
 

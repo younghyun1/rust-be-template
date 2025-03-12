@@ -27,45 +27,49 @@ use crate::{
     init::state::ServerState,
 };
 
-use super::middleware::{api_key::api_key_check_middleware, logging::log_middleware};
+use super::middleware::{
+    api_key::api_key_check_middleware, auth::auth_middleware, logging::log_middleware,
+};
 
 pub fn build_router(state: Arc<ServerState>) -> axum::Router {
-    axum::Router::new()
-        .route("/", get(root_handler))
-        .route("/dropdown/language/get-all", get(get_languages))
-        .route("/dropdown/language", get(get_language))
-        .route("/dropdown/country/get-all", get(get_countries))
-        .route("/dropdown/country", get(get_country))
+    let auth_middleware = from_fn_with_state(state.clone(), auth_middleware);
+    let api_key_check_middleware = from_fn_with_state(state.clone(), api_key_check_middleware);
+    let log_middleware = from_fn_with_state(state.clone(), log_middleware);
+
+    let api_router = axum::Router::new()
+        .route("/api/healthcheck/server", get(healthcheck))
+        .route("/api/healthcheck/state", get(root_handler))
+        .route("/api/dropdown/language", get(get_languages))
+        .route("/api/dropdown/language/{language_id}", get(get_language))
+        .route("/api/dropdown/country", get(get_countries))
+        .route("/api/dropdown/country/{country_id}", get(get_country))
         .route(
-            "/dropdown/country/subdivision",
+            "/api/dropdown/country/{country_id}/subdivision",
             get(get_subdivisions_for_country),
         )
-        .route("/healthcheck", get(healthcheck))
-        .route("/geolocate", get(lookup_ip_location))
-        .route("/auth/signup", post(signup_handler))
+        .route("/api/geolocate/{ip_address}", get(lookup_ip_location))
+        .route("/api/auth/signup", post(signup_handler))
         .route(
-            "/auth/check-if-user-exists",
+            "/api/auth/check-if-user-exists",
             post(check_if_user_exists_handler),
         )
-        .route("/auth/login", post(login))
+        .route("/api/auth/login", post(login))
+        .route("/api/auth/logout", post(logout).layer(auth_middleware))
         .route(
-            "/auth/logout",
-            post(logout), // .layer(from_fn_with_state(state.clone(), auth_middleware)),
-        )
-        .route(
-            "/auth/reset-password-request",
+            "/api/auth/reset-password-request",
             post(reset_password_request_process),
         )
-        .route("/auth/reset-password", post(reset_password))
-        .route("/auth/verify-user-email", post(verify_user_email))
-        .route("/blog/submit-post", post(submit_post))
-        .route("/blog/get-posts", get(get_posts))
-        .route("/blog/read-post", get(read_post))
-        // TODO: Clean up layering, middleware, add vote related stuff, RESTify
+        .route("/api/auth/reset-password", post(reset_password))
+        .route("/api/auth/verify-user-email", post(verify_user_email))
+        .route("/api/blog/posts", get(get_posts)) // TODO: RESTify
+        .route("/api/blog/posts/{post_id}", get(read_post))
+        .route("/api/blog/posts", post(submit_post))
         .fallback(get(fallback_handler))
-        .layer(from_fn_with_state(state.clone(), api_key_check_middleware))
-        .layer(from_fn_with_state(state.clone(), log_middleware))
+        .layer(api_key_check_middleware)
+        .layer(log_middleware)
         .layer(CorsLayer::very_permissive())
-        .layer(CompressionLayer::new())
-        .with_state(state)
+        .layer(CompressionLayer::new().gzip(true))
+        .with_state(state);
+
+    api_router
 }
