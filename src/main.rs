@@ -168,16 +168,16 @@ async fn main() -> anyhow::Result<()> {
         .with_target(true)
         .with_filter(level_filters::LevelFilter::INFO);
 
-    // let file_layer = tracing_subscriber::fmt::layer()
-    //     .with_target(true)
-    //     .json()
-    //     .with_writer(_non_blocking_file)
-    //     .with_filter(level_filters::LevelFilter::DEBUG);
+    let file_layer = tracing_subscriber::fmt::layer()
+        .with_target(true)
+        .json()
+        .with_writer(_non_blocking_file)
+        .with_filter(level_filters::LevelFilter::DEBUG);
 
     // Build a subscriber that combines both layers
     tracing_subscriber::registry()
         .with(console_layer)
-        // .with(file_layer)
+        .with(file_layer)
         .init();
 
     info!("Initializing server...");
