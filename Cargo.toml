@@ -77,6 +77,7 @@ email_address = "0.2.9"
 # crypto/rand
 argon2 = "0.5.3"
 rand = "0.8.5"
+rustls = { version = "0.23.23", features = [] }
 
 # memory allocator
 mimalloc = "0.1.43"
