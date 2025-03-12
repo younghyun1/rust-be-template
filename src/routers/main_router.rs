@@ -49,17 +49,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let compression_middleware = CompressionLayer::new().gzip(true);
     let cors_layer = CorsLayer::very_permissive();
 
-    let static_files = axum::Router::new().nest_service(
-        "/assets", // or "/" if files are directly under 'fe'
-        get_service(ServeDir::new("fe")).handle_error(|error| async move {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Static file error: {}", error),
-            )
-        }),
-    );
-
-    // API router with API-specific middleware (api_key_check and cors)
+    // API router with API-specific middleware
     let api_router = axum::Router::new()
         .route("/api/healthcheck/server", get(healthcheck))
         .route("/api/healthcheck/state", get(root_handler))
@@ -88,22 +78,28 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/api/blog/posts", get(get_posts))
         .route("/api/blog/posts/{post_id}", get(read_post))
         .route("/api/blog/posts", post(submit_post))
-        // .fallback(get(fallback_handler))
         .layer(api_key_check_middleware)
         .layer(cors_layer)
         .with_state(state.clone());
 
-    // Frontend router to serve static files and fallback to the SPA handler
-    let fe_router = axum::Router::new()
-        .merge(static_files)
-        .fallback(get(spa_fallback));
+    // Configure ServeDir to serve static files and fall back to index.html
+    let spa_fallback_service = get(spa_fallback);
+    let serve_dir = ServeDir::new("fe")
+        .append_index_html_on_directories(true)
+        .not_found_service(spa_fallback_service);
+    let static_files = get_service(serve_dir).handle_error(|error| async move {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Static file error: {}", error),
+        )
+    });
 
-    // Merged router with common middleware (compression and logging)
-    let merged_router = axum::Router::new()
+    // Merge API router and set static_files as the fallback
+    let app = axum::Router::new()
         .merge(api_router)
-        .merge(fe_router)
+        .fallback_service(static_files)
         .layer(compression_middleware)
         .layer(log_middleware);
 
-    merged_router
+    app
 }
