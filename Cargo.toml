@@ -20,8 +20,9 @@ tower-http = { version = "0.6.2", features = [
     "compression-gzip",
     "trace",
     "cors",
-    "fs"
+    "fs",
 ] }
+axum-server = { version = "0.7.2", features = ["tls-rustls", "tokio-rustls"] }
 
 # parallelism
 # rayon = "1.10.0"
@@ -40,7 +41,7 @@ diesel-async = { version = "0.5.2", features = ["bb8", "postgres"] }
 dotenvy = "0.15.7"
 
 # async runtime
-tokio = { version = "1.43.0", features = ["full"] }
+tokio = { version = "1.44.1", features = ["full"] }
 
 # loggers
 tracing = { version = "0.1.41", features = ["std"] }
@@ -54,8 +55,8 @@ anyhow = "1.0.97"
 num_cpus = "1.16.0"
 
 # serialization/deserialization
-serde = "1.0.218"
-serde_derive = "1.0.218"
+serde = "1.0.219"
+serde_derive = "1.0.219"
 serde_json = { version = "1.0.140", features = ["preserve_order"] }
 bitcode = "0.6.5"
 
@@ -63,7 +64,7 @@ bitcode = "0.6.5"
 chrono = { version = "0.4.39", features = ["serde"] }
 chrono-tz = { version = "0.10.1", features = ["serde"] }
 scc = "2.3.3"
-uuid = { version = "1.15.1", features = [
+uuid = { version = "1.16.0", features = [
     "v4",
     "v7",
     "serde",
@@ -100,7 +101,6 @@ zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt", "pkg-config"] }
 
 # numeric
 bigdecimal = { version = "0.4.7", features = ["serde"] }
-axum-server = { version = "0.7.1", features = ["tls-rustls", "tokio-rustls"] }
 
 # image processing
 # image = "0.25.5"
