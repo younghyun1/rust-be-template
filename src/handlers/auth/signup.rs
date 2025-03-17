@@ -18,6 +18,7 @@ use crate::{
     init::state::ServerState,
     schema::{email_verification_tokens, users},
     util::{
+        email::emails::ValidateEmailEmail,
         string::validations::{validate_password_form, validate_username},
         time::now::tokio_now,
     },
@@ -87,16 +88,15 @@ pub async fn signup_handler(
     // TODO: Send a proper bloody email
     let user_email = request.user_email.clone();
 
+    let validation_email: ValidateEmailEmail = ValidateEmailEmail::new().set_fields(
+        inserted_email_verification_token_verify_by,
+        email_verification_token,
+    );
+
     tokio::spawn(async move {
         let email_client = state.get_email_client();
 
-        let email: Message = Message::builder()
-            .from("Cyhdev Forums <donotreply@cyhdev.com>".parse().unwrap())
-            .to(user_email.parse().unwrap())
-            .subject("Verify your Email")
-            .header(lettre::message::header::ContentType::TEXT_HTML)
-            .body(String::from("TEST"))
-            .unwrap();
+        let email: Message = validation_email.to_message(&user_email);
 
         match email_client.send(email).await {
             Ok(_) => (),
