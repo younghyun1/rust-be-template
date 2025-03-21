@@ -242,6 +242,20 @@ impl CodeError {
         message: "Upvote does not exist - could not delete.",
         log_level: Level::INFO,
     };
+    pub const FILE_UPLOAD_ERROR: CodeError = CodeError {
+        success: false,
+        error_code: 32,
+        http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
+        message: "File upload failed!",
+        log_level: Level::ERROR,
+    };
+    pub const IMAGE_TOO_LARGE: CodeError = CodeError {
+        success: false,
+        error_code: 33,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Image too large! Maximum allowed size is 10MB.",
+        log_level: Level::INFO,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
