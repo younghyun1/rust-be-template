@@ -14,7 +14,13 @@ panic = "unwind"
 
 [dependencies]
 # web framework
-axum = { version = "0.8.1", features = ["http2", "multipart", "ws", "macros"] }
+axum = { version = "0.8.1", features = [
+    "http2",
+    "multipart",
+    "ws",
+    "macros",
+    "multipart",
+] }
 axum-extra = { version = "0.10.0", features = ["cookie", "attachment", "form"] }
 tower-http = { version = "0.6.2", features = [
     "compression-gzip",
@@ -103,4 +109,4 @@ zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt", "pkg-config"] }
 bigdecimal = { version = "0.4.7", features = ["serde"] }
 
 # image processing
-# image = "0.25.5"
+image = "0.25.5"
