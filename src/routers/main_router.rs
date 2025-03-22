@@ -52,7 +52,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let cors_layer = CorsLayer::very_permissive();
 
     // API router with API-specific middleware
-    let api_router = axum::Router::new()
+    let public_router = axum::Router::new()
         .route("/api/healthcheck/server", get(healthcheck))
         .route("/api/healthcheck/state", get(root_handler))
         .route("/api/dropdown/language", get(get_languages))
@@ -70,20 +70,26 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
             post(check_if_user_exists_handler),
         )
         .route("/api/auth/login", post(login))
-        .route("/api/auth/logout", post(logout).layer(auth_middleware))
         .route(
             "/api/auth/reset-password-request",
             post(reset_password_request_process),
         )
         .route("/api/auth/reset-password", post(reset_password))
         .route("/api/auth/verify-user-email", post(verify_user_email))
+        .route("/api/blog/posts", get(get_posts))
+        .route("/api/blog/posts/{post_id}", get(read_post))
+        .route("/api/blog/posts", post(submit_post));
+
+    let protected_router = axum::Router::new()
+        .route("/api/auth/logout", post(logout))
         .route(
             "/api/user/upload-profile-picture",
             post(upload_profile_picture),
         )
-        .route("/api/blog/posts", get(get_posts))
-        .route("/api/blog/posts/{post_id}", get(read_post))
-        .route("/api/blog/posts", post(submit_post))
+        .layer(auth_middleware.clone());
+
+    let api_router = public_router
+        .merge(protected_router)
         .layer(api_key_check_middleware)
         .layer(cors_layer)
         .with_state(state.clone());
