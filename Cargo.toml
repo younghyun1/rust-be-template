@@ -64,7 +64,7 @@ num_cpus = "1.16.0"
 serde = "1.0.219"
 serde_derive = "1.0.219"
 serde_json = { version = "1.0.140", features = ["preserve_order"] }
-bitcode = "0.6.5"
+bitcode = "0.6.6"
 
 # types
 chrono = { version = "0.4.39", features = ["serde"] }
@@ -85,10 +85,10 @@ email_address = "0.2.9"
 # crypto/rand
 argon2 = "0.5.3"
 rand = "0.8.5"
-rustls = { version = "0.23.23", features = [] }
+rustls = { version = "0.23.25", features = [] }
 
 # memory allocator
-mimalloc = "0.1.43"
+mimalloc = "0.1.44"
 
 # email
 lettre = { version = "0.11.15", default-features = false, features = [

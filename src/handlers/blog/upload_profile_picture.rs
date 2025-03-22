@@ -4,12 +4,13 @@ use axum::{
     extract::{Multipart, State},
     response::IntoResponse,
 };
+use uuid::Uuid;
 
 use crate::{
     dto::responses::response_data::http_resp,
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
-    util::time::now::tokio_now,
+    util::{image::process_uploaded_images::process_uploaded_image, time::now::tokio_now},
 };
 
 const MAX_SIZE_OF_UPLOADABLE_PROFILE_PICTURE: usize = 1024 * 1024 * 10; // 10MB
@@ -96,6 +97,10 @@ pub async fn upload_profile_picture(
     }
 
     // compress and process image here in a blocking thread
+    let image_id: Uuid = uuid::Uuid::new_v4();
+    
+
+    // store in filesystem or S3
 
     // define response dto later
     Ok(http_resp((), (), start))
