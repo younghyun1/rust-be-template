@@ -50,35 +50,36 @@ pub async fn upload_profile_picture(
     mut multipart: Multipart,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
-    let mime: String;
-    let _extension: String;
-
-    // maximum profile picture image size of...10MB. : /
     let mut uploaded_file: Vec<u8> = Vec::with_capacity(MAX_SIZE_OF_UPLOADABLE_PROFILE_PICTURE);
+    let mut mime: String = String::new();
+    let mut _extension: String = String::new();
 
-    // grab the MIME type and file extension
-    match multipart.next_field().await {
-        Ok(Some(field)) => {
-            _extension = if let Some(extension) = field.file_name() {
-                match extension.rsplit('.').next() {
-                    Some(ext) => ext.to_owned(),
-                    None => extension.to_owned(), // If no period in filename, use the whole name
-                }
-            } else {
-                return Err(code_err(
-                    CodeError::FILE_UPLOAD_ERROR,
-                    "No extensions, that's illegal!",
-                ));
-            };
-            mime = if let Some(mime) = field.content_type() {
-                mime.to_owned()
-            } else {
-                return Err(code_err(
-                    CodeError::FILE_UPLOAD_ERROR,
-                    "No MIME extensions, that's illegal!",
-                ));
-            };
-
+    // Process the multipart fields
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| code_err(CodeError::FILE_UPLOAD_ERROR, e))?
+    {
+        // For the first field, extract metadata (file name and MIME type)
+        if uploaded_file.is_empty() {
+            _extension = field
+                .file_name()
+                .and_then(|name| name.rsplit('.').next().map(|ext| ext.to_string()))
+                .ok_or_else(|| {
+                    code_err(
+                        CodeError::FILE_UPLOAD_ERROR,
+                        "No extensions, that's illegal!",
+                    )
+                })?;
+            mime = field
+                .content_type()
+                .map(|mime| mime.to_string())
+                .ok_or_else(|| {
+                    code_err(
+                        CodeError::FILE_UPLOAD_ERROR,
+                        "No MIME extensions, that's illegal!",
+                    )
+                })?;
             if !ALLOWED_MIME_TYPES.contains(&mime.as_ref()) {
                 return Err(code_err(
                     CodeError::FILE_UPLOAD_ERROR,
@@ -86,25 +87,16 @@ pub async fn upload_profile_picture(
                 ));
             }
         }
-        Ok(None) => {
-            return Err(code_err(CodeError::FILE_UPLOAD_ERROR, "File is empty!"));
-        }
-        Err(e) => {
-            return Err(code_err(CodeError::FILE_UPLOAD_ERROR, e));
-        }
-    }
-
-    // iterate through all the rest of the chunks in the multipart upload
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .map_err(|e| code_err(CodeError::FILE_UPLOAD_ERROR, e))?
-    {
+        // Read and accumulate the field's bytes.
         let bytes = field
             .bytes()
             .await
             .map_err(|e| code_err(CodeError::FILE_UPLOAD_ERROR, e))?;
         uploaded_file.extend_from_slice(&bytes);
+    }
+
+    if uploaded_file.is_empty() {
+        return Err(code_err(CodeError::FILE_UPLOAD_ERROR, "File is empty!"));
     }
 
     // compress and process image here in a blocking thread
