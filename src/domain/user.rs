@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::{
     dto::requests::auth::signup_request::SignupRequest,
     errors::code_error::{CodeError, CodeErrorResp, code_err},
-    schema::{email_verification_tokens, password_reset_tokens, users},
+    schema::{email_verification_tokens, password_reset_tokens, user_profile_pictures, users},
     util::crypto::hash_pw::hash_pw,
 };
 
@@ -166,4 +166,31 @@ impl<'a> NewPasswordResetToken<'a> {
             password_reset_token_created_at,
         }
     }
+}
+
+#[derive(Serialize, Deserialize, QueryableByName, Queryable)]
+pub struct UserProfilePicture {
+    #[diesel(sql_type = diesel::sql_types::Uuid)]
+    pub user_profile_picture_id: uuid::Uuid,
+    #[diesel(sql_type = diesel::sql_types::Uuid)]
+    pub user_id: uuid::Uuid,
+    #[diesel(sql_type = diesel::sql_types::Timestamptz)]
+    pub user_profile_picture_created_at: DateTime<Utc>,
+    #[diesel(sql_type = diesel::sql_types::Timestamptz)]
+    pub user_profile_picture_updated_at: DateTime<Utc>,
+    #[diesel(sql_type = diesel::sql_types::Integer)]
+    pub user_profile_picture_image_type: i32,
+    #[diesel(sql_type = diesel::sql_types::Bool)]
+    pub user_profile_picture_is_on_cloud: bool,
+    #[diesel(sql_type = diesel::sql_types::Nullable<diesel::sql_types::Varchar>)]
+    pub user_profile_picture_link: Option<String>,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = user_profile_pictures)]
+pub struct UserProfilePictureInsertable {
+    pub user_id: Uuid,
+    pub user_profile_picture_image_type: i32,
+    pub user_profile_picture_is_on_cloud: bool,
+    pub user_profile_picture_link: Option<String>,
 }
