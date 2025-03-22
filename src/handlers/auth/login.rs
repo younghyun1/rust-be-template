@@ -97,9 +97,9 @@ pub async fn login(
         .path("/")
         .http_only(true)
         .domain("cyhdev.com")
-        .same_site(axum_extra::extract::cookie::SameSite::None) // TODO: turn off for prod
-        // .secure(true)
-        .partitioned(true) // TODO: turn off for prod
+        .same_site(axum_extra::extract::cookie::SameSite::Strict) // TODO: turn off for prod
+        .secure(true)
+        // .partitioned(true)
         .build();
 
     drop(conn);

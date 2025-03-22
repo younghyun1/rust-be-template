@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use axum::{
+    extract::DefaultBodyLimit,
     http::StatusCode,
     middleware::from_fn_with_state,
     response::IntoResponse,
@@ -32,6 +33,8 @@ use crate::{
 use super::middleware::{
     api_key::api_key_check_middleware, auth::auth_middleware, logging::log_middleware,
 };
+
+const MAX_REQUEST_SIZE: usize = 1024 * 1024 * 50; // 50MB
 
 async fn spa_fallback() -> impl axum::response::IntoResponse {
     match tokio::fs::read_to_string("fe/index.html").await {
@@ -113,7 +116,8 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .merge(api_router)
         .fallback_service(static_files)
         .layer(compression_middleware)
-        .layer(log_middleware);
+        .layer(log_middleware)
+        .layer(DefaultBodyLimit::max(MAX_REQUEST_SIZE));
 
     app
 }
