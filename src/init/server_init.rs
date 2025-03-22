@@ -49,6 +49,11 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
         .map_err(|_| anyhow::anyhow!("PRIV_KEY_DIR environment variable is not set"))
         .map(PathBuf::from)?;
 
+    // configure certificate and private key used by https
+    let config = RustlsConfig::from_pem_file(cert_chain_path, priv_key_path)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to load TLS config: {}", e))?;
+
     info!("Loaded keys.");
 
     let db_config = DbConfig::from_env()
@@ -121,11 +126,6 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
         http: 80,
         https: host_port,
     }));
-
-    // configure certificate and private key used by https
-    let config = RustlsConfig::from_pem_file(cert_chain_path, priv_key_path)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to load TLS config: {}", e))?;
 
     info!("Listening to Port {}...", host_port);
 
