@@ -271,12 +271,12 @@ impl CodeError {
         log_level: Level::ERROR,
     };
     pub const COULD_NOT_WRITE_FILE: CodeError = CodeError {
-            success: false,
-            error_code: 36,
-            http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
-            message: "Could not write file to disk!",
-            log_level: Level::ERROR,
-        };
+        success: false,
+        error_code: 36,
+        http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
+        message: "Could not write file to disk!",
+        log_level: Level::ERROR,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
