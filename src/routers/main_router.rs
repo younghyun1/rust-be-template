@@ -15,7 +15,10 @@ use crate::{
             reset_password::reset_password, reset_password_request::reset_password_request_process,
             signup::signup_handler, verify_user_email::verify_user_email,
         },
-        blog::{get_posts::get_posts, read_post::read_post, submit_post::submit_post},
+        blog::{
+            get_posts::get_posts, read_post::read_post, submit_post::submit_post,
+            upload_profile_picture::upload_profile_picture,
+        },
         countries::{
             get_countries::get_countries, get_country::get_country, get_language::get_language,
             get_languages::get_languages,
@@ -74,6 +77,10 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         )
         .route("/api/auth/reset-password", post(reset_password))
         .route("/api/auth/verify-user-email", post(verify_user_email))
+        .route(
+            "/api/user/upload-profile-picture",
+            post(upload_profile_picture),
+        )
         .route("/api/blog/posts", get(get_posts))
         .route("/api/blog/posts/{post_id}", get(read_post))
         .route("/api/blog/posts", post(submit_post))

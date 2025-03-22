@@ -149,6 +149,25 @@ diesel::table! {
 }
 
 diesel::table! {
+    user_profile_picture_image_types (image_type_id) {
+        image_type_id -> Int4,
+        image_type_name -> Varchar,
+    }
+}
+
+diesel::table! {
+    user_profile_pictures (user_profile_picture_id) {
+        user_profile_picture_id -> Uuid,
+        user_id -> Uuid,
+        user_profile_picture_created_at -> Timestamptz,
+        user_profile_picture_updated_at -> Timestamptz,
+        user_profile_picture_image_type -> Int4,
+        user_profile_picture_is_on_cloud -> Bool,
+        user_profile_picture_link -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
     user_roles (user_role_id) {
         user_role_id -> Uuid,
         user_id -> Uuid,
@@ -185,6 +204,8 @@ diesel::joinable!(post_upvotes -> users (user_id));
 diesel::joinable!(posts -> users (user_id));
 diesel::joinable!(role_permissions -> permissions (permission_id));
 diesel::joinable!(role_permissions -> roles (role_id));
+diesel::joinable!(user_profile_pictures -> user_profile_picture_image_types (user_profile_picture_image_type));
+diesel::joinable!(user_profile_pictures -> users (user_id));
 diesel::joinable!(user_roles -> roles (role_id));
 diesel::joinable!(user_roles -> users (user_id));
 diesel::joinable!(users -> iso_country (user_country));
@@ -205,6 +226,8 @@ diesel::allow_tables_to_appear_in_same_query!(
     posts,
     role_permissions,
     roles,
+    user_profile_picture_image_types,
+    user_profile_pictures,
     user_roles,
     users,
 );

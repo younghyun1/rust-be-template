@@ -1,16 +1,26 @@
 use std::sync::Arc;
 
 use axum::{
+    Extension,
     extract::{Multipart, State},
     response::IntoResponse,
 };
+use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
 use crate::{
+    domain::user::UserProfilePictureInsertable,
     dto::responses::response_data::http_resp,
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
-    util::{image::process_uploaded_images::process_uploaded_image, time::now::tokio_now},
+    schema::user_profile_pictures,
+    util::{
+        image::{
+            map_image_format_to_db_enum::map_image_format_to_str,
+            process_uploaded_images::{IMAGE_ENCODING_FORMAT, process_uploaded_image},
+        },
+        time::now::tokio_now,
+    },
 };
 
 const MAX_SIZE_OF_UPLOADABLE_PROFILE_PICTURE: usize = 1024 * 1024 * 10; // 10MB
@@ -35,6 +45,7 @@ const ALLOWED_MIME_TYPES: [&'static str; 16] = [
 
 // TODO: Unlimit upload size (each chunk should probably be bigger than 2MB?)
 pub async fn upload_profile_picture(
+    Extension(user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,
     mut multipart: Multipart,
 ) -> HandlerResponse<impl IntoResponse> {
@@ -103,10 +114,38 @@ pub async fn upload_profile_picture(
 
     // store in filesystem or S3
     let image_id: Uuid = uuid::Uuid::new_v4();
+    let (extension, image_type_db_id) = map_image_format_to_str(IMAGE_ENCODING_FORMAT);
+
+    tokio::fs::create_dir_all("images")
+        .await
+        .map_err(|e| code_err(CodeError::COULD_NOT_CREATE_DIRECTORY, e))?;
+
+    let image_path = format!("images/{}.{}", image_id, extension);
+
+    tokio::fs::write(&image_path, processed_image)
+        .await
+        .map_err(|e| code_err(CodeError::COULD_NOT_WRITE_FILE, e))?;
+
     let mut conn = state
         .get_conn()
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
+
+    let db_result = diesel::insert_into(user_profile_pictures::table)
+        .values(UserProfilePictureInsertable {
+            user_id,
+            user_profile_picture_image_type: image_type_db_id,
+            user_profile_picture_is_on_cloud: true,
+            user_profile_picture_link: None,
+        })
+        .execute(&mut conn)
+        .await;
+
+    if let Err(e) = db_result {
+        // Clean up the image file if DB insertion fails
+        tokio::fs::remove_file(&image_path).await.ok();
+        return Err(code_err(CodeError::DB_INSERTION_ERROR, e));
+    }
 
     drop(conn);
 
