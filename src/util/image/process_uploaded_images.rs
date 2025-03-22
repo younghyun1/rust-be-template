@@ -5,6 +5,8 @@ use image::{
 };
 use std::io::Cursor;
 
+pub const IMAGE_ENCODING_FORMAT: ImageFormat = ImageFormat::WebP;
+
 pub async fn process_uploaded_image(
     bits: Vec<u8>,
     format: Option<image::ImageFormat>,
@@ -41,7 +43,7 @@ pub async fn process_uploaded_image(
         {
             let mut cursor = Cursor::new(&mut output_buffer);
             resized_img
-                .write_to(&mut cursor, ImageFormat::WebP)
+                .write_to(&mut cursor, IMAGE_ENCODING_FORMAT)
                 .map_err(|e| anyhow!("Failed to encode image as WebP: {:?}", e))?;
         }
         Ok(output_buffer)
