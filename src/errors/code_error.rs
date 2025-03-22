@@ -256,6 +256,13 @@ impl CodeError {
         message: "Image too large! Maximum allowed size is 10MB.",
         log_level: Level::INFO,
     };
+    pub const COULD_NOT_PROCESS_IMAGE: CodeError = CodeError {
+        success: false,
+        error_code: 34,
+        http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
+        message: "Could not process the uploaded image!",
+        log_level: Level::ERROR,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {

@@ -97,10 +97,18 @@ pub async fn upload_profile_picture(
     }
 
     // compress and process image here in a blocking thread
-    let image_id: Uuid = uuid::Uuid::new_v4();
-    
+    let processed_image = process_uploaded_image(uploaded_file, None)
+        .await
+        .map_err(|e| code_err(CodeError::COULD_NOT_PROCESS_IMAGE, e))?;
 
     // store in filesystem or S3
+    let image_id: Uuid = uuid::Uuid::new_v4();
+    let mut conn = state
+        .get_conn()
+        .await
+        .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
+
+    drop(conn);
 
     // define response dto later
     Ok(http_resp((), (), start))

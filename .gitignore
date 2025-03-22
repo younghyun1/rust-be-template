@@ -77,3 +77,6 @@ deploy.sh
 # certs
 /certs
 */certs/
+
+# pfps and other images
+/images
