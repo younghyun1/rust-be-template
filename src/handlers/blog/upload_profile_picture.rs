@@ -43,7 +43,7 @@ const ALLOWED_MIME_TYPES: [&'static str; 16] = [
     "image/vnd.zbrush.pcx",     // PCX
 ];
 
-// TODO: Unlimit upload size (each chunk should probably be bigger than 2MB?)
+// TODO: STREAM to file, don't keep the whole damn thing around
 pub async fn upload_profile_picture(
     Extension(user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,
