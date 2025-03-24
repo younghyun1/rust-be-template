@@ -72,9 +72,11 @@ pub mod handlers {
         pub mod rescind_comment_upvote;
         pub mod rescind_post_upvote;
         pub mod submit_post;
-        pub mod upload_profile_picture;
         pub mod upvote_comment;
         pub mod upvote_post;
+    }
+    pub mod user {
+        pub mod upload_profile_picture;
     }
     pub mod server {
         pub mod fallback;
