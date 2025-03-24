@@ -51,7 +51,7 @@ pub async fn upload_profile_picture(
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
     let mut uploaded_file: Vec<u8> = Vec::with_capacity(MAX_SIZE_OF_UPLOADABLE_PROFILE_PICTURE);
-    let mut mime: String = String::new();
+    let mut mime: String;
     let mut _extension: String = String::new();
 
     // Process the multipart fields
@@ -123,20 +123,27 @@ pub async fn upload_profile_picture(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    let db_result = diesel::insert_into(user_profile_pictures::table)
-        .values(UserProfilePictureInsertable {
-            user_id,
-            user_profile_picture_image_type: image_type_db_id,
-            user_profile_picture_is_on_cloud: true,
-            user_profile_picture_link: None,
-        })
-        .execute(&mut conn)
-        .await;
+    let db_result: Result<Uuid, diesel::result::Error> =
+        diesel::insert_into(user_profile_pictures::table)
+            .values(UserProfilePictureInsertable {
+                user_id,
+                user_profile_picture_image_type: image_type_db_id,
+                user_profile_picture_is_on_cloud: true,
+                user_profile_picture_link: None,
+            })
+            .returning(user_profile_pictures::user_profile_picture_id)
+            .get_result(&mut conn)
+            .await;
 
-    if let Err(e) = db_result {
-        // Clean up the image file if DB insertion fails
-        tokio::fs::remove_file(&image_path).await.ok();
-        return Err(code_err(CodeError::DB_INSERTION_ERROR, e));
+    match db_result {
+        Err(e) => {
+            // Clean up the image file if DB insertion fails
+            tokio::fs::remove_file(&image_path).await.ok();
+            return Err(code_err(CodeError::DB_INSERTION_ERROR, e));
+        }
+        Ok(user_profile_picture_id) => {
+            let _user_profile_picture_id = user_profile_picture_id;
+        }
     }
 
     drop(conn);
