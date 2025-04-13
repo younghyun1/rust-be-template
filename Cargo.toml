@@ -14,14 +14,14 @@ panic = "unwind"
 
 [dependencies]
 # web framework
-axum = { version = "0.8.1", features = [
+axum = { version = "0.8.3", features = [
     "http2",
     "multipart",
     "ws",
     "macros",
     "multipart",
 ] }
-axum-extra = { version = "0.10.0", features = ["cookie", "attachment", "form"] }
+axum-extra = { version = "0.10.1", features = ["cookie", "attachment", "form"] }
 tower-http = { version = "0.6.2", features = [
     "compression-gzip",
     "trace",
@@ -34,7 +34,7 @@ axum-server = { version = "0.7.2", features = ["tls-rustls", "tokio-rustls"] }
 # rayon = "1.10.0"
 
 # ORM
-diesel = { version = "2.2.8", features = [
+diesel = { version = "2.2.9", features = [
     "postgres",
     "chrono",
     "serde_json",
@@ -47,7 +47,7 @@ diesel-async = { version = "0.5.2", features = ["bb8", "postgres"] }
 dotenvy = "0.15.7"
 
 # async runtime
-tokio = { version = "1.44.1", features = ["full"] }
+tokio = { version = "1.44.2", features = ["full"] }
 
 # loggers
 tracing = { version = "0.1.41", features = ["std"] }
@@ -67,8 +67,8 @@ serde_json = { version = "1.0.140", features = ["preserve_order"] }
 bitcode = "0.6.6"
 
 # types
-chrono = { version = "0.4.39", features = ["serde"] }
-chrono-tz = { version = "0.10.1", features = ["serde"] }
+chrono = { version = "0.4.40", features = ["serde"] }
+chrono-tz = { version = "0.10.3", features = ["serde"] }
 scc = "2.3.3"
 uuid = { version = "1.16.0", features = [
     "v4",
@@ -85,10 +85,10 @@ email_address = "0.2.9"
 # crypto/rand
 argon2 = "0.5.3"
 rand = "0.8.5"
-rustls = { version = "0.23.25", features = [] }
+rustls = { version = "0.23.26", features = [] }
 
 # memory allocator
-mimalloc = "0.1.44"
+mimalloc = "0.1.46"
 
 # email
 lettre = { version = "0.11.15", default-features = false, features = [
@@ -106,7 +106,7 @@ lettre = { version = "0.11.15", default-features = false, features = [
 zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt", "pkg-config"] }
 
 # numeric
-bigdecimal = { version = "0.4.7", features = ["serde"] }
+bigdecimal = { version = "0.4.8", features = ["serde"] }
 
 # image processing
-image = "0.25.5"
+image = "0.25.6"
