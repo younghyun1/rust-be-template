@@ -140,7 +140,7 @@ pub struct PostVote {
     pub vote_id: uuid::Uuid,
     pub post_id: uuid::Uuid,
     pub user_id: uuid::Uuid,
-    pub upvoted_at: chrono::DateTime<chrono::Utc>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
     pub is_upvote: bool,
 }
 
@@ -153,11 +153,7 @@ pub struct NewPostVote<'a> {
 }
 
 impl<'a> NewPostVote<'a> {
-    pub fn new(
-        post_id: &'a uuid::Uuid,
-        user_id: &'a uuid::Uuid,
-        is_upvote: bool,
-    ) -> Self {
+    pub fn new(post_id: &'a uuid::Uuid, user_id: &'a uuid::Uuid, is_upvote: bool) -> Self {
         Self {
             post_id,
             user_id,

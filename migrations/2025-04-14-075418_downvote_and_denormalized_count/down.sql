@@ -51,6 +51,9 @@ RENAME COLUMN vote_id TO upvote_id;
 ALTER TABLE public.post_votes
 RENAME COLUMN vote_id TO upvote_id;
 
+ALTER TABLE public.post_votes
+RENAME COLUMN created_at TO upvoted_at;
+
 -- 5. Remove indexes for the new is_upvote field
 DROP INDEX idx_comment_votes_is_upvote;
 

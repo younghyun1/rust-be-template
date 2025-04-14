@@ -113,7 +113,7 @@ diesel::table! {
         vote_id -> Uuid,
         post_id -> Uuid,
         user_id -> Uuid,
-        upvoted_at -> Timestamptz,
+        created_at -> Timestamptz,
         is_upvote -> Bool,
     }
 }
