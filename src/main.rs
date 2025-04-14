@@ -69,11 +69,11 @@ pub mod handlers {
     pub mod blog {
         pub mod get_posts;
         pub mod read_post;
-        pub mod rescind_comment_upvote;
-        pub mod rescind_post_upvote;
+        pub mod rescind_comment_vote;
+        pub mod rescind_post_vote;
         pub mod submit_post;
-        pub mod upvote_comment;
-        pub mod upvote_post;
+        pub mod vote_comment;
+        pub mod vote_post;
     }
     pub mod user {
         pub mod upload_profile_picture;
