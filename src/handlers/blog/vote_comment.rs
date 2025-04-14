@@ -5,7 +5,7 @@ use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
 use crate::{
-    domain::blog::NewCommentUpvote,
+    domain::blog::NewCommentVote,
     dto::{
         requests::blog::upvote_comment_request::UpvoteCommentRequest,
         responses::response_data::http_resp,
@@ -28,9 +28,10 @@ pub async fn upvote_comment(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    let new_comment_upvote: NewCommentUpvote = NewCommentUpvote::new(&request.comment_id, &user_id);
+    let new_comment_upvote: NewCommentVote =
+        NewCommentVote::new(&request.comment_id, &user_id, true);
 
-    match diesel::insert_into(comment_upvotes::table)
+    match diesel::insert_into(comment_votes::table)
         .values(new_comment_upvote)
         .execute(&mut conn)
         .await
