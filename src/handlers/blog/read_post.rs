@@ -62,6 +62,8 @@ pub async fn read_post(
 
     let post = post_result.map_err(|e| code_err(CodeError::JOIN_ERROR, e))??;
     let comments = comments_result.map_err(|e| code_err(CodeError::JOIN_ERROR, e))??;
+    
+    // TODO: Grab updoots for these posts and comments
 
     Ok(http_resp(ReadPostResponse { post, comments }, (), start))
 }
