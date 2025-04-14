@@ -4,7 +4,7 @@ use diesel::{
     prelude::{Queryable, QueryableByName},
 };
 
-use crate::schema::{comment_upvotes, post_upvotes, posts};
+use crate::schema::{comment_votes, post_votes, posts};
 
 #[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
 #[diesel(table_name = posts)]
@@ -103,7 +103,7 @@ pub struct Comment {
 }
 
 #[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
-#[diesel(table_name = comment_upvotes)]
+#[diesel(table_name = comment_votes)]
 pub struct CommentUpvote {
     pub upvote_id: uuid::Uuid,
     pub comment_id: uuid::Uuid,
@@ -112,7 +112,7 @@ pub struct CommentUpvote {
 }
 
 #[derive(Insertable)]
-#[diesel(table_name = comment_upvotes)]
+#[diesel(table_name = comment_votes)]
 pub struct NewCommentUpvote<'a> {
     pub comment_id: &'a uuid::Uuid,
     pub user_id: &'a uuid::Uuid,
@@ -128,16 +128,16 @@ impl<'a> NewCommentUpvote<'a> {
 }
 
 #[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
-#[diesel(table_name = post_upvotes)]
+#[diesel(table_name = post_votes)]
 pub struct PostUpvote {
-    pub upvote_id: uuid::Uuid,
+    pub vote_id: uuid::Uuid,
     pub post_id: uuid::Uuid,
     pub user_id: uuid::Uuid,
     pub upvoted_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Insertable)]
-#[diesel(table_name = post_upvotes)]
+#[diesel(table_name = post_votes)]
 pub struct NewPostUpvote<'a> {
     pub post_id: &'a uuid::Uuid,
     pub user_id: &'a uuid::Uuid,
