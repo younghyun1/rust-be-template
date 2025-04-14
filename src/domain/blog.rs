@@ -22,6 +22,8 @@ pub struct Post {
     pub post_view_count: i64,
     pub post_share_count: i64,
     pub post_metadata: serde_json::Value,
+    pub total_upvotes: i64,
+    pub total_downvotes: i64,
 }
 
 // TODO: return user info w. profile picture link and stuff
@@ -100,51 +102,66 @@ pub struct Comment {
     pub comment_created_at: DateTime<Utc>,
     pub comment_updated_at: Option<DateTime<Utc>>,
     pub parent_comment_id: Option<uuid::Uuid>,
+    pub total_upvotes: i64,
+    pub total_downvotes: i64,
 }
 
 #[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
 #[diesel(table_name = comment_votes)]
-pub struct CommentUpvote {
-    pub upvote_id: uuid::Uuid,
+pub struct CommentVote {
+    pub vote_id: uuid::Uuid,
     pub comment_id: uuid::Uuid,
     pub user_id: uuid::Uuid,
     pub created_at: chrono::DateTime<chrono::Utc>,
+    pub is_upvote: bool,
 }
 
 #[derive(Insertable)]
 #[diesel(table_name = comment_votes)]
-pub struct NewCommentUpvote<'a> {
+pub struct NewCommentVote<'a> {
     pub comment_id: &'a uuid::Uuid,
     pub user_id: &'a uuid::Uuid,
+    pub is_upvote: bool,
 }
 
-impl<'a> NewCommentUpvote<'a> {
-    pub fn new(comment_id: &'a uuid::Uuid, user_id: &'a uuid::Uuid) -> Self {
+impl<'a> NewCommentVote<'a> {
+    pub fn new(comment_id: &'a uuid::Uuid, user_id: &'a uuid::Uuid, is_upvote: bool) -> Self {
         Self {
             comment_id,
             user_id,
+            is_upvote,
         }
     }
 }
 
 #[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
 #[diesel(table_name = post_votes)]
-pub struct PostUpvote {
+pub struct PostVote {
     pub vote_id: uuid::Uuid,
     pub post_id: uuid::Uuid,
     pub user_id: uuid::Uuid,
     pub upvoted_at: chrono::DateTime<chrono::Utc>,
+    pub is_upvote: bool,
 }
 
 #[derive(Insertable)]
 #[diesel(table_name = post_votes)]
-pub struct NewPostUpvote<'a> {
+pub struct NewPostVote<'a> {
     pub post_id: &'a uuid::Uuid,
     pub user_id: &'a uuid::Uuid,
+    pub is_upvote: bool,
 }
 
-impl<'a> NewPostUpvote<'a> {
-    pub fn new(post_id: &'a uuid::Uuid, user_id: &'a uuid::Uuid) -> Self {
-        Self { post_id, user_id }
+impl<'a> NewPostVote<'a> {
+    pub fn new(
+        post_id: &'a uuid::Uuid,
+        user_id: &'a uuid::Uuid,
+        is_upvote: bool,
+    ) -> Self {
+        Self {
+            post_id,
+            user_id,
+            is_upvote,
+        }
     }
 }

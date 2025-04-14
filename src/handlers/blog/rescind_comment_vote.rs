@@ -29,7 +29,7 @@ pub async fn rescind_comment_vote(
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
     let affected_rows = diesel::delete(
-        cu::comment_upvotes.filter(
+        cu::comment_votes.filter(
             cu::comment_id
                 .eq(&request.comment_id)
                 .and(cu::user_id.eq(user_id)),

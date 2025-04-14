@@ -11,7 +11,7 @@ use crate::{
     },
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
-    schema::post_upvotes::dsl as pu,
+    schema::post_votes::dsl as pu,
     util::time::now::tokio_now,
 };
 
@@ -28,7 +28,7 @@ pub async fn rescind_post_upvote(
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
     let affected_rows = diesel::delete(
-        pu::post_upvotes.filter(
+        pu::post_votes.filter(
             pu::post_id
                 .eq(&request.post_id)
                 .and(pu::user_id.eq(user_id)),
