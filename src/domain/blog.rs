@@ -4,7 +4,7 @@ use diesel::{
     prelude::{Queryable, QueryableByName},
 };
 
-use crate::schema::{comment_votes, post_votes, posts};
+use crate::schema::{comment_votes, post_tags, post_votes, posts, tags};
 
 #[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
 #[diesel(table_name = posts)]
@@ -171,6 +171,43 @@ impl<'a> NewPostVote<'a> {
 }
 
 #[derive(serde_derive::Deserialize, serde_derive::Serialize)]
-pub struct PostMetadata {
-    pub tags: Vec<String>,
+pub struct PostMetadata {}
+
+#[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
+#[diesel(table_name = tags)]
+pub struct Tag {
+    pub tag_id: i16,
+    pub tag_name: String,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = tags)]
+pub struct NewTag<'a> {
+    pub tag_name: &'a str,
+}
+
+impl<'a> NewTag<'a> {
+    pub fn new(tag_name: &'a str) -> Self {
+        Self { tag_name }
+    }
+}
+
+#[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
+#[diesel(table_name = post_tags)]
+pub struct PostTag {
+    pub post_id: uuid::Uuid,
+    pub tag_id: i16,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = post_tags)]
+pub struct NewPostTag<'a> {
+    pub post_id: &'a uuid::Uuid,
+    pub tag_id: &'a i16,
+}
+
+impl<'a> NewPostTag<'a> {
+    pub fn new(post_id: &'a uuid::Uuid, tag_id: &'a i16) -> Self {
+        Self { post_id, tag_id }
+    }
 }
