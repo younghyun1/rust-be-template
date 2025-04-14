@@ -1,11 +1,12 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    comment_upvotes (upvote_id) {
-        upvote_id -> Uuid,
+    comment_votes (vote_id) {
+        vote_id -> Uuid,
         comment_id -> Uuid,
         user_id -> Uuid,
         created_at -> Timestamptz,
+        is_upvote -> Bool,
     }
 }
 
@@ -18,6 +19,8 @@ diesel::table! {
         comment_created_at -> Timestamptz,
         comment_updated_at -> Nullable<Timestamptz>,
         parent_comment_id -> Nullable<Uuid>,
+        total_upvotes -> Int8,
+        total_downvotes -> Int8,
     }
 }
 
@@ -106,11 +109,12 @@ diesel::table! {
 }
 
 diesel::table! {
-    post_upvotes (upvote_id) {
-        upvote_id -> Uuid,
+    post_votes (vote_id) {
+        vote_id -> Uuid,
         post_id -> Uuid,
         user_id -> Uuid,
         upvoted_at -> Timestamptz,
+        is_upvote -> Bool,
     }
 }
 
@@ -129,6 +133,8 @@ diesel::table! {
         post_view_count -> Int8,
         post_share_count -> Int8,
         post_metadata -> Jsonb,
+        total_upvotes -> Int8,
+        total_downvotes -> Int8,
     }
 }
 
@@ -190,8 +196,8 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(comment_upvotes -> comments (comment_id));
-diesel::joinable!(comment_upvotes -> users (user_id));
+diesel::joinable!(comment_votes -> comments (comment_id));
+diesel::joinable!(comment_votes -> users (user_id));
 diesel::joinable!(comments -> posts (post_id));
 diesel::joinable!(comments -> users (user_id));
 diesel::joinable!(email_verification_tokens -> users (user_id));
@@ -199,8 +205,8 @@ diesel::joinable!(iso_country -> iso_currency (country_currency));
 diesel::joinable!(iso_country -> iso_language (country_primary_language));
 diesel::joinable!(iso_country_subdivision -> iso_country (country_code));
 diesel::joinable!(password_reset_tokens -> users (user_id));
-diesel::joinable!(post_upvotes -> posts (post_id));
-diesel::joinable!(post_upvotes -> users (user_id));
+diesel::joinable!(post_votes -> posts (post_id));
+diesel::joinable!(post_votes -> users (user_id));
 diesel::joinable!(posts -> users (user_id));
 diesel::joinable!(role_permissions -> permissions (permission_id));
 diesel::joinable!(role_permissions -> roles (role_id));
@@ -213,7 +219,7 @@ diesel::joinable!(users -> iso_country_subdivision (user_subdivision));
 diesel::joinable!(users -> iso_language (user_language));
 
 diesel::allow_tables_to_appear_in_same_query!(
-    comment_upvotes,
+    comment_votes,
     comments,
     email_verification_tokens,
     iso_country,
@@ -222,7 +228,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     iso_language,
     password_reset_tokens,
     permissions,
-    post_upvotes,
+    post_votes,
     posts,
     role_permissions,
     roles,

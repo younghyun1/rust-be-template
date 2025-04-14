@@ -12,7 +12,7 @@ use crate::{
     },
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
-    schema::comment_upvotes::dsl as cu,
+    schema::comment_votes::dsl as cu,
     util::time::now::tokio_now,
 };
 
