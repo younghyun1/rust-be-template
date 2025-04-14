@@ -16,7 +16,7 @@ use crate::{
     util::time::now::tokio_now,
 };
 
-pub async fn rescind_comment_upvote(
+pub async fn rescind_comment_vote(
     Extension(user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,
     Json(request): Json<UpvoteCommentRequest>,

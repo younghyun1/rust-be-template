@@ -1,6 +1,6 @@
 [build]
-rustflags = ["-Ctarget-cpu=skylake"]
+rustflags = ["-Ctarget-cpu=native"]
 
 [target.x86_64-unknown-linux-gnu]
 linker = "/usr/bin/clang"
-rustflags = ["-C", "link-arg=--ld-path=/usr/bin/mold"]
+rustflags = ["-Ctarget-cpu=skylake", "-C", "link-arg=--ld-path=/usr/bin/mold"]
