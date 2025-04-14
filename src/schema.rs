@@ -109,6 +109,13 @@ diesel::table! {
 }
 
 diesel::table! {
+    post_tags (post_id, tag_id) {
+        post_id -> Uuid,
+        tag_id -> Int2,
+    }
+}
+
+diesel::table! {
     post_votes (vote_id) {
         vote_id -> Uuid,
         post_id -> Uuid,
@@ -151,6 +158,13 @@ diesel::table! {
         role_id -> Uuid,
         role_name -> Text,
         role_description -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
+    tags (tag_id) {
+        tag_id -> Int2,
+        tag_name -> Varchar,
     }
 }
 
@@ -205,6 +219,8 @@ diesel::joinable!(iso_country -> iso_currency (country_currency));
 diesel::joinable!(iso_country -> iso_language (country_primary_language));
 diesel::joinable!(iso_country_subdivision -> iso_country (country_code));
 diesel::joinable!(password_reset_tokens -> users (user_id));
+diesel::joinable!(post_tags -> posts (post_id));
+diesel::joinable!(post_tags -> tags (tag_id));
 diesel::joinable!(post_votes -> posts (post_id));
 diesel::joinable!(post_votes -> users (user_id));
 diesel::joinable!(posts -> users (user_id));
@@ -228,10 +244,12 @@ diesel::allow_tables_to_appear_in_same_query!(
     iso_language,
     password_reset_tokens,
     permissions,
+    post_tags,
     post_votes,
     posts,
     role_permissions,
     roles,
+    tags,
     user_profile_picture_image_types,
     user_profile_pictures,
     user_roles,
