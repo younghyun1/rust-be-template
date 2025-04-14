@@ -45,6 +45,10 @@ pub struct PostInfo {
     pub post_created_at: DateTime<Utc>,
     pub post_updated_at: DateTime<Utc>,
     pub post_published_at: Option<DateTime<Utc>>,
+    pub post_view_count: i64,
+    pub post_share_count: i64,
+    pub total_upvotes: i64,
+    pub total_downvotes: i64,
 }
 
 impl From<Post> for PostInfo {
@@ -58,6 +62,10 @@ impl From<Post> for PostInfo {
             post_created_at: post.post_created_at,
             post_updated_at: post.post_updated_at,
             post_published_at: post.post_published_at,
+            post_view_count: post.post_view_count,
+            post_share_count: post.post_share_count,
+            total_upvotes: post.total_upvotes,
+            total_downvotes: post.total_downvotes,
         }
     }
 }
@@ -160,4 +168,9 @@ impl<'a> NewPostVote<'a> {
             is_upvote,
         }
     }
+}
+
+#[derive(serde_derive::Deserialize, serde_derive::Serialize)]
+pub struct PostMetadata {
+    pub tags: Vec<String>,
 }
