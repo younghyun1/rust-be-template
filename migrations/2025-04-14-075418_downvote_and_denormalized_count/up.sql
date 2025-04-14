@@ -46,6 +46,9 @@ RENAME COLUMN upvote_id TO vote_id;
 ALTER TABLE public.post_votes
 RENAME COLUMN upvote_id TO vote_id;
 
+ALTER TABLE public.post_votes
+RENAME COLUMN upvoted_at TO created_at;
+
 -- 7. Rename constraints
 ALTER TABLE public.comment_votes RENAME CONSTRAINT comment_upvotes_pkey TO comment_votes_pkey;
 
