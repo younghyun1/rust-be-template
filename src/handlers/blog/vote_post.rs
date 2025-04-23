@@ -45,18 +45,20 @@ pub async fn upvote_post(
              (SELECT count(*) FROM post_upvotes WHERE post_id = $1 AND is_upvote = false) AS downvote_count
          ",
     )
-    .bind::<diesel::sql_types::Uuid, _>(request.post_id)
-    .bind::<diesel::sql_types::Uuid, _>(user_id)
-    .bind::<diesel::sql_types::Bool, _>(request.is_upvote)
+    .bind::<diesel::sql_types::Uuid, Uuid>(request.post_id)
+    .bind::<diesel::sql_types::Uuid, Uuid>(user_id)
+    .bind::<diesel::sql_types::Bool, bool>(request.is_upvote)
     .get_result(&mut conn)
     .await
     .map_err(|e| match e {
         diesel::result::Error::DatabaseError(
             diesel::result::DatabaseErrorKind::UniqueViolation,
-            _,
+            _error_info,
         ) => CodeError::UPVOTE_MUST_BE_UNIQUE.into(),
         e => code_err(CodeError::DB_INSERTION_ERROR, e),
     })?;
+
+    // TODO: spawn off task here to update the denormalized count
 
     Ok(http_resp(
         VotePostResponse {

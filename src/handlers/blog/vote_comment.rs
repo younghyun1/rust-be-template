@@ -16,6 +16,8 @@ use crate::{
     util::time::now::tokio_now,
 };
 
+// TODO: Implement upvote/downvote distinction and normalized value update
+// TODO: Prepare batch task to sync normalized values
 pub async fn upvote_comment(
     Extension(user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,
@@ -44,5 +46,6 @@ pub async fn upvote_comment(
         Err(e) => return Err(code_err(CodeError::DB_INSERTION_ERROR, e)),
     };
 
+    // TODO: return number of upvotes and downvotes here
     Ok(http_resp((), (), start))
 }
