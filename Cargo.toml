@@ -55,7 +55,7 @@ tracing-subscriber = { version = "0.3.19", features = ["fmt", "json"] }
 tracing-appender = "0.2.3"
 
 # error
-anyhow = "1.0.97"
+anyhow = "1.0.98"
 
 # number of cpus
 num_cpus = "1.16.0"
@@ -69,7 +69,7 @@ bitcode = "0.6.6"
 # types
 chrono = { version = "0.4.40", features = ["serde"] }
 chrono-tz = { version = "0.10.3", features = ["serde"] }
-scc = "2.3.3"
+scc = "2.3.4"
 uuid = { version = "1.16.0", features = [
     "v4",
     "v7",
