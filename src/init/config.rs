@@ -136,7 +136,7 @@ impl DbConfig {
             self.db_password,
             self.db_host,
             match self.db_port {
-                Some(port) => format!(":{port}/"),
+                Some(port) => format!(":{port}"),
                 None => String::new(),
             },
             self.db_name
