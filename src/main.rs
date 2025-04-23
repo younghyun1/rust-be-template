@@ -48,6 +48,7 @@ pub mod dto {
             pub mod get_posts;
             pub mod read_post_response;
             pub mod submit_post_response;
+            pub mod vote_post_response;
         }
         pub mod response_data;
         pub mod response_meta;
