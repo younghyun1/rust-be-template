@@ -6,7 +6,8 @@ use uuid::Uuid;
 
 use crate::{
     dto::{
-        requests::blog::upvote_post_request::UpvotePostRequest, responses::response_data::http_resp,
+        requests::blog::upvote_post_request::UpvotePostRequest,
+        responses::{blog::vote_post_response::VotePostResponse, response_data::http_resp},
     },
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
@@ -15,8 +16,10 @@ use crate::{
 
 #[derive(Debug, diesel::QueryableByName)]
 pub struct CountRow {
-    #[sql_type = "diesel::sql_types::BigInt"]
-    count: i64,
+    #[diesel(sql_type = diesel::sql_types::BigInt)]
+    pub upvote_count: i64,
+    #[diesel(sql_type = diesel::sql_types::BigInt)]
+    pub downvote_count: i64,
 }
 
 pub async fn upvote_post(
@@ -33,14 +36,18 @@ pub async fn upvote_post(
 
     let count_row: CountRow = diesel::sql_query(
         "WITH ins AS (
-             INSERT INTO post_upvotes (post_id, user_id)
-             VALUES ($1, $2)
+             INSERT INTO post_upvotes (post_id, user_id, is_upvote)
+             VALUES ($1, $2, $3)
              RETURNING 1
          )
-         SELECT count(*) as count FROM ins",
+         SELECT
+             (SELECT count(*) FROM post_upvotes WHERE post_id = $1 AND is_upvote = true) AS upvote_count,
+             (SELECT count(*) FROM post_upvotes WHERE post_id = $1 AND is_upvote = false) AS downvote_count
+         ",
     )
     .bind::<diesel::sql_types::Uuid, _>(request.post_id)
     .bind::<diesel::sql_types::Uuid, _>(user_id)
+    .bind::<diesel::sql_types::Bool, _>(request.is_upvote)
     .get_result(&mut conn)
     .await
     .map_err(|e| match e {
@@ -51,5 +58,12 @@ pub async fn upvote_post(
         e => code_err(CodeError::DB_INSERTION_ERROR, e),
     })?;
 
-    Ok(http_resp(count_row.count, (), start))
+    Ok(http_resp(
+        VotePostResponse {
+            upvote_count: count_row.upvote_count,
+            downvote_count: count_row.downvote_count,
+        },
+        (),
+        start,
+    ))
 }
