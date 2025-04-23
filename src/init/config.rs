@@ -129,17 +129,29 @@ impl DbConfig {
             DbType::MsSql => "mssql",
         };
 
+        // Special handling for Unix Socket
+        if scheme == "postgres" && self.db_host.starts_with('/') {
+            return Ok(format!(
+                "{scheme}://{user}:{pw}@/{db}?host={host}",
+                scheme = scheme,
+                user = self.db_username,
+                pw = self.db_password,
+                db = self.db_name,
+                host = self.db_host
+            ));
+        }
+
         Ok(format!(
-            "{}://{}:{}@{}{}/{}",
-            scheme,
-            self.db_username,
-            self.db_password,
-            self.db_host,
-            match self.db_port {
+            "{scheme}://{user}:{pw}@{host}{port}/{db}",
+            scheme = scheme,
+            user = self.db_username,
+            pw = self.db_password,
+            host = self.db_host,
+            port = match self.db_port {
                 Some(port) => format!(":{port}"),
                 None => String::new(),
             },
-            self.db_name
+            db = self.db_name
         ))
     }
 }
