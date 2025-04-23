@@ -12,7 +12,7 @@ enum DbType {
 pub struct DbConfig {
     db_type: DbType,
     db_host: String,
-    db_port: u16,
+    db_port: Option<u16>,
     db_username: String,
     db_password: String,
     db_name: String,
@@ -27,9 +27,15 @@ impl DbConfig {
         let db_type = DbType::Postgres; // Default to Postgres if not specified in URL
         let db_host = std::env::var("DB_HOST")
             .map_err(|_| anyhow!("Environment variable DB_HOST not found"))?;
-        let db_port = std::env::var("DB_PORT")
-            .map_err(|_| anyhow!("Environment variable DB_PORT not found"))?
-            .parse::<u16>()?;
+        let db_port = if db_host.starts_with('/') {
+            None
+        } else {
+            Some(
+                std::env::var("DB_PORT")
+                    .map_err(|_| anyhow!("Environment variable DB_PORT not found"))?
+                    .parse::<u16>()?,
+            )
+        };
         let db_username = std::env::var("DB_USERNAME")
             .map_err(|_| anyhow!("Environment variable DB_USERNAME not found"))?;
         let db_password = std::env::var("DB_PASSWORD")
@@ -90,15 +96,17 @@ impl DbConfig {
             .next()
             .ok_or_else(|| anyhow!("Missing host"))?;
 
-        let db_port = if let Some(port_str) = host_and_port_iter.next() {
-            port_str.parse::<u16>()?
+        let db_port: Option<u16> = if db_host.starts_with('/') {
+            None
+        } else if let Some(port_str) = host_and_port_iter.next() {
+            Some(port_str.parse::<u16>()?)
         } else {
             match db_type {
-                DbType::Postgres => 5432,
-                DbType::MySql => 3306,
-                DbType::Sqlite => 0,
-                DbType::Oracle => 1521,
-                DbType::MsSql => 1433,
+                DbType::Postgres => Some(5432),
+                DbType::MySql => Some(3306),
+                DbType::Sqlite => Some(0),
+                DbType::Oracle => Some(1521),
+                DbType::MsSql => Some(1433),
             }
         };
 
@@ -122,8 +130,16 @@ impl DbConfig {
         };
 
         Ok(format!(
-            "{}://{}:{}@{}:{}/{}",
-            scheme, self.db_username, self.db_password, self.db_host, self.db_port, self.db_name
+            "{}://{}:{}@{}{}/{}",
+            scheme,
+            self.db_username,
+            self.db_password,
+            self.db_host,
+            match self.db_port {
+                Some(port) => format!(":{port}/"),
+                None => String::new(),
+            },
+            self.db_name
         ))
     }
 }
