@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
+use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 
 use chrono::Utc;
@@ -16,6 +17,8 @@ use crate::domain::country::{
     CountryAndSubdivisionsTable, IsoCountry, IsoCountrySubdivision, IsoCurrency, IsoCurrencyTable,
     IsoLanguage, IsoLanguageTable,
 };
+use crate::domain::i18n::i18n::InternationalizationStrings;
+use crate::domain::i18n::i18n_cache::I18nCache;
 use crate::schema::{iso_country, iso_country_subdivision, iso_currency, iso_language};
 use crate::util::geographic::ip_info_lookup::{
     IpEntry, IpInfo, decompress_and_deserialize, lookup_ip_location_from_map,
@@ -42,6 +45,7 @@ pub struct ServerState {
     pub country_map: RwLock<CountryAndSubdivisionsTable>,
     pub languages_map: RwLock<IsoLanguageTable>,
     pub currency_map: RwLock<IsoCurrencyTable>,
+    pub i18n_cache: RwLock<I18nCache>,
 }
 
 impl ServerState {
@@ -275,6 +279,18 @@ impl ServerState {
 
         Ok(())
     }
+
+    pub async fn sync_i18n_data(&self) -> anyhow::Result<()> {
+        let start = tokio_now();
+
+        let rows = InternationalizationStrings::get_all(self.get_conn().await?).await?;
+        let num_rows = rows.len();
+        let mut lock = self.i18n_cache.write().await;
+        *lock = I18nCache::from_rows(rows);
+
+        info!(elapsed = %format!("{:?}", start.elapsed()), rows_synchronized = %num_rows, "Synchronized i18n data.");
+        Ok(())
+    }
 }
 
 #[derive(Default)]
@@ -336,6 +352,7 @@ impl ServerStateBuilder {
             country_map: RwLock::new(CountryAndSubdivisionsTable::new_empty()),
             languages_map: RwLock::new(IsoLanguageTable::new_empty()),
             currency_map: RwLock::new(IsoCurrencyTable::new_empty()),
+            i18n_cache: RwLock::new(I18nCache::new()),
         })
     }
 }

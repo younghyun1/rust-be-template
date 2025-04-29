@@ -5,7 +5,7 @@ use diesel::{
     ExpressionMethods, QueryDsl,
     prelude::{Queryable, QueryableByName},
 };
-use diesel_async::RunQueryDsl;
+use diesel_async::{AsyncPgConnection, RunQueryDsl, pooled_connection::bb8::PooledConnection};
 use serde_derive::{Deserialize, Serialize};
 
 use crate::{
@@ -120,6 +120,19 @@ impl InternationalizationStrings {
         Ok(result)
     }
 
+    pub async fn get_all(
+            mut conn: PooledConnection<'_, AsyncPgConnection>,
+        ) -> anyhow::Result<Vec<InternationalizationStrings>> {
+            let result: Vec<InternationalizationStrings> = i18n_strings::table
+                .load::<InternationalizationStrings>(&mut conn)
+                .await
+                .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+
+            drop(conn);
+
+            Ok(result)
+        }
+
     pub async fn get_country_language_bundle(
         country_code: i32,
         language_code: i32,
@@ -140,10 +153,7 @@ impl InternationalizationStrings {
             .collect();
 
         let encoded = bitcode::encode(&to_be_encoded);
-        
-        
+
         Ok(encoded)
     }
 }
-
-pub struct InternationalizationCache {}
