@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use bitcode::Encode;
+use bitcode::{Encode, encode};
 use diesel::{
     ExpressionMethods, QueryDsl,
     prelude::{Queryable, QueryableByName},
@@ -14,7 +14,7 @@ use crate::{
     schema::i18n_strings,
 };
 
-#[derive(Serialize, Deserialize, QueryableByName, Queryable)]
+#[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable)]
 pub struct InternationalizationStrings {
     #[diesel(sql_type = diesel::sql_types::Uuid)]
     pub i18n_string_id: uuid::Uuid,
@@ -121,39 +121,75 @@ impl InternationalizationStrings {
     }
 
     pub async fn get_all(
-            mut conn: PooledConnection<'_, AsyncPgConnection>,
-        ) -> anyhow::Result<Vec<InternationalizationStrings>> {
-            let result: Vec<InternationalizationStrings> = i18n_strings::table
-                .load::<InternationalizationStrings>(&mut conn)
-                .await
-                .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+        mut conn: PooledConnection<'_, AsyncPgConnection>,
+    ) -> anyhow::Result<Vec<InternationalizationStrings>> {
+        let result: Vec<InternationalizationStrings> = i18n_strings::table
+            .load::<InternationalizationStrings>(&mut conn)
+            .await
+            .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
 
-            drop(conn);
+        drop(conn);
 
-            Ok(result)
-        }
+        Ok(result)
+    }
 
-    pub async fn get_country_language_bundle(
+    pub async fn get_country_language_bundle_from_cache(
         country_code: i32,
         language_code: i32,
         state: &Arc<ServerState>,
     ) -> anyhow::Result<Vec<u8>> {
-        let country_language_vec: Vec<InternationalizationStrings> =
-            Self::get_by_country_and_language_and_subdivision(
-                country_code,
-                language_code,
-                None,
-                state,
-            )
-            .await?;
+        // We assume the cache is held as an RwLock in state.i18n_cache
+        // and that its struct looks like:
+        // struct I18nCache { ... bundle_cache: HashMap<(i32, i32), (DateTime<Utc>, Vec<u8>)>, ... rows: Vec<InternationalizationStrings>, ... }
 
-        let to_be_encoded: Vec<InternationalizationStringsToBeEncoded> = country_language_vec
-            .into_iter()
-            .map(InternationalizationStringsToBeEncoded::from)
-            .collect();
+        let mut i18n_cache = state.i18n_cache.write().await;
 
-        let encoded = bitcode::encode(&to_be_encoded);
+        // Check if already cached and up-to-date
+        let key = (country_code, language_code);
+        let latest_updated =
+            i18n_cache.latest_updated_at_for_country_language(country_code, language_code);
 
-        Ok(encoded)
+        let ret = match (i18n_cache.bundle_cache.get(&key), latest_updated) {
+            (Some((cached_ts, data)), Some(newest)) if cached_ts >= &newest => data.clone(),
+            _ => {
+                // Cache miss or stale, build bundle
+                let (encoded, newest) = {
+                    let rows: Vec<_> = i18n_cache
+                        .rows
+                        .iter()
+                        .filter(|row| {
+                            row.i18n_string_country_code == country_code
+                                && row.i18n_string_language_code == language_code
+                        })
+                        .cloned()
+                        .collect();
+
+                    if rows.is_empty() {
+                        return Err(anyhow::anyhow!("country-language bundle cache: no bundle found for (country_code={}, language_code={})", country_code, language_code));
+                    }
+
+                    let max_updated_at = rows
+                        .iter()
+                        .map(|row| row.i18n_string_updated_at)
+                        .max()
+                        .unwrap();
+
+                    let to_encode: Vec<InternationalizationStringsToBeEncoded> = rows
+                        .into_iter()
+                        .map(InternationalizationStringsToBeEncoded::from)
+                        .collect();
+
+                    (encode(&to_encode), Some(max_updated_at))
+                };
+                if let Some(latest) = newest {
+                    i18n_cache
+                        .bundle_cache
+                        .insert(key, (latest, encoded.clone()));
+                }
+                encoded
+            }
+        };
+
+        Ok(ret)
     }
 }
