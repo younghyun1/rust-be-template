@@ -36,6 +36,21 @@ diesel::table! {
 }
 
 diesel::table! {
+    i18n_strings (i18n_string_id) {
+        i18n_string_id -> Uuid,
+        i18n_string_content -> Varchar,
+        i18n_string_created_at -> Timestamptz,
+        i18n_string_created_by -> Uuid,
+        i18n_string_updated_at -> Timestamptz,
+        i18n_string_updated_by -> Uuid,
+        i18n_string_language_code -> Int4,
+        i18n_string_country_code -> Int4,
+        i18n_string_country_subdivision_code -> Nullable<Varchar>,
+        i18n_string_reference_key -> Varchar,
+    }
+}
+
+diesel::table! {
     iso_country (country_code) {
         country_code -> Int4,
         #[max_length = 2]
@@ -215,6 +230,8 @@ diesel::joinable!(comment_votes -> users (user_id));
 diesel::joinable!(comments -> posts (post_id));
 diesel::joinable!(comments -> users (user_id));
 diesel::joinable!(email_verification_tokens -> users (user_id));
+diesel::joinable!(i18n_strings -> iso_country (i18n_string_country_code));
+diesel::joinable!(i18n_strings -> iso_language (i18n_string_language_code));
 diesel::joinable!(iso_country -> iso_currency (country_currency));
 diesel::joinable!(iso_country -> iso_language (country_primary_language));
 diesel::joinable!(iso_country_subdivision -> iso_country (country_code));
@@ -238,6 +255,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     comment_votes,
     comments,
     email_verification_tokens,
+    i18n_strings,
     iso_country,
     iso_country_subdivision,
     iso_currency,
