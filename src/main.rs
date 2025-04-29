@@ -14,6 +14,10 @@ pub mod domain {
     pub mod blog;
     pub mod country;
     pub mod domain_traits;
+    pub mod i18n {
+        pub mod i18n;
+        pub mod i18n_service;
+    }
     pub mod user;
 }
 pub mod dto {
