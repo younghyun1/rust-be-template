@@ -141,7 +141,7 @@ impl DbConfig {
             ));
         }
 
-        Ok(format!(
+        let db_url = format!(
             "{scheme}://{user}:{pw}@{host}{port}/{db}",
             scheme = scheme,
             user = self.db_username,
@@ -152,7 +152,9 @@ impl DbConfig {
                 None => String::new(),
             },
             db = self.db_name
-        ))
+        );
+
+        Ok(db_url)
     }
 }
 
