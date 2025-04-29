@@ -104,8 +104,11 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
             .build()
             .map_err(|e| anyhow::anyhow!("Failed to build ServerState: {}", e))?,
     );
+    
+    // Failures on these should be fatal.
     state.synchronize_post_info_cache().await;
     state.sync_country_data().await?;
+    state.sync_i18n_data().await?;
 
     let api_key = std::env::var("X_API_KEY")
         .map_err(|e| anyhow::anyhow!("Failed to load X_API_KEY from .env: {}", e))?;

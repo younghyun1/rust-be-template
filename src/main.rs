@@ -16,7 +16,7 @@ pub mod domain {
     pub mod domain_traits;
     pub mod i18n {
         pub mod i18n;
-        pub mod i18n_service;
+        pub mod i18n_cache;
     }
     pub mod user;
 }
