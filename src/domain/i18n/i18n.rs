@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bitcode::{Encode, encode};
 use diesel::{
     ExpressionMethods, QueryDsl,
-    prelude::{Queryable, QueryableByName},
+    prelude::{Insertable, Queryable, QueryableByName},
 };
 use diesel_async::{AsyncPgConnection, RunQueryDsl, pooled_connection::bb8::PooledConnection};
 use serde_derive::{Deserialize, Serialize};
@@ -14,8 +14,9 @@ use crate::{
     schema::i18n_strings,
 };
 
-#[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable)]
-pub struct InternationalizationStrings {
+#[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable, Insertable)]
+#[diesel(table_name = i18n_strings)]
+pub struct InternationalizationString {
     #[diesel(sql_type = diesel::sql_types::Uuid)]
     pub i18n_string_id: uuid::Uuid,
     #[diesel(sql_type = diesel::sql_types::Varchar)]
@@ -52,8 +53,8 @@ pub struct InternationalizationStringsToBeEncoded {
     pub i18n_string_reference_key: String,
 }
 
-impl From<InternationalizationStrings> for InternationalizationStringsToBeEncoded {
-    fn from(i18n_string: InternationalizationStrings) -> Self {
+impl From<InternationalizationString> for InternationalizationStringsToBeEncoded {
+    fn from(i18n_string: InternationalizationString) -> Self {
         InternationalizationStringsToBeEncoded {
             i18n_string_id: *i18n_string.i18n_string_id.as_bytes(),
             i18n_string_content: i18n_string.i18n_string_content,
@@ -77,13 +78,13 @@ impl From<InternationalizationStrings> for InternationalizationStringsToBeEncode
     }
 }
 
-impl InternationalizationStrings {
+impl InternationalizationString {
     pub async fn get_by_id(id: uuid::Uuid, state: &Arc<ServerState>) -> anyhow::Result<Self> {
         let mut conn = state.get_conn().await?;
 
-        let result: InternationalizationStrings = i18n_strings::table
+        let result: InternationalizationString = i18n_strings::table
             .filter(i18n_strings::i18n_string_id.eq(id))
-            .first::<InternationalizationStrings>(&mut conn)
+            .first::<InternationalizationString>(&mut conn)
             .await
             .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
 
@@ -110,8 +111,8 @@ impl InternationalizationStrings {
                 .filter(i18n_strings::i18n_string_country_subdivision_code.eq(subdivision_code));
         }
 
-        let result: Vec<InternationalizationStrings> = query
-            .load::<InternationalizationStrings>(&mut conn)
+        let result: Vec<InternationalizationString> = query
+            .load::<InternationalizationString>(&mut conn)
             .await
             .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
 
@@ -122,9 +123,9 @@ impl InternationalizationStrings {
 
     pub async fn get_all(
         mut conn: PooledConnection<'_, AsyncPgConnection>,
-    ) -> anyhow::Result<Vec<InternationalizationStrings>> {
-        let result: Vec<InternationalizationStrings> = i18n_strings::table
-            .load::<InternationalizationStrings>(&mut conn)
+    ) -> anyhow::Result<Vec<InternationalizationString>> {
+        let result: Vec<InternationalizationString> = i18n_strings::table
+            .load::<InternationalizationString>(&mut conn)
             .await
             .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
 
@@ -165,7 +166,11 @@ impl InternationalizationStrings {
                         .collect();
 
                     if rows.is_empty() {
-                        return Err(anyhow::anyhow!("country-language bundle cache: no bundle found for (country_code={}, language_code={})", country_code, language_code));
+                        return Err(anyhow::anyhow!(
+                            "country-language bundle cache: no bundle found for (country_code={}, language_code={})",
+                            country_code,
+                            language_code
+                        ));
                     }
 
                     let max_updated_at = rows

@@ -17,7 +17,7 @@ use crate::domain::country::{
     CountryAndSubdivisionsTable, IsoCountry, IsoCountrySubdivision, IsoCurrency, IsoCurrencyTable,
     IsoLanguage, IsoLanguageTable,
 };
-use crate::domain::i18n::i18n::InternationalizationStrings;
+use crate::domain::i18n::i18n::InternationalizationString;
 use crate::domain::i18n::i18n_cache::I18nCache;
 use crate::schema::{iso_country, iso_country_subdivision, iso_currency, iso_language};
 use crate::util::geographic::ip_info_lookup::{
@@ -283,7 +283,7 @@ impl ServerState {
     pub async fn sync_i18n_data(&self) -> anyhow::Result<()> {
         let start = tokio_now();
 
-        let rows = InternationalizationStrings::get_all(self.get_conn().await?).await?;
+        let rows = InternationalizationString::get_all(self.get_conn().await?).await?;
         let num_rows = rows.len();
         let mut lock = self.i18n_cache.write().await;
         *lock = I18nCache::from_rows(rows);

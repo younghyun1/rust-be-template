@@ -1,4 +1,4 @@
-use crate::domain::i18n::i18n::InternationalizationStrings;
+use crate::domain::i18n::i18n::InternationalizationString;
 use bitcode::encode;
 use chrono::{DateTime, Utc};
 use std::collections::{BTreeMap, HashMap};
@@ -9,7 +9,7 @@ use super::i18n::InternationalizationStringsToBeEncoded;
 type CountryLanguageKey = (i32, i32);
 
 pub struct I18nCache {
-    pub rows: Vec<InternationalizationStrings>,
+    pub rows: Vec<InternationalizationString>,
     // HashMap indexes
     pub country_idx: HashMap<i32, Vec<usize>>,
     pub subdivision_idx: HashMap<Option<String>, Vec<usize>>,
@@ -39,7 +39,7 @@ impl I18nCache {
         }
     }
 
-    pub fn from_rows(rows: Vec<InternationalizationStrings>) -> Self {
+    pub fn from_rows(rows: Vec<InternationalizationString>) -> Self {
         let mut cache = I18nCache::new();
         for (i, row) in rows.into_iter().enumerate() {
             // Push to row vec, retain `i` as index
@@ -98,38 +98,38 @@ impl I18nCache {
     }
 
     // Example lookup methods:
-    pub fn by_country(&self, code: i32) -> Vec<&InternationalizationStrings> {
+    pub fn by_country(&self, code: i32) -> Vec<&InternationalizationString> {
         self.country_idx
             .get(&code)
             .map(|v| v.iter().map(|&i| &self.rows[i]).collect())
             .unwrap_or_default()
     }
-    pub fn by_subdivision(&self, code: Option<&str>) -> Vec<&InternationalizationStrings> {
+    pub fn by_subdivision(&self, code: Option<&str>) -> Vec<&InternationalizationString> {
         let key = code.map(|s| s.to_string());
         self.subdivision_idx
             .get(&key)
             .map(|v| v.iter().map(|&i| &self.rows[i]).collect())
             .unwrap_or_default()
     }
-    pub fn by_language(&self, code: i32) -> Vec<&InternationalizationStrings> {
+    pub fn by_language(&self, code: i32) -> Vec<&InternationalizationString> {
         self.language_idx
             .get(&code)
             .map(|v| v.iter().map(|&i| &self.rows[i]).collect())
             .unwrap_or_default()
     }
-    pub fn by_reference(&self, key: &str) -> Vec<&InternationalizationStrings> {
+    pub fn by_reference(&self, key: &str) -> Vec<&InternationalizationString> {
         self.reference_idx
             .get(key)
             .map(|v| v.iter().map(|&i| &self.rows[i]).collect())
             .unwrap_or_default()
     }
-    pub fn by_created_by(&self, user: &Uuid) -> Vec<&InternationalizationStrings> {
+    pub fn by_created_by(&self, user: &Uuid) -> Vec<&InternationalizationString> {
         self.created_by_idx
             .get(user)
             .map(|v| v.iter().map(|&i| &self.rows[i]).collect())
             .unwrap_or_default()
     }
-    pub fn by_updated_by(&self, user: &Uuid) -> Vec<&InternationalizationStrings> {
+    pub fn by_updated_by(&self, user: &Uuid) -> Vec<&InternationalizationString> {
         self.updated_by_idx
             .get(user)
             .map(|v| v.iter().map(|&i| &self.rows[i]).collect())
@@ -140,7 +140,7 @@ impl I18nCache {
         &self,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
-    ) -> Vec<&InternationalizationStrings> {
+    ) -> Vec<&InternationalizationString> {
         self.created_at_idx
             .range(start..=end)
             .flat_map(|(_k, v)| v.iter().map(|&i| &self.rows[i]))
@@ -151,7 +151,7 @@ impl I18nCache {
         &self,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
-    ) -> Vec<&InternationalizationStrings> {
+    ) -> Vec<&InternationalizationString> {
         self.updated_at_idx
             .range(start..=end)
             .flat_map(|(_k, v)| v.iter().map(|&i| &self.rows[i]))
