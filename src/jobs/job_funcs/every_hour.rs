@@ -98,7 +98,7 @@ where
         info!(
             task_name = %task_descriptor,
             next_run_time = %next_mark.to_rfc3339_opts(SecondsFormat::AutoSi, true),
-            run_duration_secs = %elapsed.as_secs_f64(),
+            duration = %format!("{:?}", elapsed),
             "Scheduled task ran!"
         );
         // After the task finishes, loop back to schedule it again in the next hour.
