@@ -275,12 +275,12 @@ impl ServerState {
         }
 
         let elapsed = start.elapsed();
-        info!(elapsed = %format!("{:?}", elapsed), "Country data cache synchronized.");
+        info!(elapsed = %format!("{:?}", elapsed), "Country/language/currency data cache synchronized.");
 
         Ok(())
     }
 
-    pub async fn sync_i18n_data(&self) -> anyhow::Result<()> {
+    pub async fn sync_i18n_data(&self) -> anyhow::Result<usize> {
         let start = tokio_now();
 
         let rows = InternationalizationString::get_all(self.get_conn().await?).await?;
@@ -289,7 +289,7 @@ impl ServerState {
         *lock = I18nCache::from_rows(rows);
 
         info!(elapsed = %format!("{:?}", start.elapsed()), rows_synchronized = %num_rows, "Synchronized i18n data.");
-        Ok(())
+        Ok(num_rows)
     }
 }
 
