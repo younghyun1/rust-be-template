@@ -11,6 +11,7 @@ use tower_http::{compression::CompressionLayer, cors::CorsLayer, services::Serve
 
 use crate::{
     handlers::{
+        admin::sync_i18n_cache::sync_i18n_cache,
         auth::{
             check_if_user_exists::check_if_user_exists_handler, login::login, logout::logout,
             reset_password::reset_password, reset_password_request::reset_password_request_process,
@@ -22,6 +23,7 @@ use crate::{
             get_languages::get_languages,
             get_subdivisions_for_country::get_subdivisions_for_country,
         },
+        i18n::get_country_language_bundle::get_country_language_bundle,
         server::{healthcheck::healthcheck, lookup_ip_loc::lookup_ip_location, root::root_handler},
         user::upload_profile_picture::upload_profile_picture,
     },
@@ -79,7 +81,15 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/api/auth/verify-user-email", post(verify_user_email))
         .route("/api/blog/posts", get(get_posts))
         .route("/api/blog/posts/{post_id}", get(read_post))
-        .route("/api/blog/posts", post(submit_post));
+        .route("/api/blog/posts", post(submit_post))
+        .route(
+            "/api/i18n/country-language-bundle",
+            get(get_country_language_bundle),
+        )
+        .route(
+            "/api/admin/sync-country-language-bundle",
+            get(sync_i18n_cache),
+        ); //TODO: Get this cordoned off to some admin router requiring special elevated privileges
 
     let protected_router = axum::Router::new()
         .route("/api/auth/logout", post(logout))

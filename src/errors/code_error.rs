@@ -284,6 +284,20 @@ impl CodeError {
         message: "Failed to perform async task join operation!",
         log_level: Level::ERROR,
     };
+    pub const COULD_NOT_GET_I18N_BUNDLE: CodeError = CodeError {
+        success: false,
+        error_code: 38,
+        http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
+        message: "Could not get i18n bundle!",
+        log_level: Level::ERROR,
+    };
+    pub const COULD_NOT_SYNC_18N_CACHE: CodeError = CodeError {
+        success: false,
+        error_code: 39,
+        http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
+        message: "Could not sync i18n cache!",
+        log_level: Level::ERROR,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
