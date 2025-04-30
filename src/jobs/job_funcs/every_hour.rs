@@ -87,17 +87,20 @@ where
                 }
             };
 
-        info!(
-            task_name = %task_descriptor,
-            next_run_time = %next_mark.to_rfc3339_opts(SecondsFormat::AutoSi, true),
-            "Scheduled task"
-        );
-
         // Sleep until the scheduled time arrives.
         tokio::time::sleep(delay).await;
 
-        // Run the actual task.
+        // Run the actual task and measure how long it takes.
+        let start = tokio::time::Instant::now();
         task(Arc::clone(&state)).await;
+        let elapsed = start.elapsed();
+
+        info!(
+            task_name = %task_descriptor,
+            next_run_time = %next_mark.to_rfc3339_opts(SecondsFormat::AutoSi, true),
+            run_duration_secs = %elapsed.as_secs_f64(),
+            "Scheduled task ran!"
+        );
         // After the task finishes, loop back to schedule it again in the next hour.
     }
 }
