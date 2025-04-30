@@ -41,38 +41,14 @@ pub struct InternationalizationString {
 
 #[derive(Encode)]
 pub struct InternationalizationStringsToBeEncoded {
-    pub i18n_string_id: [u8; 16],
     pub i18n_string_content: String,
-    pub i18n_string_created_at: Vec<u8>,
-    pub i18n_string_created_by: [u8; 16],
-    pub i18n_string_updated_at: Vec<u8>,
-    pub i18n_string_updated_by: [u8; 16],
-    pub i18n_string_language_code: i32,
-    pub i18n_string_country_code: i32,
-    pub i18n_string_country_subdivision_code: Option<String>,
     pub i18n_string_reference_key: String,
 }
 
 impl From<InternationalizationString> for InternationalizationStringsToBeEncoded {
     fn from(i18n_string: InternationalizationString) -> Self {
         InternationalizationStringsToBeEncoded {
-            i18n_string_id: *i18n_string.i18n_string_id.as_bytes(),
             i18n_string_content: i18n_string.i18n_string_content,
-            i18n_string_created_at: i18n_string
-                .i18n_string_created_at
-                .timestamp_millis()
-                .to_le_bytes()
-                .to_vec(),
-            i18n_string_created_by: *i18n_string.i18n_string_created_by.as_bytes(),
-            i18n_string_updated_at: i18n_string
-                .i18n_string_updated_at
-                .timestamp_millis()
-                .to_le_bytes()
-                .to_vec(),
-            i18n_string_updated_by: *i18n_string.i18n_string_updated_by.as_bytes(),
-            i18n_string_language_code: i18n_string.i18n_string_language_code,
-            i18n_string_country_code: i18n_string.i18n_string_country_code,
-            i18n_string_country_subdivision_code: i18n_string.i18n_string_country_subdivision_code,
             i18n_string_reference_key: i18n_string.i18n_string_reference_key,
         }
     }
