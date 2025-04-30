@@ -37,8 +37,14 @@ pub mod dto {
             pub mod upvote_comment_request;
             pub mod upvote_post_request;
         }
+        pub mod i18n {
+            pub mod get_country_language_bundle_request;
+        }
     }
     pub mod responses {
+        pub mod admin {
+            pub mod sync_i18n_cache_response;
+        }
         pub mod auth {
             pub mod email_validate_response;
             pub mod login_response;
@@ -48,7 +54,6 @@ pub mod dto {
             pub mod signup_response;
         }
         pub mod blog {
-
             pub mod get_posts;
             pub mod read_post_response;
             pub mod submit_post_response;
@@ -62,6 +67,9 @@ pub mod errors {
     pub mod code_error;
 }
 pub mod handlers {
+    pub mod admin {
+        pub mod sync_i18n_cache;
+    }
     pub mod auth {
         pub mod check_if_user_exists;
         pub mod login;
@@ -83,6 +91,9 @@ pub mod handlers {
     pub mod user {
         pub mod upload_profile_picture;
     }
+    pub mod i18n {
+        pub mod get_country_language_bundle;
+    }
     pub mod server {
         pub mod fallback;
         pub mod healthcheck;
@@ -90,7 +101,6 @@ pub mod handlers {
         pub mod root;
     }
     pub mod countries {
-
         pub mod get_countries;
         pub mod get_country;
         pub mod get_language;
