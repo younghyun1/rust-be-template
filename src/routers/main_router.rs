@@ -84,11 +84,11 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/api/blog/posts", post(submit_post))
         .route(
             "/api/i18n/country-language-bundle",
-            get(get_country_language_bundle),
+            get(get_country_language_bundle), // TODO: Restify
         )
         .route(
             "/api/admin/sync-country-language-bundle",
-            get(sync_i18n_cache),
+            get(sync_i18n_cache), // TODO: Restify
         ); //TODO: Get this cordoned off to some admin router requiring special elevated privileges
 
     let protected_router = axum::Router::new()
