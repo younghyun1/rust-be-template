@@ -33,6 +33,7 @@ pub mod dto {
         pub mod blog {
             pub mod get_posts_request;
             pub mod read_post;
+            pub mod submit_comment;
             pub mod submit_post_request;
             pub mod upvote_comment_request;
             pub mod upvote_post_request;
@@ -85,6 +86,7 @@ pub mod handlers {
         pub mod read_post;
         pub mod rescind_comment_vote;
         pub mod rescind_post_vote;
+        pub mod submit_comment;
         pub mod submit_post;
         pub mod vote_comment;
         pub mod vote_post;
