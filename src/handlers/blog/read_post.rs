@@ -61,9 +61,8 @@ pub async fn read_post(
     let (post_result, comments_result) = tokio::join!(post_handle, comments_handle);
 
     let post = post_result.map_err(|e| code_err(CodeError::JOIN_ERROR, e))??;
-    let comments = comments_result.map_err(|e| code_err(CodeError::JOIN_ERROR, e))??;
-
-    // TODO: Grab updoots for these posts and comments
+    let mut comments = comments_result.map_err(|e| code_err(CodeError::JOIN_ERROR, e))??;
+    comments.sort_by_key(|c| -(c.total_upvotes - c.total_downvotes));
 
     Ok(http_resp(ReadPostResponse { post, comments }, (), start))
 }
