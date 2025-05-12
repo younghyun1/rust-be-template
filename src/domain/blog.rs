@@ -1,4 +1,3 @@
-
 use chrono::{DateTime, Utc};
 
 use diesel::{
@@ -6,9 +5,7 @@ use diesel::{
     prelude::{Queryable, QueryableByName},
 };
 
-use crate::{
-    schema::{comment_votes, post_tags, post_votes, posts, tags},
-};
+use crate::schema::{comment_votes, post_tags, post_votes, posts, tags};
 
 #[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
 #[diesel(table_name = posts)]
