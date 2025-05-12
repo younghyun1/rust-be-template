@@ -1,24 +1,30 @@
 use std::sync::Arc;
 
 use axum::{Extension, Json, extract::State, response::IntoResponse};
-use diesel_async::RunQueryDsl;
+use diesel::{ExpressionMethods, QueryDsl};
+use diesel_async::{AsyncConnection, RunQueryDsl};
 use uuid::Uuid;
 
 use crate::{
-    domain::blog::NewCommentVote,
     dto::{
         requests::blog::upvote_comment_request::UpvoteCommentRequest,
-        responses::response_data::http_resp,
+        responses::{blog::vote_comment_response::VoteCommentResponse, response_data::http_resp},
     },
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
-    schema::comment_votes,
+    schema::{comment_votes, comments},
     util::time::now::tokio_now,
 };
 
-// TODO: Implement upvote/downvote distinction and normalized value update
-// TODO: Prepare batch task to sync normalized values
-pub async fn upvote_comment(
+#[derive(Debug, diesel::QueryableByName)]
+pub struct CountRow {
+    #[diesel(sql_type = diesel::sql_types::BigInt)]
+    pub upvote_count: i64,
+    #[diesel(sql_type = diesel::sql_types::BigInt)]
+    pub downvote_count: i64,
+}
+
+pub async fn vote_comment(
     Extension(user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,
     Json(request): Json<UpvoteCommentRequest>,
@@ -30,22 +36,65 @@ pub async fn upvote_comment(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    let new_comment_upvote: NewCommentVote =
-        NewCommentVote::new(&request.comment_id, &user_id, true);
+    let count_row: CountRow = match conn
+        .transaction::<_, diesel::result::Error, _>(|conn| {
+            let comment_id = request.comment_id;
+            let user_id = user_id;
+            let is_upvote = request.is_upvote;
 
-    match diesel::insert_into(comment_votes::table)
-        .values(new_comment_upvote)
-        .execute(&mut conn)
+            Box::pin(async move {
+                let count_row: CountRow = diesel::sql_query(
+                    "WITH ins AS (
+                        INSERT INTO comment_votes (comment_id, user_id, is_upvote)
+                        VALUES ($1, $2, $3)
+                        RETURNING 1
+                    )
+                    SELECT
+                        (SELECT count(*) FROM comment_votes WHERE comment_id = $1 AND is_upvote = true) AS upvote_count,
+                        (SELECT count(*) FROM comment_votes WHERE comment_id = $1 AND is_upvote = false) AS downvote_count
+                    ",
+                )
+                .bind::<diesel::sql_types::Uuid, Uuid>(comment_id)
+                .bind::<diesel::sql_types::Uuid, Uuid>(user_id)
+                .bind::<diesel::sql_types::Bool, bool>(is_upvote)
+                .get_result(conn)
+                .await?;
+
+                if is_upvote {
+                    diesel::update(comments::table.filter(comments::comment_id.eq(comment_id)))
+                        .set(comments::total_upvotes.eq(count_row.upvote_count))
+                        .execute(conn)
+                        .await?;
+                } else {
+                    diesel::update(comments::table.filter(comments::comment_id.eq(comment_id)))
+                        .set(comments::total_downvotes.eq(count_row.downvote_count))
+                        .execute(conn)
+                        .await?;
+                }
+
+                Ok(count_row)
+            })
+        })
         .await
     {
-        Ok(_) => (),
-        Err(diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::UniqueViolation,
-            _,
-        )) => return Err(CodeError::UPVOTE_MUST_BE_UNIQUE.into()),
-        Err(e) => return Err(code_err(CodeError::DB_INSERTION_ERROR, e)),
+        Ok(crow) => crow,
+        Err(e) => {
+            match e {
+                diesel::result::Error::DatabaseError(
+                    diesel::result::DatabaseErrorKind::UniqueViolation,
+                    _,
+                ) => return Err(CodeError::UPVOTE_MUST_BE_UNIQUE.into()),
+                e => return Err(code_err(CodeError::DB_INSERTION_ERROR, e)),
+            }
+        }
     };
 
-    // TODO: return number of upvotes and downvotes here
-    Ok(http_resp((), (), start))
+    Ok(http_resp(
+        VoteCommentResponse {
+            upvote_count: count_row.upvote_count,
+            downvote_count: count_row.downvote_count,
+        },
+        (),
+        start,
+    ))
 }
