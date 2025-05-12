@@ -41,8 +41,6 @@ pub async fn submit_comment(
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
     let user_id: Uuid = if request.is_guest {
-        // If guest commenting is supported, you can insert guest logic here.
-        // For now, return unauthorized as in submit_post.
         return Err(CodeError::UNAUTHORIZED_ACCESS.into());
     } else {
         // Get user id from session (same as submit_post)
