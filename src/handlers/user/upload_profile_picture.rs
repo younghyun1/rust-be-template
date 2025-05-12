@@ -24,7 +24,7 @@ use crate::{
 };
 
 const MAX_SIZE_OF_UPLOADABLE_PROFILE_PICTURE: usize = 1024 * 1024 * 10; // 10MB
-const ALLOWED_MIME_TYPES: [&'static str; 16] = [
+const ALLOWED_MIME_TYPES: [&str; 16] = [
     "image/png",                // PNG
     "image/jpeg",               // JPEG
     "image/gif",                // GIF
