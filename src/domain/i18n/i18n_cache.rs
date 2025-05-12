@@ -23,6 +23,12 @@ pub struct I18nCache {
     pub bundle_cache: HashMap<CountryLanguageKey, (DateTime<Utc>, Vec<u8>)>,
 }
 
+impl Default for I18nCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl I18nCache {
     pub fn new() -> Self {
         Self {
@@ -49,49 +55,49 @@ impl I18nCache {
             cache
                 .country_idx
                 .entry(row_ref.i18n_string_country_code)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(i);
             // subdivision
             cache
                 .subdivision_idx
                 .entry(row_ref.i18n_string_country_subdivision_code.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(i);
             // language
             cache
                 .language_idx
                 .entry(row_ref.i18n_string_language_code)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(i);
             // created_by
             cache
                 .created_by_idx
                 .entry(row_ref.i18n_string_created_by)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(i);
             // updated_by
             cache
                 .updated_by_idx
                 .entry(row_ref.i18n_string_updated_by)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(i);
             // reference_key
             cache
                 .reference_idx
                 .entry(row_ref.i18n_string_reference_key.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(i);
             // created_at
             cache
                 .created_at_idx
                 .entry(row_ref.i18n_string_created_at)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(i);
             // updated_at
             cache
                 .updated_at_idx
                 .entry(row_ref.i18n_string_updated_at)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(i);
         }
         cache

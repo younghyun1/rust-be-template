@@ -120,12 +120,12 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     });
 
     // Merge API router and set static_files as the fallback
-    let app = axum::Router::new()
+    
+
+    axum::Router::new()
         .merge(api_router)
         .fallback_service(static_files)
         .layer(compression_middleware)
         .layer(log_middleware)
-        .layer(DefaultBodyLimit::max(MAX_REQUEST_SIZE));
-
-    app
+        .layer(DefaultBodyLimit::max(MAX_REQUEST_SIZE))
 }

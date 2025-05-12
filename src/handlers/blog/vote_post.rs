@@ -39,7 +39,6 @@ pub async fn vote_post(
     let count_row: CountRow = match conn
         .transaction::<_, diesel::result::Error, _>(|conn| {
             let post_id = request.post_id;
-            let user_id = user_id;
             let is_upvote = request.is_upvote;
 
             Box::pin(async move {
