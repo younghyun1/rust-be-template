@@ -1,10 +1,17 @@
+use std::sync::Arc;
+
 use chrono::{DateTime, Utc};
+
 use diesel::{
     Insertable, Selectable,
     prelude::{Queryable, QueryableByName},
 };
 
-use crate::schema::{comment_votes, post_tags, post_votes, posts, tags};
+use crate::{
+    errors::code_error::{CodeError, CodeErrorResp, code_err},
+    init::state::ServerState,
+    schema::{comment_votes, post_tags, post_votes, posts, tags},
+};
 
 #[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
 #[diesel(table_name = posts)]
@@ -112,6 +119,33 @@ pub struct Comment {
     pub parent_comment_id: Option<uuid::Uuid>,
     pub total_upvotes: i64,
     pub total_downvotes: i64,
+}
+
+impl Comment {
+    async fn get_comments_for_post(
+        post_id: uuid::Uuid,
+        state: &Arc<ServerState>,
+    ) -> Result<Vec<Self>, CodeErrorResp> {
+        use diesel_async::RunQueryDsl;
+
+        let mut conn = state
+            .get_conn()
+            .await
+            .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
+
+        use crate::schema::comments::dsl::*;
+        use diesel::prelude::*;
+
+        let results = comments
+            .filter(post_id.eq(post_id))
+            .order_by((total_upvotes - total_downvotes).desc())
+            .load::<Self>(&mut conn)
+            .await
+            .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+
+        drop(conn);
+        Ok(results)
+    }
 }
 
 #[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
