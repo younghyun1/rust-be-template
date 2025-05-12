@@ -24,7 +24,7 @@ pub struct CountRow {
     pub downvote_count: i64,
 }
 
-pub async fn upvote_post(
+pub async fn vote_post(
     Extension(user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,
     Json(request): Json<UpvotePostRequest>,
