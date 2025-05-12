@@ -120,7 +120,6 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     });
 
     // Merge API router and set static_files as the fallback
-    
 
     axum::Router::new()
         .merge(api_router)
