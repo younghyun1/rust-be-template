@@ -86,6 +86,7 @@ email_address = "0.2.9"
 argon2 = "0.5.3"
 rand = "0.8.5"
 rustls = { version = "0.23.27", features = [] }
+zeroize = { version = "1.8.1", features = ["derive"] }
 
 # memory allocator
 mimalloc = "0.1.46"

@@ -20,11 +20,12 @@ use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
 use tracing::{error, trace, warn};
 use uuid::Uuid;
+use zeroize::Zeroize;
 
 pub async fn login(
     cookie_jar: CookieJar,
     State(state): State<Arc<ServerState>>,
-    Json(request): Json<LoginRequest>,
+    Json(mut request): Json<LoginRequest>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
@@ -64,8 +65,10 @@ pub async fn login(
         Err(e) => return Err(code_err(CodeError::COULD_NOT_VERIFY_PW, e)),
     }
 
-    // Invalidate prior session here.
+    // Leave no password alive in RAM!
+    request.zeroize();
 
+    // Invalidate prior session here.
     let old_session_id: Option<Uuid> = match cookie_jar.get("session_id") {
         Some(cookie) => match Uuid::from_str(cookie.value()) {
             Ok(id) => Some(id),
