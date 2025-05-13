@@ -7,6 +7,7 @@ use diesel_async::RunQueryDsl;
 use lettre::{AsyncTransport, Message};
 use tracing::error;
 use uuid::Uuid;
+use zeroize::Zeroize;
 
 use crate::{
     domain::user::{NewEmailVerificationToken, User},
@@ -31,7 +32,7 @@ const EMAIL_VERIFICATION_TOKEN_VALID_DURATION: chrono::TimeDelta = chrono::Durat
 pub async fn signup_handler(
     Extension(request_received_time): Extension<DateTime<Utc>>,
     State(state): State<Arc<ServerState>>,
-    Json(request): Json<SignupRequest>,
+    Json(mut request): Json<SignupRequest>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
@@ -106,10 +107,16 @@ pub async fn signup_handler(
         };
     });
 
+    let user_name = request.user_name.clone();
+    let user_email = request.user_email.clone();
+
+    // Do not leave the password alive in RAM.
+    request.zeroize();
+    
     Ok(http_resp(
         SignupResponse {
-            user_name: request.user_name,
-            user_email: request.user_email,
+            user_name,
+            user_email,
             verify_by: inserted_email_verification_token_verify_by,
         },
         (),
