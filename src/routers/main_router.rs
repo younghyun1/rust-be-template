@@ -14,8 +14,9 @@ use crate::{
         admin::sync_i18n_cache::sync_i18n_cache,
         auth::{
             check_if_user_exists::check_if_user_exists_handler, login::login, logout::logout,
-            reset_password::reset_password, reset_password_request::reset_password_request_process,
-            signup::signup_handler, verify_user_email::verify_user_email,
+            me::me_handler, reset_password::reset_password,
+            reset_password_request::reset_password_request_process, signup::signup_handler,
+            verify_user_email::verify_user_email,
         },
         blog::{get_posts::get_posts, read_post::read_post, submit_post::submit_post},
         countries::{
@@ -92,6 +93,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         ); //TODO: Get this cordoned off to some admin router requiring special elevated privileges
 
     let protected_router = axum::Router::new()
+        .route("/api/auth/me", get(me_handler))
         .route("/api/auth/logout", post(logout))
         .route(
             "/api/user/upload-profile-picture",
