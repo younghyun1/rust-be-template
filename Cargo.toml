@@ -23,7 +23,7 @@ axum = { version = "0.8.4", features = [
 ] }
 axum-extra = { version = "0.10.1", features = ["cookie", "attachment", "form"] }
 axum-server = { version = "0.7.2", features = ["tls-rustls", "tokio-rustls"] }
-tower-http = { version = "0.6.3", features = [
+tower-http = { version = "0.6.4", features = [
     "compression-gzip",
     "trace",
     "cors",
@@ -92,7 +92,7 @@ zeroize = { version = "1.8.1", features = ["derive"] }
 mimalloc = "0.1.46"
 
 # email
-lettre = { version = "0.11.15", default-features = false, features = [
+lettre = { version = "0.11.16", default-features = false, features = [
     "builder",
     "hostname",
     "pool",
