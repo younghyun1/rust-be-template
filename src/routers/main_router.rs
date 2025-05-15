@@ -1,10 +1,12 @@
+use std::env;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::{
     extract::DefaultBodyLimit,
-    http::StatusCode,
+    http::{header::{CONTENT_ENCODING, CONTENT_TYPE}, StatusCode},
     middleware::from_fn_with_state,
-    response::IntoResponse,
+    response::{Html, IntoResponse},
     routing::{get, get_service, post},
 };
 use tower_http::{compression::CompressionLayer, cors::CorsLayer, services::ServeDir};
@@ -38,13 +40,45 @@ use super::middleware::{
 const MAX_REQUEST_SIZE: usize = 1024 * 1024 * 50; // 50MB
 
 async fn spa_fallback() -> impl axum::response::IntoResponse {
-    match tokio::fs::read_to_string("fe/index.html").await {
-        Ok(html) => axum::response::Html(html).into_response(),
-        Err(_) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Internal Server Error".to_string(),
+    // Get FE_ASSETS_DIR from environment variable, fallback to "fe"
+    let fe_dir = env::var("FE_ASSETS_DIR").unwrap_or_else(|_| "fe".to_string());
+
+    // Try serving gzipped first, then fallback to plain index.html
+    let gzip_path = PathBuf::from(&fe_dir).join("index.html.gz");
+    let html_path = PathBuf::from(&fe_dir).join("index.html");
+
+    match tokio::fs::read(&gzip_path).await {
+        Ok(gzipped_bytes) => (
+            StatusCode::OK,
+            [
+                (CONTENT_TYPE.as_str(), "text/html; charset=utf-8"),
+                (CONTENT_ENCODING.as_str(), "gzip"),
+            ],
+            gzipped_bytes,
         )
             .into_response(),
+        Err(gzip_err) => {
+            println!(
+                "spa_fallback: Failed to read gzipped index.html at {:?}: {}",
+                gzip_path, gzip_err
+            );
+
+            // Fallback to plain index.html
+            match tokio::fs::read_to_string(&html_path).await {
+                Ok(html) => Html(html).into_response(),
+                Err(e) => {
+                    println!(
+                        "spa_fallback: Failed to read plain index.html at {:?}: {}",
+                        html_path, e
+                    );
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Internal Server Error".to_string(),
+                    )
+                        .into_response()
+                }
+            }
+        }
     }
 }
 
@@ -104,6 +138,9 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let api_router = public_router
         .merge(protected_router)
         .layer(api_key_check_middleware)
+        .layer(compression_middleware)
+        .layer(log_middleware)
+        .layer(DefaultBodyLimit::max(MAX_REQUEST_SIZE))
         .layer(cors_layer)
         .with_state(state.clone());
 
@@ -111,6 +148,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let spa_fallback_service = get(spa_fallback);
 
     let serve_dir = ServeDir::new("fe")
+        .precompressed_gzip()
         .append_index_html_on_directories(true)
         .not_found_service(spa_fallback_service);
 
@@ -126,7 +164,4 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     axum::Router::new()
         .merge(api_router)
         .fallback_service(static_files)
-        .layer(compression_middleware)
-        .layer(log_middleware)
-        .layer(DefaultBodyLimit::max(MAX_REQUEST_SIZE))
 }
