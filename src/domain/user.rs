@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use diesel::{Queryable, QueryableByName, prelude::Insertable};
+use diesel::{prelude::Insertable, Queryable, QueryableByName, Selectable};
 use diesel_async::{AsyncPgConnection, RunQueryDsl, pooled_connection::bb8::PooledConnection};
 use serde_derive::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -13,6 +13,7 @@ use crate::{
 
 // TODO: update with new fields - country, subdivision, etc after filling out the data
 #[derive(Serialize, Deserialize, QueryableByName, Queryable)]
+#[diesel(table_name = users)]
 pub struct User {
     #[diesel(sql_type = diesel::sql_types::Uuid)]
     pub user_id: uuid::Uuid,
@@ -36,7 +37,29 @@ pub struct User {
     pub user_subdivision: Option<i32>,
 }
 
+// TODO: update with new fields - country, subdivision, etc after filling out the data
+#[derive(Serialize, Deserialize, Queryable, Selectable)]
+#[diesel(table_name = users)]
+pub struct UserInfo {
+    #[diesel(sql_type = diesel::sql_types::Uuid)]
+    pub user_id: uuid::Uuid,
+    #[diesel(sql_type = diesel::sql_types::Varchar)]
+    pub user_name: String,
+    #[diesel(sql_type = diesel::sql_types::Varchar)]
+    pub user_email: String,
+    #[diesel(sql_type = diesel::sql_types::Bool)]
+    pub user_is_email_verified: bool,
+    #[diesel(sql_type = diesel::sql_types::Integer)]
+    pub user_country: i32,
+    #[diesel(sql_type = diesel::sql_types::Integer)]
+    pub user_language: i32,
+    #[diesel(sql_type = diesel::sql_types::Nullable<diesel::sql_types::Integer>)]
+    pub user_subdivision: Option<i32>,
+}
+
 // TODO: Formalize DTO-Insertion Object relations
+// TODO: Separate DTOs and VOs, also separate by response and request
+// lmao
 
 impl User {
     pub async fn insert_one<'a, 'conn>(
