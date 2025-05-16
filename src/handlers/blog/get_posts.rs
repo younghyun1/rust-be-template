@@ -10,13 +10,17 @@ use crate::{
     init::state::ServerState,
     util::time::now::tokio_now,
 };
-use axum::{Json, extract::State, response::IntoResponse};
+use axum::{
+    Json,
+    extract::{Query, State},
+    response::IntoResponse,
+};
 
 /// GET /blog/get-posts
 /// Get posts metadata for post list.
 pub async fn get_posts(
     State(state): State<Arc<ServerState>>,
-    Json(request): Json<GetPostsRequest>,
+    Query(request): Query<GetPostsRequest>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 

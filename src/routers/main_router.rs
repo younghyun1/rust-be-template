@@ -143,6 +143,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .layer(DefaultBodyLimit::max(MAX_REQUEST_SIZE))
         .layer(cors_layer)
         .with_state(state.clone());
+    
 
     // Configure ServeDir to serve static files and fall back to index.html
     let spa_fallback_service = get(spa_fallback);
