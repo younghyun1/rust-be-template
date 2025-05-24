@@ -13,7 +13,7 @@ pub mod schema;
 pub mod domain {
     pub mod blog {
         pub mod service {
-            pub mod comment_service;
+            pub mod vote_service;
         }
         pub mod blog;
     }
