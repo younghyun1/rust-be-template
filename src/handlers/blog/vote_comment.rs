@@ -50,6 +50,7 @@ pub async fn vote_comment(
                     "WITH ins AS (
                         INSERT INTO comment_votes (comment_id, user_id, is_upvote)
                         VALUES ($1, $2, $3)
+                        ON CONFLICT (comment_id, user_id) DO UPDATE SET is_upvote = EXCLUDED.is_upvote
                         RETURNING 1
                     )
                     SELECT
@@ -93,6 +94,7 @@ pub async fn vote_comment(
         VoteCommentResponse {
             upvote_count: count_row.upvote_count,
             downvote_count: count_row.downvote_count,
+            is_upvote: request.is_upvote,
         },
         (),
         start,
