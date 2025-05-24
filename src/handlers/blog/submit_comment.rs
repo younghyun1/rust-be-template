@@ -8,7 +8,7 @@ use uuid::Uuid;
 use diesel_async::RunQueryDsl;
 
 use crate::{
-    domain::blog::Comment as DbComment,
+    domain::blog::blog::Comment as DbComment,
     dto::{
         requests::blog::submit_comment::SubmitCommentRequest, responses::response_data::http_resp,
     },

@@ -1,4 +1,4 @@
-use crate::domain::blog::{Comment, Post};
+use crate::domain::blog::blog::{Comment, Post};
 
 #[derive(serde_derive::Serialize)]
 pub struct ReadPostResponse {

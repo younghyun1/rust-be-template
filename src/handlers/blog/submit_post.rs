@@ -8,7 +8,7 @@ use uuid::Uuid;
 use diesel_async::RunQueryDsl;
 
 use crate::{
-    domain::blog::{NewPost, Post, PostInfo},
+    domain::blog::blog::{NewPost, Post, PostInfo},
     dto::{
         requests::blog::submit_post_request::SubmitPostRequest,
         responses::{blog::submit_post_response::SubmitPostResponse, response_data::http_resp},
