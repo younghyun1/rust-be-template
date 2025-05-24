@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
-use axum::{Extension, Json, extract::State, response::IntoResponse};
+use axum::{
+    Extension, Json,
+    extract::{Path, State},
+    response::IntoResponse,
+};
 use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::{AsyncConnection, RunQueryDsl};
 use uuid::Uuid;
@@ -27,6 +31,7 @@ pub struct CountRow {
 pub async fn vote_post(
     Extension(user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,
+    Path(post_id): Path<Uuid>,
     Json(request): Json<UpvotePostRequest>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
@@ -38,7 +43,6 @@ pub async fn vote_post(
 
     let count_row: CountRow = match conn
         .transaction::<_, diesel::result::Error, _>(|conn| {
-            let post_id = request.post_id;
             let is_upvote = request.is_upvote;
 
             Box::pin(async move {
@@ -59,17 +63,14 @@ pub async fn vote_post(
                 .get_result(conn)
                 .await?;
 
-                if is_upvote {
-                    diesel::update(posts::table.filter(posts::post_id.eq(post_id)))
-                        .set(posts::total_upvotes.eq(count_row.upvote_count))
-                        .execute(conn)
-                        .await?;
-                } else {
-                    diesel::update(posts::table.filter(posts::post_id.eq(post_id)))
-                        .set(posts::total_downvotes.eq(count_row.downvote_count))
-                        .execute(conn)
-                        .await?;
-                }
+                diesel::update(posts::table.filter(posts::post_id.eq(post_id)))
+                    .set(posts::total_upvotes.eq(count_row.upvote_count))
+                    .execute(conn)
+                    .await?;
+                diesel::update(posts::table.filter(posts::post_id.eq(post_id)))
+                    .set(posts::total_downvotes.eq(count_row.downvote_count))
+                    .execute(conn)
+                    .await?;
 
                 Ok(count_row)
             })

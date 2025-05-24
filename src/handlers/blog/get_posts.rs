@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    domain::blog::PostInfo,
+    domain::blog::blog::PostInfo,
     dto::{
         requests::blog::get_posts_request::GetPostsRequest,
         responses::{blog::get_posts::GetPostsResponse, response_data::http_resp},
@@ -11,7 +11,6 @@ use crate::{
     util::time::now::tokio_now,
 };
 use axum::{
-    Json,
     extract::{Query, State},
     response::IntoResponse,
 };

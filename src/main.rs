@@ -11,7 +11,12 @@ static GLOBAL: MiMalloc = MiMalloc;
 // modules tree
 pub mod schema;
 pub mod domain {
-    pub mod blog;
+    pub mod blog {
+        pub mod service {
+            pub mod comment_service;
+        }
+        pub mod blog;
+    }
     pub mod country;
     pub mod domain_traits;
     pub mod i18n {
