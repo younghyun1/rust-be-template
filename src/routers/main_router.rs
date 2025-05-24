@@ -4,10 +4,13 @@ use std::sync::Arc;
 
 use axum::{
     extract::DefaultBodyLimit,
-    http::{header::{CONTENT_ENCODING, CONTENT_TYPE}, StatusCode},
+    http::{
+        StatusCode,
+        header::{CONTENT_ENCODING, CONTENT_TYPE},
+    },
     middleware::from_fn_with_state,
     response::{Html, IntoResponse},
-    routing::{get, get_service, post},
+    routing::{delete, get, get_service, post},
 };
 use tower_http::{compression::CompressionLayer, cors::CorsLayer, services::ServeDir};
 
@@ -20,7 +23,11 @@ use crate::{
             reset_password_request::reset_password_request_process, signup::signup_handler,
             verify_user_email::verify_user_email,
         },
-        blog::{get_posts::get_posts, read_post::read_post, submit_post::submit_post},
+        blog::{
+            get_posts::get_posts, read_post::read_post, rescind_comment_vote::rescind_comment_vote,
+            rescind_post_vote::rescind_post_vote, submit_post::submit_post,
+            vote_comment::vote_comment, vote_post::vote_post,
+        },
         countries::{
             get_countries::get_countries, get_country::get_country, get_language::get_language,
             get_languages::get_languages,
@@ -133,6 +140,13 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
             "/api/user/upload-profile-picture",
             post(upload_profile_picture),
         )
+        .route("/api/blog/{post_id}/vote", post(vote_post))
+        .route("/api/blog/{post_id}/{comment_id}/vote", post(vote_comment))
+        .route("/api/blog/{post_id}/vote", delete(rescind_post_vote))
+        .route(
+            "/api/blog/{post_id}/{comment_id}/vote",
+            delete(rescind_comment_vote),
+        )
         .layer(auth_middleware.clone());
 
     let api_router = public_router
@@ -143,7 +157,6 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .layer(DefaultBodyLimit::max(MAX_REQUEST_SIZE))
         .layer(cors_layer)
         .with_state(state.clone());
-    
 
     // Configure ServeDir to serve static files and fall back to index.html
     let spa_fallback_service = get(spa_fallback);

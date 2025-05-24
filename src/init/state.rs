@@ -12,7 +12,7 @@ use tokio::sync::RwLock;
 use tracing::{error, info};
 use uuid::Uuid;
 
-use crate::domain::blog::PostInfo;
+use crate::domain::blog::blog::PostInfo;
 use crate::domain::country::{
     CountryAndSubdivisionsTable, IsoCountry, IsoCountrySubdivision, IsoCurrency, IsoCurrencyTable,
     IsoLanguage, IsoLanguageTable,

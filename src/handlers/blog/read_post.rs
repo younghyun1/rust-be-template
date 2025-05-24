@@ -9,7 +9,7 @@ use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
 use crate::{
-    domain::blog::Comment,
+    domain::blog::blog::Comment,
     dto::responses::{blog::read_post_response::ReadPostResponse, response_data::http_resp},
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
@@ -60,7 +60,7 @@ pub async fn read_post(
 
     let (post_result, comments_result) = tokio::join!(post_handle, comments_handle);
 
-    let post: crate::domain::blog::Post =
+    let post: crate::domain::blog::blog::Post =
         post_result.map_err(|e| code_err(CodeError::JOIN_ERROR, e))??;
     let mut comments: Vec<Comment> =
         comments_result.map_err(|e| code_err(CodeError::JOIN_ERROR, e))??;
