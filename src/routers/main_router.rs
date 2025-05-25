@@ -112,6 +112,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         )
         .route("/api/geolocate/{ip_address}", get(lookup_ip_location))
         .route("/api/auth/signup", post(signup_handler))
+        .route("/api/auth/me", get(me_handler))
         .route(
             "/api/auth/check-if-user-exists",
             post(check_if_user_exists_handler),
@@ -136,7 +137,6 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         ); //TODO: Get this cordoned off to some admin router requiring special elevated privileges
 
     let protected_router = axum::Router::new()
-        .route("/api/auth/me", get(me_handler))
         .route("/api/auth/logout", post(logout))
         .route(
             "/api/user/upload-profile-picture",

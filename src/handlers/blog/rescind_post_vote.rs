@@ -10,9 +10,7 @@ use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
 use crate::{
-    dto::{
-        responses::response_data::http_resp,
-    },
+    dto::responses::response_data::http_resp,
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
     schema::post_votes::dsl as pu,

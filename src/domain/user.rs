@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use diesel::{prelude::Insertable, Queryable, QueryableByName, Selectable};
+use diesel::{Queryable, QueryableByName, Selectable, prelude::Insertable};
 use diesel_async::{AsyncPgConnection, RunQueryDsl, pooled_connection::bb8::PooledConnection};
 use serde_derive::{Deserialize, Serialize};
 use uuid::Uuid;
