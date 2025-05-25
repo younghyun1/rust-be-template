@@ -167,7 +167,7 @@ pub struct CommentResponse {
 }
 
 impl CommentResponse {
-    fn from_comment_and_votestate(comment: Comment, vote_state: VoteState) -> Self {
+    pub fn from_comment_and_votestate(comment: Comment, vote_state: VoteState) -> Self {
         Self {
             comment_id: comment.comment_id,
             post_id: comment.post_id,
