@@ -48,14 +48,14 @@ pub async fn vote_post(
             Box::pin(async move {
                 let count_row: CountRow = diesel::sql_query(
                     "WITH ins AS (
-                        INSERT INTO post_upvotes (post_id, user_id, is_upvote)
+                        INSERT INTO post_votes (post_id, user_id, is_upvote)
                         VALUES ($1, $2, $3)
                         ON CONFLICT (post_id, user_id) DO UPDATE SET is_upvote = EXCLUDED.is_upvote
                         RETURNING 1
                     )
                     SELECT
-                        (SELECT count(*) FROM post_upvotes WHERE post_id = $1 AND is_upvote = true) AS upvote_count,
-                        (SELECT count(*) FROM post_upvotes WHERE post_id = $1 AND is_upvote = false) AS downvote_count
+                        (SELECT count(*) FROM post_votes WHERE post_id = $1 AND is_upvote = true) AS upvote_count,
+                        (SELECT count(*) FROM post_votes WHERE post_id = $1 AND is_upvote = false) AS downvote_count
                     ",
                 )
                 .bind::<diesel::sql_types::Uuid, Uuid>(post_id)

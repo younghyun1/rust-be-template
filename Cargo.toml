@@ -47,7 +47,7 @@ diesel-async = { version = "0.5.2", features = ["bb8", "postgres"] }
 dotenvy = "0.15.7"
 
 # async runtime
-tokio = { version = "1.45.0", features = ["full"] }
+tokio = { version = "1.45.1", features = ["full"] }
 
 # loggers
 tracing = { version = "0.1.41", features = ["std"] }
