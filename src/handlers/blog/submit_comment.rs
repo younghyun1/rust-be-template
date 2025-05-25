@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
-use axum::{Json, extract::State, response::IntoResponse};
+use axum::{
+    Json,
+    extract::{Path, State},
+    response::IntoResponse,
+};
 use axum_extra::extract::CookieJar;
 use diesel::prelude::Insertable;
 use uuid::Uuid;
@@ -31,6 +35,7 @@ struct NewComment<'a> {
 pub async fn submit_comment(
     cookie_jar: CookieJar,
     State(state): State<Arc<ServerState>>,
+    Path(post_id): Path<Uuid>,
     Json(request): Json<SubmitCommentRequest>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
@@ -63,7 +68,7 @@ pub async fn submit_comment(
     };
 
     let new_comment = NewComment {
-        post_id: &request.post_id,
+        post_id: &post_id,
         user_id: &user_id,
         comment_content: &request.comment_content,
         parent_comment_id: request.parent_comment_id.as_ref(),
