@@ -76,7 +76,7 @@ pub async fn read_post(
             .get_conn()
             .await
             .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
-        
+
         let user_votes: Vec<(Uuid, bool)> = comment_votes::table
             .filter(comment_votes::comment_id.eq_any(&comment_ids))
             .filter(comment_votes::user_id.eq(user_id))
@@ -84,7 +84,7 @@ pub async fn read_post(
             .load::<(Uuid, bool)>(&mut conn)
             .await
             .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
-        
+
         let vote_map: std::collections::HashMap<Uuid, VoteState> = user_votes
             .into_iter()
             .map(|(cid, is_upvote)| {
@@ -96,7 +96,7 @@ pub async fn read_post(
                 (cid, vs)
             })
             .collect();
-        
+
         comments
             .into_iter()
             .map(|comment| {
