@@ -114,3 +114,6 @@ image = "0.25.6"
 
 # markdown
 comrak = { version = "0.39.0", features = ["emojis", "shortcodes"] }
+
+[build-dependencies]
+chrono = { version = "0.4.41" }

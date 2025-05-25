@@ -8,12 +8,7 @@ use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
 use crate::{
-    domain::user::{UserInfo, UserProfilePicture},
-    dto::responses::{auth::me_response::MeResponse, response_data::http_resp},
-    errors::code_error::{CodeError, HandlerResponse, code_err},
-    init::state::ServerState,
-    schema::{user_profile_pictures, users},
-    util::time::now::tokio_now,
+    build_info::{AXUM_VERSION, BUILD_TIME}, domain::user::{UserInfo, UserProfilePicture}, dto::responses::{auth::me_response::MeResponse, response_data::http_resp}, errors::code_error::{code_err, CodeError, HandlerResponse}, init::state::ServerState, schema::{user_profile_pictures, users}, util::time::now::tokio_now
 };
 
 pub async fn me_handler(
@@ -28,12 +23,12 @@ pub async fn me_handler(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    let user_info: UserInfo = users::table
+    let user_info: Option<UserInfo> = users::table
         .filter(users::user_id.eq(user_id))
         .select(UserInfo::as_select())
         .first(&mut conn)
         .await
-        .map_err(|e| code_err(CodeError::USER_NOT_FOUND, e))?;
+        .ok();
 
     let user_profile_picture: Option<UserProfilePicture> = match user_profile_pictures::table
         .filter(user_profile_pictures::user_id.eq(user_id))
@@ -51,6 +46,8 @@ pub async fn me_handler(
         MeResponse {
             user_info,
             user_profile_picture,
+            build_time: BUILD_TIME,
+            axum_version: AXUM_VERSION,
         },
         (),
         start,
