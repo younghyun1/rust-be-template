@@ -9,6 +9,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 static GLOBAL: MiMalloc = MiMalloc;
 
 // modules tree
+pub mod build_info;
 pub mod schema;
 pub mod domain {
     pub mod blog {
