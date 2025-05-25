@@ -30,7 +30,7 @@ pub struct Post {
 // TODO: return user info w. profile picture link and stuff
 #[derive(
     Clone,
-    serde_derive:: Serialize,
+    serde_derive::Serialize,
     serde_derive::Deserialize,
     Queryable,
     QueryableByName,
@@ -50,6 +50,43 @@ pub struct PostInfo {
     pub post_share_count: i64,
     pub total_upvotes: i64,
     pub total_downvotes: i64,
+}
+
+#[derive(serde_derive::Serialize)]
+pub struct PostInfoWithVote {
+    pub post_id: uuid::Uuid,
+    pub user_id: uuid::Uuid,
+    pub post_title: String,
+    pub post_slug: String,
+    pub post_summary: Option<String>,
+    pub post_created_at: DateTime<Utc>,
+    pub post_updated_at: DateTime<Utc>,
+    pub post_published_at: Option<DateTime<Utc>>,
+    pub post_view_count: i64,
+    pub post_share_count: i64,
+    pub total_upvotes: i64,
+    pub total_downvotes: i64,
+    pub vote_state: VoteState,
+}
+
+impl PostInfoWithVote {
+    pub fn from_info_with_vote(post_info: PostInfo, vote_state: VoteState) -> Self {
+        Self {
+            post_id: post_info.post_id,
+            user_id: post_info.user_id,
+            post_title: post_info.post_title,
+            post_slug: post_info.post_slug,
+            post_summary: post_info.post_summary,
+            post_created_at: post_info.post_created_at,
+            post_updated_at: post_info.post_updated_at,
+            post_published_at: post_info.post_published_at,
+            post_view_count: post_info.post_view_count,
+            post_share_count: post_info.post_share_count,
+            total_upvotes: post_info.total_upvotes,
+            total_downvotes: post_info.total_downvotes,
+            vote_state,
+        }
+    }
 }
 
 impl From<Post> for PostInfo {
@@ -113,6 +150,37 @@ pub struct Comment {
     pub parent_comment_id: Option<uuid::Uuid>,
     pub total_upvotes: i64,
     pub total_downvotes: i64,
+}
+
+#[derive(Clone, serde_derive::Serialize)]
+pub struct CommentResponse {
+    pub comment_id: uuid::Uuid,
+    pub post_id: uuid::Uuid,
+    pub user_id: uuid::Uuid,
+    pub comment_content: String,
+    pub comment_created_at: DateTime<Utc>,
+    pub comment_updated_at: Option<DateTime<Utc>>,
+    pub parent_comment_id: Option<uuid::Uuid>,
+    pub total_upvotes: i64,
+    pub total_downvotes: i64,
+    pub vote_state: VoteState,
+}
+
+impl CommentResponse {
+    pub fn from_comment_and_votestate(comment: Comment, vote_state: VoteState) -> Self {
+        Self {
+            comment_id: comment.comment_id,
+            post_id: comment.post_id,
+            user_id: comment.user_id,
+            comment_content: comment.comment_content,
+            comment_created_at: comment.comment_created_at,
+            comment_updated_at: comment.comment_updated_at,
+            parent_comment_id: comment.parent_comment_id,
+            total_upvotes: comment.total_upvotes,
+            total_downvotes: comment.total_downvotes,
+            vote_state: vote_state,
+        }
+    }
 }
 
 #[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
@@ -210,5 +278,27 @@ pub struct NewPostTag<'a> {
 impl<'a> NewPostTag<'a> {
     pub fn new(post_id: &'a uuid::Uuid, tag_id: &'a i16) -> Self {
         Self { post_id, tag_id }
+    }
+}
+
+#[repr(u8)]
+#[derive(Clone)]
+pub enum VoteState {
+    Upvoted,
+    Downvoted,
+    DidNotVote,
+}
+
+impl serde::Serialize for VoteState {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let value = match self {
+            VoteState::Upvoted => 0u8,
+            VoteState::Downvoted => 1u8,
+            VoteState::DidNotVote => 2u8,
+        };
+        serializer.serialize_u8(value)
     }
 }

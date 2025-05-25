@@ -41,7 +41,8 @@ use crate::{
 };
 
 use super::middleware::{
-    api_key::api_key_check_middleware, auth::auth_middleware, logging::log_middleware,
+    api_key::api_key_check_middleware, auth::auth_middleware,
+    is_logged_in::is_logged_in_middleware, logging::log_middleware,
 };
 
 const MAX_REQUEST_SIZE: usize = 1024 * 1024 * 50; // 50MB
@@ -93,6 +94,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let auth_middleware = from_fn_with_state(state.clone(), auth_middleware);
     let api_key_check_middleware = from_fn_with_state(state.clone(), api_key_check_middleware);
     let log_middleware = from_fn_with_state(state.clone(), log_middleware);
+    let is_logged_in_middleware = from_fn_with_state(state.clone(), is_logged_in_middleware);
     let compression_middleware = CompressionLayer::new().gzip(true);
     let cors_layer = CorsLayer::very_permissive();
 
@@ -151,6 +153,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
 
     let api_router = public_router
         .merge(protected_router)
+        .layer(is_logged_in_middleware)
         .layer(api_key_check_middleware)
         .layer(compression_middleware)
         .layer(log_middleware)
