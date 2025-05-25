@@ -40,7 +40,7 @@ fn main() {
     .unwrap();
     writeln!(
         file,
-        "pub const RUST_VERSION: &str = \"rustc {}\";",
+        "pub const RUST_VERSION: &str = \"{}\";",
         rust_version
     )
     .unwrap();
