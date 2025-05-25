@@ -58,6 +58,14 @@ pub async fn log_middleware(
 
     if response.status() == StatusCode::OK {
         let duration = start.elapsed();
+        let headers = response.headers_mut();
+
+        headers.insert("x-server-built-time", HeaderValue::from_static(BUILD_TIME));
+        headers.insert("x-server-name", HeaderValue::from_static(AXUM_VERSION));
+        headers.insert(
+            "x-server-rust-version",
+            HeaderValue::from_static(crate::build_info::RUST_VERSION),
+        );
 
         tracing::info!(kind = %"RESP", method = %method, path = %path, client_ip = %client_ip, duration = ?duration);
     } else {
@@ -94,6 +102,10 @@ pub async fn log_middleware(
 
         headers.insert("x-server-built-time", HeaderValue::from_static(BUILD_TIME));
         headers.insert("x-server-name", HeaderValue::from_static(AXUM_VERSION));
+        headers.insert(
+            "x-server-rust-version",
+            HeaderValue::from_static(crate::build_info::RUST_VERSION),
+        );
     }
 
     response

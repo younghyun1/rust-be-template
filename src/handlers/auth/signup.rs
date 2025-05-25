@@ -112,7 +112,7 @@ pub async fn signup_handler(
 
     // Do not leave the password alive in RAM.
     request.zeroize();
-    
+
     Ok(http_resp(
         SignupResponse {
             user_name,
