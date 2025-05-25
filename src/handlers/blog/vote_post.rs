@@ -20,6 +20,14 @@ use crate::{
     util::time::now::tokio_now,
 };
 
+#[derive(diesel::QueryableByName)]
+struct VoteCounts {
+    #[sql_type = "diesel::sql_types::BigInt"]
+    upvote_count: i64,
+    #[sql_type = "diesel::sql_types::BigInt"]
+    downvote_count: i64,
+}
+
 pub async fn vote_post(
     Extension(user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,
@@ -52,7 +60,7 @@ pub async fn vote_post(
                 .await?;
 
                 // 2. Get both counts in a single query
-                let (upvote_count, downvote_count): (i64, i64) = diesel::sql_query(
+                let counts: VoteCounts = diesel::sql_query(
                     "SELECT \
                         COUNT(*) FILTER (WHERE is_upvote = true) AS upvote_count, \
                         COUNT(*) FILTER (WHERE is_upvote = false) AS downvote_count \
@@ -66,13 +74,13 @@ pub async fn vote_post(
                 // 3. Update both columns in the posts table at once
                 diesel::update(posts::table.filter(posts::post_id.eq(post_id)))
                     .set((
-                        posts::total_upvotes.eq(upvote_count),
-                        posts::total_downvotes.eq(downvote_count),
+                        posts::total_upvotes.eq(counts.upvote_count),
+                        posts::total_downvotes.eq(counts.downvote_count),
                     ))
                     .execute(conn)
                     .await?;
 
-                Ok((upvote_count, downvote_count))
+                Ok((counts.upvote_count, counts.downvote_count))
             })
         })
         .await
