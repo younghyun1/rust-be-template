@@ -10,7 +10,10 @@ use chrono::Utc;
 use tokio::time::Instant;
 use tracing::Level;
 
-use crate::init::state::ServerState;
+use crate::{
+    build_info::{AXUM_VERSION, BUILD_TIME},
+    init::state::ServerState,
+};
 
 // by default, debug and below not logged at all; hence why
 macro_rules! log_codeerror {
@@ -88,6 +91,9 @@ pub async fn log_middleware(
         headers.remove("x-error-code");
         headers.remove("x-error-message");
         headers.remove("x-error-detail");
+
+        headers.insert("x-server-built-time", HeaderValue::from_static(BUILD_TIME));
+        headers.insert("x-server-name", HeaderValue::from_static(AXUM_VERSION));
     }
 
     response
