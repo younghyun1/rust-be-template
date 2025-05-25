@@ -1,6 +1,5 @@
 1) Refactor upvote related tables to account for downvotes.
 2) Make sure CORS is suitable for prod.
-3) Make a deployment script.
 4) Make a 'delete account' function.
 5) OAuth
 6) Increased FE integration
