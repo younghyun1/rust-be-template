@@ -25,22 +25,22 @@ fn main() {
         .unwrap_or_else(|| "unknown".to_string());
 
     let rust_version = std::process::Command::new("cargo")
-        .args(&["+nightly", "--version"])
+        .args(["+nightly", "--version"])
         .output()
         .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
         .unwrap_or_else(|_| "unknown".to_string());
 
     let mut file = File::create("src/build_info.rs").unwrap();
-    write!(file, "pub const BUILD_TIME: &str = \"{}\";\n", build_time).unwrap();
-    write!(
+    writeln!(file, "pub const BUILD_TIME: &str = \"{}\";", build_time).unwrap();
+    writeln!(
         file,
-        "pub const AXUM_VERSION: &str = \"axum {}\";\n",
+        "pub const AXUM_VERSION: &str = \"axum {}\";",
         version
     )
     .unwrap();
-    write!(
+    writeln!(
         file,
-        "pub const RUST_VERSION: &str = \"rustc {}\";\n",
+        "pub const RUST_VERSION: &str = \"rustc {}\";",
         rust_version
     )
     .unwrap();

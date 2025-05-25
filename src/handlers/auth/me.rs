@@ -43,15 +43,11 @@ pub async fn me_handler(
             .await
             .ok();
 
-        let user_profile_picture: Option<UserProfilePicture> = match user_profile_pictures::table
+        let user_profile_picture: Option<UserProfilePicture> = user_profile_pictures::table
             .filter(user_profile_pictures::user_id.eq(user_id))
             .first::<UserProfilePicture>(&mut conn)
             .await
-            .map_err(|e| code_err(CodeError::USER_NOT_FOUND, e))
-        {
-            Ok(upp) => Some(upp),
-            Err(_) => None,
-        };
+            .map_err(|e| code_err(CodeError::USER_NOT_FOUND, e)).ok();
 
         drop(conn);
 

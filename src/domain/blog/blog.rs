@@ -178,7 +178,7 @@ impl CommentResponse {
             parent_comment_id: comment.parent_comment_id,
             total_upvotes: comment.total_upvotes,
             total_downvotes: comment.total_downvotes,
-            vote_state: vote_state,
+            vote_state,
         }
     }
 }
