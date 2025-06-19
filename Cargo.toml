@@ -23,7 +23,7 @@ axum = { version = "0.8.4", features = [
 ] }
 axum-extra = { version = "0.10.1", features = ["cookie", "attachment", "form"] }
 axum-server = { version = "0.7.2", features = ["tls-rustls", "tokio-rustls"] }
-tower-http = { version = "0.6.4", features = [
+tower-http = { version = "0.6.6", features = [
     "compression-gzip",
     "trace",
     "cors",
@@ -34,7 +34,7 @@ tower-http = { version = "0.6.4", features = [
 # rayon = "1.10.0"
 
 # ORM
-diesel = { version = "2.2.10", features = [
+diesel = { version = "2.2.11", features = [
     "postgres",
     "chrono",
     "serde_json",
@@ -58,7 +58,7 @@ tracing-appender = "0.2.3"
 anyhow = "1.0.98"
 
 # number of cpus
-num_cpus = "1.16.0"
+num_cpus = "1.17.0"
 
 # serialization/deserialization
 serde = "1.0.219"
@@ -85,14 +85,14 @@ email_address = "0.2.9"
 # crypto/rand
 argon2 = "0.5.3"
 rand = "0.8.5"
-rustls = { version = "0.23.27", features = [] }
+rustls = { version = "0.23.28", features = [] }
 zeroize = { version = "1.8.1", features = ["derive"] }
 
 # memory allocator
-mimalloc = "0.1.46"
+mimalloc = "0.1.47"
 
 # email
-lettre = { version = "0.11.16", default-features = false, features = [
+lettre = { version = "0.11.17", default-features = false, features = [
     "builder",
     "hostname",
     "pool",

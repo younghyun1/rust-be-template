@@ -47,7 +47,8 @@ pub async fn me_handler(
             .filter(user_profile_pictures::user_id.eq(user_id))
             .first::<UserProfilePicture>(&mut conn)
             .await
-            .map_err(|e| code_err(CodeError::USER_NOT_FOUND, e)).ok();
+            .map_err(|e| code_err(CodeError::USER_NOT_FOUND, e))
+            .ok();
 
         drop(conn);
 

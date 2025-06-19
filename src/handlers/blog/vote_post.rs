@@ -22,9 +22,9 @@ use crate::{
 
 #[derive(diesel::QueryableByName)]
 struct VoteCounts {
-    #[sql_type = "diesel::sql_types::BigInt"]
+    #[diesel(sql_type = diesel::sql_types::BigInt)]
     upvote_count: i64,
-    #[sql_type = "diesel::sql_types::BigInt"]
+    #[diesel(sql_type = diesel::sql_types::BigInt)]
     downvote_count: i64,
 }
 
