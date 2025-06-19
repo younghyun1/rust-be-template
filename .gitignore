@@ -81,3 +81,6 @@ deploy.sh
 # deployment
 /images
 /fe
+
+# build_info.rs
+/src/build_info.rs
