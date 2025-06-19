@@ -28,7 +28,7 @@ pub async fn process_uploaded_image(
         // Determine dimensions and resize if necessary. The long edge is capped at 3840 pixels.
         let (width, height) = img.dimensions();
         let max_edge = width.max(height);
-        let target_edge = 3840;
+        let target_edge = 800;
         let resized_img = if max_edge > target_edge {
             let scale = target_edge as f64 / max_edge as f64;
             let new_width = (width as f64 * scale).round() as u32;
@@ -38,7 +38,6 @@ pub async fn process_uploaded_image(
             img
         };
 
-        // Encode the resized image as AVIF using a high quality setting (quality level 90).
         let mut output_buffer = Vec::new();
         {
             let mut cursor = Cursor::new(&mut output_buffer);
