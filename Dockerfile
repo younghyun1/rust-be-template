@@ -27,3 +27,4 @@ ENV APP_NAME_VERSION=rust-be-template-0.1.0
 ENV DB_URL=postgres://spring_learn_admin:K7ww89Sj!5@host.docker.internal/spring_learn
 
 CMD ["/bin/server"]
+p
