@@ -3,4 +3,7 @@ rustflags = ["-Ctarget-cpu=native"]
 
 [target.x86_64-unknown-linux-gnu]
 linker = "/usr/bin/clang"
-rustflags = ["-Ctarget-cpu=skylake", "-C", "link-arg=--ld-path=/usr/bin/mold"]
+rustflags = ["-Ctarget-cpu=native", "-C", "link-arg=--ld-path=/usr/bin/mold"]
+
+[unstable]
+build-std = ["std", "core", "alloc"]
