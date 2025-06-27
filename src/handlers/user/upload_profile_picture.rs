@@ -112,7 +112,7 @@ pub async fn upload_profile_picture(
         .await
         .map_err(|e| code_err(CodeError::COULD_NOT_CREATE_DIRECTORY, e))?;
 
-    let image_path = format!("images/{}.{}", image_id, extension);
+    let image_path = format!("images/{image_id}.{extension}");
 
     tokio::fs::write(&image_path, processed_image)
         .await

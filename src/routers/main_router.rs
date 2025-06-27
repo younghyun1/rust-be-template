@@ -67,8 +67,7 @@ async fn spa_fallback() -> impl axum::response::IntoResponse {
             .into_response(),
         Err(gzip_err) => {
             println!(
-                "spa_fallback: Failed to read gzipped index.html at {:?}: {}",
-                gzip_path, gzip_err
+                "spa_fallback: Failed to read gzipped index.html at {gzip_path:?}: {gzip_err}"
             );
 
             // Fallback to plain index.html
@@ -76,8 +75,7 @@ async fn spa_fallback() -> impl axum::response::IntoResponse {
                 Ok(html) => Html(html).into_response(),
                 Err(e) => {
                     println!(
-                        "spa_fallback: Failed to read plain index.html at {:?}: {}",
-                        html_path, e
+                        "spa_fallback: Failed to read plain index.html at {html_path:?}: {e}"
                     );
                     (
                         StatusCode::INTERNAL_SERVER_ERROR,
@@ -173,7 +171,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let static_files = get_service(serve_dir).handle_error(|error| async move {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Static file error: {}", error),
+            format!("Static file error: {error}"),
         )
     });
 

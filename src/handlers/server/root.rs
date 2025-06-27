@@ -55,7 +55,7 @@ pub async fn root_handler(
             responses_handled: state.get_responses_handled(),
             users_logged_in: state.get_session_length(),
             db_version: version.version,
-            db_latency: format!("{:?}", db_elapsed),
+            db_latency: format!("{db_elapsed:?}"),
         },
         (),
         start,
