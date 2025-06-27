@@ -31,7 +31,7 @@ fn main() {
         .unwrap_or_else(|_| "unknown".to_string());
 
     let mut file = File::create("src/build_info.rs").unwrap();
-    writeln!(file, "pub const BUILD_TIME: &str = \"{}\";", build_time).unwrap();
-    writeln!(file, "pub const AXUM_VERSION: &str = \"axum {}\";", version).unwrap();
-    writeln!(file, "pub const RUST_VERSION: &str = \"{}\";", rust_version).unwrap();
+    writeln!(file, "pub const BUILD_TIME: &str = \"{build_time}\";").unwrap();
+    writeln!(file, "pub const AXUM_VERSION: &str = \"axum {version}\";").unwrap();
+    writeln!(file, "pub const RUST_VERSION: &str = \"{rust_version}\";").unwrap();
 }
