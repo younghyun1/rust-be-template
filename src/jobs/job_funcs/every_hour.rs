@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use chrono::{SecondsFormat, Timelike, Utc};
+use chrono::{Duration, SecondsFormat, Timelike, Utc};
 use tracing::{error, info};
 
 use crate::init::state::ServerState;
@@ -71,9 +71,9 @@ where
     F: Fn(Arc<ServerState>) -> Fut + Send + Sync + 'static,
     Fut: std::future::Future<Output = ()> + Send + 'static,
 {
+    let mut initialized: bool = false;
     loop {
-        // Get how long until the next scheduled run.
-        let (delay, next_mark) =
+        let (delay, scheduled_run_time) =
             match next_scheduled_hourly_delay(&task_descriptor, minute_offset, second_offset) {
                 Ok((d, nm)) => (d, nm),
                 Err(e) => {
@@ -81,26 +81,35 @@ where
                         "Could not calculate next scheduled time for {}: {:?}",
                         task_descriptor, e
                     );
-                    // On computation failure, wait a short while before retrying.
                     tokio::time::sleep(std::time::Duration::from_secs(10)).await;
                     continue;
                 }
             };
 
-        // Sleep until the scheduled time arrives.
+        if !initialized {
+            info!(
+                task_name = %task_descriptor,
+                initial_run_time = %scheduled_run_time.to_rfc3339_opts(SecondsFormat::AutoSi, true),
+                "Scheduled task initialized. First run upcoming."
+            );
+            initialized = true;
+        }
+
         tokio::time::sleep(delay).await;
 
-        // Run the actual task and measure how long it takes.
         let start = tokio::time::Instant::now();
         task(Arc::clone(&state)).await;
         let elapsed = start.elapsed();
 
+        // FIX: Simply add one hour to the already-calculated scheduled time.
+        // This is far more efficient than calling the calculation function again.
+        let next_run_time = scheduled_run_time + Duration::hours(1);
+
         info!(
             task_name = %task_descriptor,
-            next_run_time = %next_mark.to_rfc3339_opts(SecondsFormat::AutoSi, true),
+            next_run_time = %next_run_time.to_rfc3339_opts(SecondsFormat::AutoSi, true),
             duration = %format!("{:?}", elapsed),
             "Scheduled task ran!"
         );
-        // After the task finishes, loop back to schedule it again in the next hour.
     }
 }

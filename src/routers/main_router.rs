@@ -74,9 +74,7 @@ async fn spa_fallback() -> impl axum::response::IntoResponse {
             match tokio::fs::read_to_string(&html_path).await {
                 Ok(html) => Html(html).into_response(),
                 Err(e) => {
-                    println!(
-                        "spa_fallback: Failed to read plain index.html at {html_path:?}: {e}"
-                    );
+                    println!("spa_fallback: Failed to read plain index.html at {html_path:?}: {e}");
                     (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         "Internal Server Error".to_string(),
