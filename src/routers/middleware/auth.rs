@@ -26,7 +26,7 @@ pub async fn auth_middleware(
             Err(e) => {
                 return Err(code_err(
                     CodeError::UNAUTHORIZED_ACCESS,
-                    format!("Failed to parse session cookie: {}", e),
+                    format!("Failed to parse session cookie: {e}"),
                 ));
             }
         },
@@ -43,7 +43,7 @@ pub async fn auth_middleware(
         Err(e) => {
             return Err(code_err(
                 CodeError::UNAUTHORIZED_ACCESS,
-                format!("Failed to retrieve session: {}", e),
+                format!("Failed to retrieve session: {e}"),
             ));
         }
     };

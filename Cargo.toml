@@ -84,7 +84,7 @@ email_address = "0.2.9"
 
 # crypto/rand
 argon2 = "0.5.3"
-rand = "0.8.5"
+rand = "0.8"
 rustls = { version = "0.23.28", features = [] }
 zeroize = { version = "1.8.1", features = ["derive"] }
 
@@ -113,7 +113,7 @@ bigdecimal = { version = "0.4.8", features = ["serde"] }
 image = "0.25.6"
 
 # markdown
-comrak = { version = "0.39.0", features = ["emojis", "shortcodes"] }
+comrak = { version = "0.39.1", features = ["emojis", "shortcodes"] }
 
 [build-dependencies]
 chrono = { version = "0.4.41" }

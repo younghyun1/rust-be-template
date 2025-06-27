@@ -61,8 +61,7 @@ impl ValidateEmailEmail {
             .replace(
                 "$1",
                 &format!(
-                    "https://cyhdev.com/account/signup/validate-email?email_validation_token_id={}",
-                    token_id
+                    "https://cyhdev.com/account/signup/validate-email?email_validation_token_id={token_id}"
                 ),
             )
             .replace("$2", &valid_until.to_string());
