@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use chrono::{Duration, SecondsFormat, Timelike, Utc};
 use tracing::{error, info};
 
-use crate::init::state::ServerState;
+use crate::{init::state::ServerState, util::time::duration_formatter::format_duration};
 
 /// Calculate the next UTC DateTime that lands on the current/next hour,
 /// with a specific "minute + second" offset from the start of that hour.
@@ -90,7 +90,9 @@ where
             info!(
                 task_name = %task_descriptor,
                 initial_run_time = %scheduled_run_time.to_rfc3339_opts(SecondsFormat::AutoSi, true),
-                "Scheduled task initialized. First run upcoming."
+                delay = %format!("{:?}", delay),
+                "Scheduled task initialized. First run upcoming in {}",
+                format_duration(delay)
             );
             initialized = true;
         }
@@ -109,7 +111,8 @@ where
             task_name = %task_descriptor,
             next_run_time = %next_run_time.to_rfc3339_opts(SecondsFormat::AutoSi, true),
             duration = %format!("{:?}", elapsed),
-            "Scheduled task ran!"
+            "Scheduled task ran! Next one running in {}",
+            format_duration((next_run_time - Utc::now()).to_std().unwrap_or(std::time::Duration::from_secs(3600)))
         );
     }
 }

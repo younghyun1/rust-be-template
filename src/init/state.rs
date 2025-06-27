@@ -135,7 +135,7 @@ impl ServerState {
         self.server_start_time.elapsed()
     }
 
-    pub async fn get_conn(&self) -> anyhow::Result<PooledConnection<AsyncPgConnection>> {
+    pub async fn get_conn(&self) -> anyhow::Result<PooledConnection<'_, AsyncPgConnection>> {
         Ok(self.pool.get().await?)
     }
 

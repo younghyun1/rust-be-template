@@ -123,6 +123,8 @@ pub async fn submit_post(
     };
 
     drop(conn);
+    
+    // TODO: Add tags to DB
 
     // Update cache
     let post_info: PostInfo = post.clone().into();
