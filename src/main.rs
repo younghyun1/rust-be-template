@@ -175,6 +175,8 @@ pub mod util {
     }
 }
 
+pub const DOMAIN_NAME: &str = "cyhdev.com";
+
 // main function
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> anyhow::Result<()> {
