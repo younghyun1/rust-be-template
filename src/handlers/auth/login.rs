@@ -97,23 +97,23 @@ pub async fn login(
         .map_err(|e| code_err(CodeError::SESSION_ID_ALREADY_EXISTS, e))?;
 
     // for prod
-    // let cookie = Cookie::build(("session_id", session_id.to_string()))
-    //     .path("/")
-    //     .http_only(true)
-    //     .domain("cyhdev.com")
-    //     .same_site(axum_extra::extract::cookie::SameSite::Strict)
-    //     .secure(true)
-    //     // .partitioned(true)
-    //     .build();
-    
-    // for local testing - need to do run env configs to avoid this stuff
     let cookie = Cookie::build(("session_id", session_id.to_string()))
         .path("/")
         .http_only(true)
-        .domain("localhost")
-        // .secure(true)
+        .domain("cyhdev.com")
+        .same_site(axum_extra::extract::cookie::SameSite::Strict)
+        .secure(true)
         // .partitioned(true)
         .build();
+    
+    // for local testing - need to do run env configs to avoid this stuff
+    // let cookie = Cookie::build(("session_id", session_id.to_string()))
+    //     .path("/")
+    //     .http_only(true)
+    //     .domain("localhost")
+    //     // .secure(true)
+    //     // .partitioned(true)
+    //     .build();
     
     drop(conn);
 
