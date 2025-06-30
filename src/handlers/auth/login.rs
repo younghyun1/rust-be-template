@@ -1,6 +1,7 @@
 use std::{str::FromStr, sync::Arc};
 
 use crate::{
+    DOMAIN_NAME,
     domain::user::User,
     dto::{
         requests::auth::login_request::LoginRequest,
@@ -100,12 +101,12 @@ pub async fn login(
     let cookie = Cookie::build(("session_id", session_id.to_string()))
         .path("/")
         .http_only(true)
-        .domain("cyhdev.com")
+        .domain(DOMAIN_NAME)
         .same_site(axum_extra::extract::cookie::SameSite::Strict)
         .secure(true)
         // .partitioned(true)
         .build();
-    
+
     // for local testing - need to do run env configs to avoid this stuff
     // let cookie = Cookie::build(("session_id", session_id.to_string()))
     //     .path("/")
@@ -114,7 +115,7 @@ pub async fn login(
     //     // .secure(true)
     //     // .partitioned(true)
     //     .build();
-    
+
     drop(conn);
 
     Ok(http_resp_with_cookies(
