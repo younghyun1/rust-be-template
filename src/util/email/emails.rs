@@ -1,3 +1,5 @@
+use crate::DOMAIN_NAME;
+
 pub const PASSWORD_RESET_EMAIL: &str = include_str!("./password_reset.html");
 pub const VALIDATE_EMAIL_EMAIL: &str = include_str!("./validate_email.html");
 
@@ -61,7 +63,7 @@ impl ValidateEmailEmail {
             .replace(
                 "$1",
                 &format!(
-                    "https://cyhdev.com/account/signup/validate-email?email_validation_token_id={token_id}"
+                    "https://{DOMAIN_NAME}/account/signup/validate-email?email_validation_token_id={token_id}"
                 ),
             )
             .replace("$2", &valid_until.to_string());
@@ -70,7 +72,11 @@ impl ValidateEmailEmail {
 
     pub fn to_message(self, user_email: &str) -> lettre::Message {
         lettre::Message::builder()
-            .from("Cyhdev Forums <donotreply@cyhdev.com>".parse().unwrap())
+            .from(
+                format!("Cyhdev Forums <donotreply@{DOMAIN_NAME}>")
+                    .parse()
+                    .unwrap(),
+            )
             .to(user_email.parse().unwrap())
             .subject("Validate Your Email")
             .header(lettre::message::header::ContentType::TEXT_HTML)
