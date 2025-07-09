@@ -41,14 +41,14 @@ diesel = { version = "2.2.11", features = [
     "uuid",
     "ipnet-address",
 ] }
-diesel-async = { version = "0.5.2", features = ["bb8", "postgres"] }
+diesel-async = { version = "0.6.1", features = ["bb8", "postgres"] }
 
 
 # .env loading
 dotenvy = "0.15.7"
 
 # async runtime
-tokio = { version = "1.45.1", features = ["full"] }
+tokio = { version = "1.46.1", features = ["full"] }
 
 # loggers
 tracing = { version = "0.1.41", features = ["std"] }
@@ -86,7 +86,8 @@ email_address = "0.2.9"
 
 # crypto/rand
 argon2 = "0.5.3"
-rand = "0.8"
+rand = "0.9"
+rand_08 = { package = "rand", version = "0.8.5" }
 rustls = { version = "0.23.28", features = [] }
 zeroize = { version = "1.8.1", features = ["derive"] }
 
