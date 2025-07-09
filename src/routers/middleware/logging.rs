@@ -12,14 +12,13 @@ use axum::{
 use chrono::Utc;
 use scc::hash_map::Entry;
 use tokio::time::Instant;
-use tracing::{Level, error};
-
+use tracing::{Level, error, info};
 
 use crate::{
     build_info::{AXUM_VERSION, BUILD_TIME},
     domain::geo::osm_service::{city_country_to_lat_lon, get_osm_data_for_ip_addr},
     init::state::ServerState,
-    util::geographic::ip_info_lookup::IpInfo,
+    util::{geographic::ip_info_lookup::IpInfo, time::now::tokio_now},
 };
 
 // by default, debug and below not logged at all; hence why
@@ -125,6 +124,7 @@ fn header_value_to_str(value: Option<&HeaderValue>) -> Option<&str> {
 }
 
 async fn log_visitors(state: Arc<ServerState>, ip: String) {
+    let start = tokio_now();
     use diesel_async::RunQueryDsl;
 
     let ipv4_addr: std::net::Ipv4Addr = match ip.parse::<std::net::Ipv4Addr>() {
@@ -213,4 +213,5 @@ async fn log_visitors(state: Arc<ServerState>, ip: String) {
     }
 
     drop(conn);
+    info!(duration = ?start.elapsed(), "Visitor logged successfully");
 }
