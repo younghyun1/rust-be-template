@@ -225,6 +225,18 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    visitation_data (visitation_data_id) {
+        visitation_data_id -> Int8,
+        latitude -> Float8,
+        longitude -> Float8,
+        ip_address -> Inet,
+        city -> Varchar,
+        country -> Varchar,
+        visited_at -> Timestamptz,
+    }
+}
+
 diesel::joinable!(comment_votes -> comments (comment_id));
 diesel::joinable!(comment_votes -> users (user_id));
 diesel::joinable!(comments -> posts (post_id));
@@ -272,4 +284,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     user_profile_pictures,
     user_roles,
     users,
+    visitation_data,
 );
