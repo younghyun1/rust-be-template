@@ -54,23 +54,23 @@ async fn spa_fallback() -> impl axum::response::IntoResponse {
     // Get FE_ASSETS_DIR from environment variable, fallback to "fe"
     let fe_dir = env::var("FE_ASSETS_DIR").unwrap_or_else(|_| "fe".to_string());
 
-    // Try serving gzipped first, then fallback to plain index.html
-    let gzip_path = PathBuf::from(&fe_dir).join("index.html.gz");
+    // Try serving zstd-compressed first, then fallback to plain index.html
+    let zstd_path = PathBuf::from(&fe_dir).join("index.html.zst");
     let html_path = PathBuf::from(&fe_dir).join("index.html");
 
-    match tokio::fs::read(&gzip_path).await {
-        Ok(gzipped_bytes) => (
+    match tokio::fs::read(&zstd_path).await {
+        Ok(zstd_bytes) => (
             StatusCode::OK,
             [
                 (CONTENT_TYPE.as_str(), "text/html; charset=utf-8"),
-                (CONTENT_ENCODING.as_str(), "gzip"),
+                (CONTENT_ENCODING.as_str(), "zstd"),
             ],
-            gzipped_bytes,
+            zstd_bytes,
         )
             .into_response(),
-        Err(gzip_err) => {
+        Err(zstd_err) => {
             println!(
-                "spa_fallback: Failed to read gzipped index.html at {gzip_path:?}: {gzip_err}"
+                "spa_fallback: Failed to read zstd-compressed index.html at {zstd_path:?}: {zstd_err}"
             );
 
             // Fallback to plain index.html
@@ -94,7 +94,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let api_key_check_middleware = from_fn_with_state(state.clone(), api_key_check_middleware);
     let log_middleware = from_fn_with_state(state.clone(), log_middleware);
     let is_logged_in_middleware = from_fn_with_state(state.clone(), is_logged_in_middleware);
-    let compression_middleware = CompressionLayer::new().gzip(true);
+    let compression_middleware = CompressionLayer::new().zstd(true);
     let cors_layer = CorsLayer::very_permissive();
 
     // API router with API-specific middleware
@@ -166,7 +166,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let spa_fallback_service = get(spa_fallback);
 
     let serve_dir = ServeDir::new("fe")
-        .precompressed_gzip()
+        .precompressed_zstd()
         .append_index_html_on_directories(true)
         .not_found_service(spa_fallback_service);
 
