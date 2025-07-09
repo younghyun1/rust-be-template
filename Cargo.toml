@@ -115,5 +115,8 @@ image = "0.25.6"
 # markdown
 comrak = { version = "0.39.1", features = ["emojis", "shortcodes"] }
 
+# request to external
+reqwest = { version = "0.12.22", features = ["rustls-tls", "gzip"] }
+
 [build-dependencies]
 chrono = { version = "0.4.41" }
