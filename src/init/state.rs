@@ -54,6 +54,7 @@ pub struct ServerState {
     pub currency_map: RwLock<IsoCurrencyTable>,
     pub i18n_cache: RwLock<I18nCache>,
     deployment_environment: DeploymentEnvironment,
+    request_client: reqwest::Client,
 }
 
 impl ServerState {
@@ -303,6 +304,10 @@ impl ServerState {
     pub fn get_deployment_environment(&self) -> DeploymentEnvironment {
         self.deployment_environment
     }
+
+    pub fn get_request_client(&self) -> &reqwest::Client {
+        &self.request_client
+    }
 }
 
 #[derive(Default)]
@@ -369,6 +374,9 @@ impl ServerStateBuilder {
                 Ok("local") | Ok("LOCAL") => DeploymentEnvironment::Local,
                 _ => DeploymentEnvironment::Prod,
             },
+            request_client: reqwest::Client::builder()
+                .user_agent("cyhdev.com")
+                .build()?,
         })
     }
 }
