@@ -123,7 +123,7 @@ pub async fn submit_post(
     };
 
     drop(conn);
-    
+
     // TODO: Add tags to DB
 
     // Update cache
