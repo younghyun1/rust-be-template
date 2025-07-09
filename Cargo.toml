@@ -39,6 +39,7 @@ diesel = { version = "2.2.11", features = [
     "chrono",
     "serde_json",
     "uuid",
+    "ipnet-address",
 ] }
 diesel-async = { version = "0.5.2", features = ["bb8", "postgres"] }
 
@@ -77,6 +78,7 @@ uuid = { version = "1.17.0", features = [
     "zerocopy",
     "fast-rng",
 ] }
+ipnet = "2.11.0"
 
 # regex/verification
 # regex = { version = "1.11.1", features = ["perf-dfa-full"] }
