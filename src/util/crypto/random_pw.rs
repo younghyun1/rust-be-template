@@ -1,4 +1,4 @@
-use rand::{distributions::Uniform, prelude::Distribution, thread_rng};
+use rand::{distr::Uniform, prelude::Distribution, rng};
 
 const CHARSET_LEN: usize = 90;
 const RANDOM_PW_CHARSET: [char; CHARSET_LEN] = [
@@ -10,8 +10,8 @@ const RANDOM_PW_CHARSET: [char; CHARSET_LEN] = [
 ];
 
 pub fn generate_random_password() -> String {
-    let mut rng = thread_rng();
-    let between = Uniform::from(0..CHARSET_LEN);
+    let mut rng = rng();
+    let between = unsafe { Uniform::new(0, CHARSET_LEN).unwrap_unchecked() };
 
     (0..16)
         .map(|_| {
