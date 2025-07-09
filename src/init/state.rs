@@ -31,6 +31,13 @@ use super::load_cache::post_info::load_post_info;
 
 const DEFAULT_SESSION_DURATION: chrono::Duration = chrono::Duration::hours(1);
 
+#[repr(u8)]
+#[derive(Copy, Clone)]
+pub enum DeploymentEnvironment {
+    Local,
+    Prod,
+}
+
 pub struct ServerState {
     app_name_version: String,
     server_start_time: tokio::time::Instant,
@@ -46,6 +53,7 @@ pub struct ServerState {
     pub languages_map: RwLock<IsoLanguageTable>,
     pub currency_map: RwLock<IsoCurrencyTable>,
     pub i18n_cache: RwLock<I18nCache>,
+    deployment_environment: DeploymentEnvironment,
 }
 
 impl ServerState {
@@ -291,6 +299,10 @@ impl ServerState {
         info!(elapsed = %format!("{:?}", start.elapsed()), rows_synchronized = %num_rows, "Synchronized i18n data.");
         Ok(num_rows)
     }
+
+    pub fn get_deployment_environment(&self) -> DeploymentEnvironment {
+        self.deployment_environment
+    }
 }
 
 #[derive(Default)]
@@ -353,6 +365,10 @@ impl ServerStateBuilder {
             languages_map: RwLock::new(IsoLanguageTable::new_empty()),
             currency_map: RwLock::new(IsoCurrencyTable::new_empty()),
             i18n_cache: RwLock::new(I18nCache::new()),
+            deployment_environment: match std::env::var("CURR_ENV").as_deref() {
+                Ok("local") | Ok("LOCAL") => DeploymentEnvironment::Local,
+                _ => DeploymentEnvironment::Prod,
+            },
         })
     }
 }

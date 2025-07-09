@@ -8,7 +8,7 @@ use crate::{
         responses::{auth::login_response::LoginResponse, response_data::http_resp_with_cookies},
     },
     errors::code_error::{CodeError, HandlerResponse, code_err},
-    init::state::ServerState,
+    init::state::{DeploymentEnvironment, ServerState},
     schema::users,
     util::{
         crypto::verify_pw::verify_pw, string::validations::validate_password_form,
@@ -98,23 +98,28 @@ pub async fn login(
         .map_err(|e| code_err(CodeError::SESSION_ID_ALREADY_EXISTS, e))?;
 
     // for prod
-    let cookie = Cookie::build(("session_id", session_id.to_string()))
-        .path("/")
-        .http_only(true)
-        .domain(DOMAIN_NAME)
-        .same_site(axum_extra::extract::cookie::SameSite::Strict)
-        .secure(true)
-        // .partitioned(true)
-        .build();
+    let cookie: Cookie;
 
-    // for local testing - need to do run env configs to avoid this stuff
-    // let cookie = Cookie::build(("session_id", session_id.to_string()))
-    //     .path("/")
-    //     .http_only(true)
-    //     .domain("localhost")
-    //     // .secure(true)
-    //     // .partitioned(true)
-    //     .build();
+    match state.get_deployment_environment() {
+        DeploymentEnvironment::Local => {
+            cookie = Cookie::build(("session_id", session_id.to_string()))
+                .path("/")
+                .http_only(true)
+                .domain("localhost")
+                .same_site(axum_extra::extract::cookie::SameSite::Strict)
+                .secure(true)
+                .build();
+        }
+        DeploymentEnvironment::Prod => {
+            cookie = Cookie::build(("session_id", session_id.to_string()))
+                .path("/")
+                .http_only(true)
+                .domain(DOMAIN_NAME)
+                .same_site(axum_extra::extract::cookie::SameSite::Strict)
+                .secure(true)
+                .build();
+        }
+    }
 
     drop(conn);
 

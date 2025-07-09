@@ -27,7 +27,6 @@ pub struct CountRow {
     #[diesel(sql_type = diesel::sql_types::BigInt)]
     pub downvote_count: i64,
 }
-
 pub async fn vote_comment(
     Extension(user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,
@@ -46,48 +45,47 @@ pub async fn vote_comment(
             let is_upvote = request.is_upvote;
 
             Box::pin(async move {
-                let count_row: CountRow = diesel::sql_query(
-                    "WITH ins AS (
-                        INSERT INTO comment_votes (comment_id, user_id, is_upvote)
-                        VALUES ($1, $2, $3)
-                        ON CONFLICT (comment_id, user_id) DO UPDATE SET is_upvote = EXCLUDED.is_upvote
-                        RETURNING 1
-                    )
-                    SELECT
-                        (SELECT count(*) FROM comment_votes WHERE comment_id = $1 AND is_upvote = true) AS upvote_count,
-                        (SELECT count(*) FROM comment_votes WHERE comment_id = $1 AND is_upvote = false) AS downvote_count
-                    ",
+                // 1. Insert or update the vote
+                diesel::sql_query(
+                    "INSERT INTO comment_votes (comment_id, user_id, is_upvote)
+                     VALUES ($1, $2, $3)
+                     ON CONFLICT (comment_id, user_id)
+                     DO UPDATE SET is_upvote = EXCLUDED.is_upvote",
                 )
                 .bind::<diesel::sql_types::Uuid, Uuid>(comment_id)
                 .bind::<diesel::sql_types::Uuid, Uuid>(user_id)
                 .bind::<diesel::sql_types::Bool, bool>(is_upvote)
+                .execute(conn)
+                .await?;
+
+                // 2. Get new counts
+                let counts: CountRow = diesel::sql_query(
+                    "SELECT \
+                        COUNT(*) FILTER (WHERE is_upvote = true) AS upvote_count, \
+                        COUNT(*) FILTER (WHERE is_upvote = false) AS downvote_count \
+                     FROM comment_votes \
+                     WHERE comment_id = $1",
+                )
+                .bind::<diesel::sql_types::Uuid, Uuid>(comment_id)
                 .get_result(conn)
                 .await?;
 
+                // 3. Update the comments table with the new counts
                 diesel::update(comments::table.filter(comments::comment_id.eq(comment_id)))
-                    .set(comments::total_upvotes.eq(count_row.upvote_count))
-                    .execute(conn)
-                    .await?;
-                diesel::update(comments::table.filter(comments::comment_id.eq(comment_id)))
-                    .set(comments::total_downvotes.eq(count_row.downvote_count))
+                    .set((
+                        comments::total_upvotes.eq(counts.upvote_count),
+                        comments::total_downvotes.eq(counts.downvote_count),
+                    ))
                     .execute(conn)
                     .await?;
 
-                Ok(count_row)
+                Ok(counts)
             })
         })
         .await
     {
         Ok(crow) => crow,
-        Err(e) => {
-            match e {
-                diesel::result::Error::DatabaseError(
-                    diesel::result::DatabaseErrorKind::UniqueViolation,
-                    _,
-                ) => return Err(CodeError::UPVOTE_MUST_BE_UNIQUE.into()),
-                e => return Err(code_err(CodeError::DB_INSERTION_ERROR, e)),
-            }
-        }
+        Err(e) => return Err(code_err(CodeError::DB_INSERTION_ERROR, e)), // Simplified error handling
     };
 
     Ok(http_resp(
