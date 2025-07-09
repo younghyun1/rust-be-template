@@ -24,7 +24,7 @@ axum = { version = "0.8.4", features = [
 axum-extra = { version = "0.10.1", features = ["cookie", "attachment", "form"] }
 axum-server = { version = "0.7.2", features = ["tls-rustls", "tokio-rustls"] }
 tower-http = { version = "0.6.6", features = [
-    "compression-gzip",
+    "compression-zstd",
     "trace",
     "cors",
     "fs",
