@@ -333,6 +333,20 @@ impl ServerState {
         Ok(num_rows)
     }
 
+    pub async fn get_visitor_board_entries(&self) -> Vec<((f64, f64), u64)> {
+        let mut result = Vec::new();
+        self.visitor_board_map
+            .scan_async(|&(lat_bytes, long_bytes), &count| {
+                let lat = f64::from_be_bytes(lat_bytes);
+                let long = f64::from_be_bytes(long_bytes);
+                if !lat.is_nan() && !long.is_nan() {
+                    result.push(((lat, long), count));
+                }
+            })
+            .await;
+        result
+    }
+
     pub fn get_deployment_environment(&self) -> DeploymentEnvironment {
         self.deployment_environment
     }

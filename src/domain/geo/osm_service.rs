@@ -2,7 +2,6 @@ use std::net::Ipv4Addr;
 
 use anyhow::Result;
 use serde_derive::Deserialize;
-use tracing::info;
 
 use crate::{init::state::ServerState, util::geographic::ip_info_lookup::IpInfo};
 
@@ -50,8 +49,7 @@ pub async fn get_osm_data_for_ip_addr(
 ) -> Result<(String, String)> {
     let response = client
         .get(format!(
-            "https://nominatim.openstreetmap.org/reverse?format=json&lat={}&lon={}",
-            lat, lon
+            "https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}"
         ))
         .send()
         .await?;
