@@ -127,7 +127,8 @@ async fn log_visitors(state: Arc<ServerState>, ip: String) {
     let start = tokio_now();
     use diesel_async::RunQueryDsl;
 
-    let ipv4_addr: std::net::Ipv4Addr = match ip.parse::<std::net::Ipv4Addr>() {
+    let ip_str = ip.split(':').next().unwrap_or(&ip);
+    let ipv4_addr: std::net::Ipv4Addr = match ip_str.parse::<std::net::Ipv4Addr>() {
         Ok(addr) => addr,
         Err(e) => {
             tracing::error!(kind = "parse_ip_error", ip = %ip, error = %e, "Failed to parse IP to Ipv4Addr");
