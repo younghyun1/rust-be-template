@@ -1,7 +1,6 @@
 use std::{net::Ipv4Addr, sync::Arc};
 
 use axum::{
-    debug_handler,
     extract::{Path, State},
     response::IntoResponse,
 };
@@ -13,7 +12,6 @@ use crate::{
     util::{geographic::ip_info_lookup::IpInfo, time::now::tokio_now},
 };
 
-#[debug_handler]
 pub async fn lookup_ip_location(
     State(state): State<Arc<ServerState>>,
     Path(ip_address): Path<String>,
