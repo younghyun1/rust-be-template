@@ -2,6 +2,7 @@ use std::net::Ipv4Addr;
 
 use anyhow::Result;
 use serde_derive::Deserialize;
+use tracing::info;
 
 use crate::{init::state::ServerState, util::geographic::ip_info_lookup::IpInfo};
 

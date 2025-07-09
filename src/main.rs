@@ -47,6 +47,7 @@ async fn main() -> anyhow::Result<()> {
         // .json()
         .with_ansi(true)
         .with_target(true)
+        .pretty()
         .with_filter(level_filters::LevelFilter::INFO);
 
     let file_layer = tracing_subscriber::fmt::layer()
