@@ -70,51 +70,52 @@ pub async fn read_post(
         comments_result.map_err(|e| code_err(CodeError::JOIN_ERROR, e))??;
 
     // Transform comments into CommentResponse with vote state
-    let mut comment_responses = if let AuthStatus::LoggedIn(user_id) = is_logged_in {
-        let comment_ids: Vec<Uuid> = comments.iter().map(|c| c.comment_id).collect();
-        let mut conn = state
-            .get_conn()
-            .await
-            .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
+    let mut comment_responses: Vec<CommentResponse> =
+        if let AuthStatus::LoggedIn(user_id) = is_logged_in {
+            let comment_ids: Vec<Uuid> = comments.iter().map(|c| c.comment_id).collect();
+            let mut conn = state
+                .get_conn()
+                .await
+                .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-        let user_votes: Vec<(Uuid, bool)> = comment_votes::table
-            .filter(comment_votes::comment_id.eq_any(&comment_ids))
-            .filter(comment_votes::user_id.eq(user_id))
-            .select((comment_votes::comment_id, comment_votes::is_upvote))
-            .load::<(Uuid, bool)>(&mut conn)
-            .await
-            .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+            let user_votes: Vec<(Uuid, bool)> = comment_votes::table
+                .filter(comment_votes::comment_id.eq_any(&comment_ids))
+                .filter(comment_votes::user_id.eq(user_id))
+                .select((comment_votes::comment_id, comment_votes::is_upvote))
+                .load::<(Uuid, bool)>(&mut conn)
+                .await
+                .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
 
-        let vote_map: std::collections::HashMap<Uuid, VoteState> = user_votes
-            .into_iter()
-            .map(|(cid, is_upvote)| {
-                let vs = if is_upvote {
-                    VoteState::Upvoted
-                } else {
-                    VoteState::Downvoted
-                };
-                (cid, vs)
-            })
-            .collect();
+            let vote_map: std::collections::HashMap<Uuid, VoteState> = user_votes
+                .into_iter()
+                .map(|(cid, is_upvote)| {
+                    let vs = if is_upvote {
+                        VoteState::Upvoted
+                    } else {
+                        VoteState::Downvoted
+                    };
+                    (cid, vs)
+                })
+                .collect();
 
-        comments
-            .into_iter()
-            .map(|comment| {
-                let vs = vote_map
-                    .get(&comment.comment_id)
-                    .cloned()
-                    .unwrap_or(VoteState::DidNotVote);
-                CommentResponse::from_comment_and_votestate(comment, vs)
-            })
-            .collect::<Vec<_>>()
-    } else {
-        comments
-            .into_iter()
-            .map(|comment| {
-                CommentResponse::from_comment_and_votestate(comment, VoteState::DidNotVote)
-            })
-            .collect::<Vec<_>>()
-    };
+            comments
+                .into_iter()
+                .map(|comment| {
+                    let vs = vote_map
+                        .get(&comment.comment_id)
+                        .cloned()
+                        .unwrap_or(VoteState::DidNotVote);
+                    CommentResponse::from_comment_and_votestate(comment, vs)
+                })
+                .collect::<Vec<_>>()
+        } else {
+            comments
+                .into_iter()
+                .map(|comment| {
+                    CommentResponse::from_comment_and_votestate(comment, VoteState::DidNotVote)
+                })
+                .collect::<Vec<_>>()
+        };
 
     comment_responses.sort_by_key(|c| -(c.total_upvotes - c.total_downvotes));
 
