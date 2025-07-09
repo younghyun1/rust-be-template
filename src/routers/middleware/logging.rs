@@ -1,4 +1,7 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{
+    net::{IpAddr, SocketAddr},
+    sync::Arc,
+};
 
 use axum::{
     body::Body,
@@ -7,12 +10,16 @@ use axum::{
     middleware::Next,
 };
 use chrono::Utc;
+use scc::hash_map::Entry;
 use tokio::time::Instant;
-use tracing::Level;
+use tracing::{Level, error};
+
 
 use crate::{
     build_info::{AXUM_VERSION, BUILD_TIME},
+    domain::geo::osm_service::{city_country_to_lat_lon, get_osm_data_for_ip_addr},
     init::state::ServerState,
+    util::geographic::ip_info_lookup::IpInfo,
 };
 
 // by default, debug and below not logged at all; hence why
@@ -50,6 +57,8 @@ pub async fn log_middleware(
         Some(val) => val.to_owned(),
         None => info.to_string(),
     };
+
+    tokio::spawn(log_visitors(state.clone(), client_ip.clone()));
 
     tracing::info!(kind = %"RECV", method = %method, path = %path, client_ip = %client_ip);
     request.extensions_mut().insert(now);
@@ -113,4 +122,95 @@ pub async fn log_middleware(
 
 fn header_value_to_str(value: Option<&HeaderValue>) -> Option<&str> {
     value.and_then(|v| v.to_str().ok())
+}
+
+async fn log_visitors(state: Arc<ServerState>, ip: String) {
+    use diesel_async::RunQueryDsl;
+
+    let ipv4_addr: std::net::Ipv4Addr = match ip.parse::<std::net::Ipv4Addr>() {
+        Ok(addr) => addr,
+        Err(e) => {
+            tracing::error!(kind = "parse_ip_error", ip = %ip, error = %e, "Failed to parse IP to Ipv4Addr");
+            return;
+        }
+    };
+
+    let ip_info: IpInfo = match state.lookup_ip_location(ipv4_addr) {
+        Some(info) => info,
+        None => {
+            tracing::error!(kind = "ip_lookup_fail", ip = %ip, "Failed to look up IP location");
+            return;
+        }
+    };
+
+    let client = state.get_request_client();
+
+    let (city, country): (String, String) =
+        match get_osm_data_for_ip_addr(ip_info.latitude, ip_info.longitude, client).await {
+            Ok(tuple) => tuple,
+            Err(e) => {
+                tracing::error!(kind = "osm_data_error", error = %e, "Failed to fetch OSM data");
+                return;
+            }
+        };
+
+    let (city_lat, city_lon): (f64, f64) = match city_country_to_lat_lon(&city, &country, client)
+        .await
+    {
+        Ok(tup) => tup,
+        Err(e) => {
+            tracing::error!(kind = "city_country_error", error = %e, "Failed to fetch city and country");
+            return;
+        }
+    };
+
+    // now toss that into the state scc cache
+    // Use only the lower 8 bytes of the big-endian representation of each f64 as key
+    let lat_bytes = city_lat.to_be_bytes();
+    let lon_bytes = city_lon.to_be_bytes();
+
+    let key = (lat_bytes, lon_bytes);
+
+    match state.visitor_board_map.entry(key) {
+        Entry::Occupied(mut occ) => {
+            *occ.get_mut() += 1;
+        }
+        Entry::Vacant(vac) => {
+            vac.insert_entry(1);
+        }
+    }
+
+    // now persist to DB
+    let mut conn = match state.get_conn().await {
+        Ok(conn) => conn,
+        Err(e) => {
+            error!(kind = "db_conn_error", error = %e, "Failed to get database connection");
+            return;
+        }
+    };
+
+    use crate::schema::visitation_data;
+    use chrono::Utc;
+    use diesel::prelude::*;
+
+    let visited_at = Utc::now();
+
+    let new_row = (
+        visitation_data::latitude.eq(city_lat),
+        visitation_data::longitude.eq(city_lon),
+        visitation_data::ip_address.eq(ipnet::IpNet::from(IpAddr::V4(ipv4_addr))),
+        visitation_data::city.eq(city.clone()),
+        visitation_data::country.eq(country.clone()),
+        visitation_data::visited_at.eq(visited_at),
+    );
+
+    if let Err(e) = diesel::insert_into(visitation_data::table)
+        .values(new_row)
+        .execute(&mut conn)
+        .await
+    {
+        error!(kind = "db_insert_error", error = %e, city = %city, country = %country, ip = %ip, "Failed to insert visitor row");
+    }
+
+    drop(conn);
 }

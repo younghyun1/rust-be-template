@@ -4,6 +4,7 @@ use std::net::Ipv4Addr;
 use std::sync::atomic::AtomicU64;
 
 use chrono::Utc;
+use diesel::QueryDsl;
 use diesel_async::pooled_connection::bb8::{Pool, PooledConnection};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use lettre::{AsyncSmtpTransport, Tokio1Executor};
@@ -48,6 +49,7 @@ pub struct ServerState {
     session_map: scc::HashMap<uuid::Uuid, Session>, // read/write
     blog_posts_cache: RwLock<Vec<PostInfo>>,        // read/write
     geo_ip_db: BTreeMap<u32, IpEntry>,              // read-only
+    pub visitor_board_map: scc::HashMap<([u8; 8], [u8; 8]), u64>, // read/write
     api_keys_set: HashSet<Uuid>,                    // read-only
     pub country_map: RwLock<CountryAndSubdivisionsTable>,
     pub languages_map: RwLock<IsoLanguageTable>,
@@ -297,7 +299,37 @@ impl ServerState {
         let mut lock = self.i18n_cache.write().await;
         *lock = I18nCache::from_rows(rows);
 
-        info!(elapsed = %format!("{:?}", start.elapsed()), rows_synchronized = %num_rows, "Synchronized i18n data.");
+        info!(elapsed = ?start.elapsed(), rows_synchronized = %num_rows, "Synchronized i18n data.");
+        Ok(num_rows)
+    }
+
+    pub async fn sync_visitor_board_data(&self) -> anyhow::Result<usize> {
+        use crate::schema::visitation_data::dsl as vdsl;
+
+        let start = tokio_now();
+        let mut conn = self.get_conn().await?;
+
+        let visits: Vec<(f64, f64)> = vdsl::visitation_data
+            .select((vdsl::latitude, vdsl::longitude))
+            .load::<(f64, f64)>(&mut conn)
+            .await?;
+
+        let mut visit_counts = std::collections::HashMap::<([u8; 8], [u8; 8]), u64>::new();
+
+        for (latitude, longitude) in visits.iter().copied() {
+            let lat_bytes = latitude.to_be_bytes();
+            let long_bytes = longitude.to_be_bytes();
+            let key = (lat_bytes, long_bytes);
+            *visit_counts.entry(key).or_insert(0) += 1;
+        }
+
+        for (key, count) in visit_counts {
+            let _ = self.visitor_board_map.insert_async(key, count).await;
+        }
+
+        let num_rows = visits.len();
+
+        info!(elapsed = ?start.elapsed(), rows_synchronized = %num_rows, "Synchronized visitor board data.");
         Ok(num_rows)
     }
 
@@ -377,6 +409,7 @@ impl ServerStateBuilder {
             request_client: reqwest::Client::builder()
                 .user_agent("cyhdev.com")
                 .build()?,
+            visitor_board_map: scc::HashMap::new(),
         })
     }
 }
