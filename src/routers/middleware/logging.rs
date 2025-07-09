@@ -57,7 +57,14 @@ pub async fn log_middleware(
         None => info.to_string(),
     };
 
-    tokio::spawn(log_visitors(state.clone(), client_ip.clone()));
+    if std::env::var("CURR_ENV")
+        .ok()
+        .as_deref()
+        .map(|v| v.trim().to_lowercase() == "prd")
+        .unwrap_or(false)
+    {
+        tokio::spawn(log_visitors(state.clone(), client_ip.clone()));
+    }
 
     tracing::info!(kind = %"RECV", method = %method, path = %path, client_ip = %client_ip);
     request.extensions_mut().insert(now);
