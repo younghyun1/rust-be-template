@@ -1,18 +1,16 @@
-use std::env;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::{
+    Router,
     extract::DefaultBodyLimit,
-    http::{
-        StatusCode,
-        header::{CONTENT_ENCODING, CONTENT_TYPE},
-    },
+    http::{StatusCode, Uri, header},
     middleware::from_fn_with_state,
-    response::{Html, IntoResponse},
-    routing::{delete, get, get_service, post},
+    response::IntoResponse,
+    routing::{delete, get, post},
 };
-use tower_http::{compression::CompressionLayer, cors::CorsLayer, services::ServeDir};
+use mime_guess::from_path;
+use rust_embed::Embed;
+use tower_http::{compression::CompressionLayer, cors::CorsLayer};
 
 use crate::{
     handlers::{
@@ -50,43 +48,68 @@ use super::middleware::{
 
 const MAX_REQUEST_SIZE: usize = 1024 * 1024 * 50; // 50MB
 
-async fn spa_fallback() -> impl axum::response::IntoResponse {
-    // Get FE_ASSETS_DIR from environment variable, fallback to "fe"
-    let fe_dir = env::var("FE_ASSETS_DIR").unwrap_or_else(|_| "fe".to_string());
+#[derive(Embed)]
+#[folder = "fe/"]
+struct EmbeddedAssets;
 
-    // Try serving zstd-compressed first, then fallback to plain index.html
-    let zstd_path = PathBuf::from(&fe_dir).join("index.html.zst");
-    let html_path = PathBuf::from(&fe_dir).join("index.html");
+/// Serves static files embedded in the binary, prioritizing pre-compressed .zst files.
+async fn static_asset_handler(uri: Uri) -> impl IntoResponse {
+    let mut path = uri.path().trim_start_matches('/').to_string();
+    if path.is_empty() {
+        path = "index.html".to_string();
+    }
 
-    match tokio::fs::read(&zstd_path).await {
-        Ok(zstd_bytes) => (
+    // 1. Check for a pre-compressed .zst file first
+    let zstd_path = format!("{}.zst", path);
+    if let Some(content) = EmbeddedAssets::get(&zstd_path) {
+        let mime = from_path(&path).first_or_octet_stream(); // Guess MIME from original path
+        return (
             StatusCode::OK,
             [
-                (CONTENT_TYPE.as_str(), "text/html; charset=utf-8"),
-                (CONTENT_ENCODING.as_str(), "zstd"),
+                (header::CONTENT_TYPE, mime.as_ref()),
+                (header::CONTENT_ENCODING, "zstd"),
             ],
-            zstd_bytes,
+            content.data,
         )
-            .into_response(),
-        Err(zstd_err) => {
-            println!(
-                "spa_fallback: Failed to read zstd-compressed index.html at {zstd_path:?}: {zstd_err}"
-            );
-
-            // Fallback to plain index.html
-            match tokio::fs::read_to_string(&html_path).await {
-                Ok(html) => Html(html).into_response(),
-                Err(e) => {
-                    println!("spa_fallback: Failed to read plain index.html at {html_path:?}: {e}");
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        "Internal Server Error".to_string(),
-                    )
-                        .into_response()
-                }
-            }
-        }
+            .into_response();
     }
+
+    // 2. Fallback to the uncompressed file (if it exists)
+    if let Some(content) = EmbeddedAssets::get(&path) {
+        let mime = from_path(&path).first_or_octet_stream();
+        return (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, mime.as_ref())],
+            content.data,
+        )
+            .into_response();
+    }
+
+    // 3. If no direct asset is found, handle SPA fallback to index.html
+    // This handles client-side routes like `/login` or `/dashboard`
+    if let Some(content) = EmbeddedAssets::get("index.html.zst") {
+        return (
+            StatusCode::OK,
+            [
+                (header::CONTENT_TYPE, "text/html"),
+                (header::CONTENT_ENCODING, "zstd"),
+            ],
+            content.data,
+        )
+            .into_response();
+    }
+
+    if let Some(content) = EmbeddedAssets::get("index.html") {
+        return (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, "text/html")],
+            content.data,
+        )
+            .into_response();
+    }
+
+    // 4. If nothing is found, return an error
+    (StatusCode::NOT_FOUND, "Not Found").into_response()
 }
 
 pub fn build_router(state: Arc<ServerState>) -> axum::Router {
@@ -97,8 +120,8 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let compression_middleware = CompressionLayer::new().zstd(true);
     let cors_layer = CorsLayer::very_permissive();
 
-    // API router with API-specific middleware
-    let public_router = axum::Router::new()
+    // Publicly accessible API routes
+    let public_router = Router::new()
         .route("/api/healthcheck/server", get(healthcheck))
         .route("/api/healthcheck/state", get(root_handler))
         .route("/api/dropdown/language", get(get_languages))
@@ -129,14 +152,15 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/api/blog/posts", post(submit_post))
         .route(
             "/api/i18n/country-language-bundle",
-            get(get_country_language_bundle), // TODO: Restify
+            get(get_country_language_bundle),
         )
         .route(
             "/api/admin/sync-country-language-bundle",
-            get(sync_i18n_cache), // TODO: Restify
-        ); //TODO: Get this cordoned off to some admin router requiring special elevated privileges
+            get(sync_i18n_cache),
+        );
 
-    let protected_router = axum::Router::new()
+    // API routes requiring authentication
+    let protected_router = Router::new()
         .route("/api/auth/logout", post(logout))
         .route(
             "/api/user/upload-profile-picture",
@@ -152,6 +176,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         )
         .layer(auth_middleware.clone());
 
+    // Combine all API routes and apply shared middleware
     let api_router = public_router
         .merge(protected_router)
         .layer(is_logged_in_middleware)
@@ -162,24 +187,8 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .layer(cors_layer)
         .with_state(state.clone());
 
-    // Configure ServeDir to serve static files and fall back to index.html
-    let spa_fallback_service = get(spa_fallback);
-
-    let serve_dir = ServeDir::new("fe")
-        .precompressed_zstd()
-        .append_index_html_on_directories(true)
-        .not_found_service(spa_fallback_service);
-
-    let static_files = get_service(serve_dir).handle_error(|error| async move {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Static file error: {error}"),
-        )
-    });
-
-    // Merge API router and set static_files as the fallback
-
-    axum::Router::new()
+    // Final router: merge API routes and set the static asset handler as the fallback
+    Router::new()
         .merge(api_router)
-        .fallback_service(static_files)
+        .fallback_service(get(static_asset_handler))
 }

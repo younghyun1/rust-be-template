@@ -121,5 +121,9 @@ comrak = { version = "0.39.1", features = ["emojis", "shortcodes"] }
 # request to external
 reqwest = { version = "0.12.22", features = ["rustls-tls", "gzip"] }
 
+# embed assets into binary
+rust-embed = "8.7.2"
+mime_guess = "2.0.5"
+
 [build-dependencies]
 chrono = { version = "0.4.41" }
