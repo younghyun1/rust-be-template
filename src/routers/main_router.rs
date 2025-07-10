@@ -42,8 +42,7 @@ use crate::{
 };
 
 use super::middleware::{
-    api_key::api_key_check_middleware, auth::auth_middleware,
-    is_logged_in::is_logged_in_middleware, logging::log_middleware,
+    auth::auth_middleware, is_logged_in::is_logged_in_middleware, logging::log_middleware,
 };
 
 const MAX_REQUEST_SIZE: usize = 1024 * 1024 * 50; // 50MB

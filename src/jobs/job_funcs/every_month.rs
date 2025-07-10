@@ -41,9 +41,7 @@ pub fn next_scheduled_month_mark(
     let start_of_month = chrono::naive::NaiveDate::from_ymd_opt(year, month, 1);
     if start_of_month.is_none() {
         tracing::error!(year, month, "Invalid year/month when creating NaiveDate");
-        panic!(
-            "Could not construct NaiveDate for year/month: {year}/{month}"
-        );
+        panic!("Could not construct NaiveDate for year/month: {year}/{month}");
     }
     let start_of_month = start_of_month.unwrap();
 
@@ -78,9 +76,7 @@ pub fn next_scheduled_month_mark(
             year,
             "Day offset is not in 1..=31 (illegal param)"
         );
-        panic!(
-            "Bad day_offset for schedule: {day_offset}; should be 1..=31"
-        );
+        panic!("Bad day_offset for schedule: {day_offset}; should be 1..=31");
     }
 
     let day = day_offset.min(days_in_month as u32);
@@ -119,9 +115,7 @@ pub fn next_scheduled_month_mark(
                 next_month,
                 "Could not create NaiveDate for next month"
             );
-            panic!(
-                "Could not construct NaiveDate for next month: {next_year}/{next_month}"
-            );
+            panic!("Could not construct NaiveDate for next month: {next_year}/{next_month}");
         }
         let start_of_next_month = start_of_next_month.unwrap();
         let next_next_month_start = if next_month == 12 {

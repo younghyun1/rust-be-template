@@ -42,9 +42,7 @@ pub fn next_scheduled_year_mark(
             month_offset,
             "Day offset is not in 1..=31 (illegal param)"
         );
-        panic!(
-            "Bad day_offset for yearly schedule: {day_offset}; should be 1..=31"
-        );
+        panic!("Bad day_offset for yearly schedule: {day_offset}; should be 1..=31");
     }
 
     let start_of_month = chrono::naive::NaiveDate::from_ymd_opt(year, month_offset, 1)
@@ -54,9 +52,7 @@ pub fn next_scheduled_year_mark(
                 month_offset,
                 "Could not create NaiveDate for year/month"
             );
-            panic!(
-                "Could not create NaiveDate for year/month: {year}/{month_offset}"
-            )
+            panic!("Could not create NaiveDate for year/month: {year}/{month_offset}")
         });
     let next_month_start = if month_offset == 12 {
         chrono::naive::NaiveDate::from_ymd_opt(year + 1, 1, 1)
@@ -120,19 +116,19 @@ pub fn next_scheduled_year_mark(
     if candidate <= now {
         // Move to next year, same month/day/hms, re-clamp day just in case.
         let next_year = year + 1;
-        let start_of_next_year_month =
-            chrono::naive::NaiveDate::from_ymd_opt(next_year, month_offset, 1).unwrap_or_else(
-                || {
-                    tracing::error!(
-                        next_year,
-                        month_offset,
-                        "Could not create NaiveDate for next year/month"
-                    );
-                    panic!(
-                        "Could not create NaiveDate for next year/month: {next_year}/{month_offset}"
-                    );
-                },
+        let start_of_next_year_month = chrono::naive::NaiveDate::from_ymd_opt(
+            next_year,
+            month_offset,
+            1,
+        )
+        .unwrap_or_else(|| {
+            tracing::error!(
+                next_year,
+                month_offset,
+                "Could not create NaiveDate for next year/month"
             );
+            panic!("Could not create NaiveDate for next year/month: {next_year}/{month_offset}");
+        });
         let next_next_month_start = if month_offset == 12 {
             chrono::naive::NaiveDate::from_ymd_opt(next_year + 1, 1, 1)
         } else {
