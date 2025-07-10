@@ -5,7 +5,7 @@ use image::{
 };
 use std::io::Cursor;
 
-pub const IMAGE_ENCODING_FORMAT: ImageFormat = ImageFormat::WebP;
+pub const IMAGE_ENCODING_FORMAT: ImageFormat = ImageFormat::Avif;
 
 pub async fn process_uploaded_image(
     bits: Vec<u8>,

@@ -14,7 +14,7 @@ use tower_http::{compression::CompressionLayer, cors::CorsLayer};
 
 use crate::{
     handlers::{
-        admin::sync_i18n_cache::sync_i18n_cache,
+        admin::{get_host_stats::ws_host_stats_handler, sync_i18n_cache::sync_i18n_cache},
         auth::{
             check_if_user_exists::check_if_user_exists_handler, login::login, logout::logout,
             me::me_handler, reset_password::reset_password,
@@ -114,7 +114,7 @@ async fn static_asset_handler(uri: Uri) -> impl IntoResponse {
 
 pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let auth_middleware = from_fn_with_state(state.clone(), auth_middleware);
-    let api_key_check_middleware = from_fn_with_state(state.clone(), api_key_check_middleware);
+    // let api_key_check_middleware = from_fn_with_state(state.clone(), api_key_check_middleware);
     let log_middleware = from_fn_with_state(state.clone(), log_middleware);
     let is_logged_in_middleware = from_fn_with_state(state.clone(), is_logged_in_middleware);
     let compression_middleware = CompressionLayer::new().zstd(true);
@@ -124,6 +124,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let public_router = Router::new()
         .route("/api/healthcheck/server", get(healthcheck))
         .route("/api/healthcheck/state", get(root_handler))
+        .route("/ws/host-stats", get(ws_host_stats_handler))
         .route("/api/dropdown/language", get(get_languages))
         .route("/api/dropdown/language/{language_id}", get(get_language))
         .route("/api/dropdown/country", get(get_countries))
@@ -180,7 +181,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let api_router = public_router
         .merge(protected_router)
         .layer(is_logged_in_middleware)
-        .layer(api_key_check_middleware)
+        // .layer(api_key_check_middleware)
         .layer(compression_middleware)
         .layer(log_middleware)
         .layer(DefaultBodyLimit::max(MAX_REQUEST_SIZE))

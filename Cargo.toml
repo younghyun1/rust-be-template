@@ -58,8 +58,9 @@ tracing-appender = "0.2.3"
 # error
 anyhow = "1.0.98"
 
-# number of cpus
+# system information
 num_cpus = "1.17.0"
+sysinfo = "0.35.2"
 
 # serialization/deserialization
 serde = "1.0.219"
