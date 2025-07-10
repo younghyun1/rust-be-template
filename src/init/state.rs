@@ -63,6 +63,7 @@ impl ServerState {
     pub async fn new_session(
         &self,
         user_id: Uuid,
+        is_email_verified: bool,
         valid_for: Option<chrono::Duration>,
     ) -> anyhow::Result<Uuid> {
         let session_id = Uuid::new_v4();
@@ -75,6 +76,7 @@ impl ServerState {
                 Session {
                     session_id,
                     user_id,
+                    is_email_verified,
                     created_at: now,
                     expires_at,
                 },
@@ -432,6 +434,7 @@ impl ServerStateBuilder {
 pub struct Session {
     session_id: uuid::Uuid,
     user_id: uuid::Uuid,
+    is_email_verified: bool,
     created_at: chrono::DateTime<chrono::Utc>,
     expires_at: chrono::DateTime<chrono::Utc>,
 }
