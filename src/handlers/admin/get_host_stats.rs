@@ -38,8 +38,8 @@ pub fn get_host_stats() -> HostStats {
     } else {
         0.0
     };
-    let mem_total = system.total_memory(); // KiB
-    let mem_free = system.free_memory(); // KiB
+    let mem_total = system.total_memory();
+    let mem_free = system.free_memory();
 
     HostStats {
         cpu_usage,
@@ -53,11 +53,11 @@ pub async fn ws_host_stats_handler(ws: WebSocketUpgrade) -> Response {
 }
 
 async fn handle_host_stats_socket(mut socket: WebSocket) {
-    let mut interval = time::interval(Duration::from_secs(1));
+    let mut interval = time::interval(Duration::from_millis(200));
     loop {
         interval.tick().await;
 
-        let host_stats_result = tokio::task::spawn_blocking(|| get_host_stats()).await;
+        let host_stats_result = tokio::task::spawn_blocking(get_host_stats).await;
         let host_stats = match host_stats_result {
             Ok(stats) => stats,
             Err(e) => {
