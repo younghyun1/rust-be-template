@@ -23,9 +23,11 @@ impl HostStats {
     }
 }
 
+// TODO: system information querying is unusually heavyweight for some reason. switch to cat proc or something lol
 // run on spawn_blocking; heavily blocking function fsr
 pub fn get_host_stats() -> HostStats {
-    let mut system = System::new();
+    let mut system = System::new_all();
+    std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
     system.refresh_cpu_usage();
     system.refresh_memory();
 
