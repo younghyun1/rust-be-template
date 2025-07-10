@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use chrono::{SecondsFormat, Timelike, Utc};
+use chrono::{Duration, SecondsFormat, Timelike, Utc};
 use tracing::{error, info};
 
 use crate::init::state::ServerState;
+use crate::util::time::duration_formatter::format_duration;
 
 /// Calculate the next UTC DateTime that lands on the current/next minute,
 /// with a specific "seconds + milliseconds" offset from the start of that minute.
@@ -70,8 +71,10 @@ where
     F: Fn(Arc<ServerState>) -> Fut + Send + Sync + 'static,
     Fut: std::future::Future<Output = ()> + Send + 'static,
 {
+    let mut initialized = false;
+    let mut scheduled_run_time: Option<chrono::DateTime<chrono::Utc>> = None;
+
     loop {
-        // Get how long until the next scheduled run.
         let (delay, next_mark) =
             match next_scheduled_delay(&task_descriptor, second_offset, millisecond_offset) {
                 Ok((d, nm)) => (d, nm),
@@ -80,24 +83,44 @@ where
                         "Could not calculate next scheduled time for {}: {:?}",
                         task_descriptor, e
                     );
-                    // If we fail to compute it, try again in a short while:
                     tokio::time::sleep(std::time::Duration::from_secs(10)).await;
                     continue;
                 }
             };
 
-        info!(
-            task_name = %task_descriptor,
-            next_run_time = %next_mark.to_rfc3339_opts(SecondsFormat::AutoSi, true),
-            "Scheduled task"
-        );
+        if !initialized {
+            info!(
+                task_name = %task_descriptor,
+                initial_run_time = %next_mark.to_rfc3339_opts(SecondsFormat::AutoSi, true),
+                delay = %format!("{:?}", delay),
+                "Scheduled task initialized. First run upcoming in {}",
+                format_duration(delay)
+            );
+            initialized = true;
+        }
 
-        // Sleep until that time arrives.
+        let this_run_time = match scheduled_run_time {
+            Some(rt) => rt,
+            None => next_mark,
+        };
+
         tokio::time::sleep(delay).await;
 
-        // Run the actual task.
+        let start = tokio::time::Instant::now();
         task(Arc::clone(&state)).await;
-        // After the task finishes, we'll loop back and schedule again
-        // for the next minute's desired offset.
+        let elapsed = start.elapsed();
+
+        // Efficiently compute the next run time by simply adding one minute
+        let next_run_time = this_run_time + Duration::minutes(1);
+
+        info!(
+            task_name = %task_descriptor,
+            next_run_time = %next_run_time.to_rfc3339_opts(SecondsFormat::AutoSi, true),
+            duration = %format!("{:?}", elapsed),
+            "Scheduled task ran! Next one running in {}",
+            format_duration((next_run_time - Utc::now()).to_std().unwrap_or(std::time::Duration::from_secs(60)))
+        );
+
+        scheduled_run_time = Some(next_run_time);
     }
 }
