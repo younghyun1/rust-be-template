@@ -1,10 +1,10 @@
 use anyhow::{Result, anyhow};
-use chrono::{DateTime, SecondsFormat, Timelike, Utc};
+use chrono::{DateTime, Duration, SecondsFormat, Timelike, Utc};
 use std::sync::Arc;
 use tracing::{error, info};
 
-// Replace these with your actual imports.
 use crate::init::state::ServerState;
+use crate::util::time::duration_formatter::format_duration;
 
 /// Calculate the next UTC DateTime that lands on either the current or next second boundary,
 /// with a sub-second offset of `millisecond_offset` and `microsecond_offset`.
@@ -36,12 +36,12 @@ fn next_scheduled_second_mark(
     Ok(target_time)
 }
 
-/// Returns (delay, message) for the next sub-second offset occurrence.
+/// Returns (delay, next_mark).
 fn next_scheduled_second_delay(
-    task_descriptor: &str,
+    _task_descriptor: &str,
     millisecond_offset: u32,
     microsecond_offset: u32,
-) -> Result<(tokio::time::Duration, String, DateTime<Utc>)> {
+) -> Result<(tokio::time::Duration, DateTime<Utc>)> {
     let now = Utc::now();
     let next_mark = next_scheduled_second_mark(now, millisecond_offset, microsecond_offset)?;
 
@@ -53,7 +53,7 @@ fn next_scheduled_second_delay(
             e
         )
     })?;
-    Ok((delay_std, task_descriptor.to_owned(), next_mark))
+    Ok((delay_std, next_mark))
 }
 
 /// Schedules a task to run once per second at the specified sub-second offset.
@@ -69,9 +69,11 @@ where
     F: Fn(Arc<ServerState>) -> Fut + Send + Sync + 'static,
     Fut: std::future::Future<Output = ()> + Send + 'static,
 {
+    let mut initialized = false;
+    let mut scheduled_run_time: Option<DateTime<Utc>> = None;
+
     loop {
-        // 1) Determine how long to wait until the next sub-second occurrence.
-        let (delay, task_descriptor, next_mark) = match next_scheduled_second_delay(
+        let (delay, next_mark) = match next_scheduled_second_delay(
             &task_descriptor,
             millisecond_offset,
             microsecond_offset,
@@ -88,17 +90,36 @@ where
             }
         };
 
-        info!(
-            task_name = %task_descriptor,
-            next_run_time = %next_mark.to_rfc3339_opts(SecondsFormat::AutoSi, true),
-            "Scheduled task"
-        );
+        if !initialized {
+            info!(
+                task_name = %task_descriptor,
+                initial_run_time = %next_mark.to_rfc3339_opts(SecondsFormat::AutoSi, true),
+                delay = %format!("{:?}", delay),
+                "Scheduled task initialized. First run upcoming in {}",
+                format_duration(delay)
+            );
+            initialized = true;
+        }
 
-        // 2) Sleep until the scheduled second+offset arrives.
+        let this_run_time = scheduled_run_time.unwrap_or(next_mark);
+
         tokio::time::sleep(delay).await;
 
-        // 3) Perform the task.
+        let start = tokio::time::Instant::now();
         task(Arc::clone(&state)).await;
-        // Loop back to schedule again.
+        let elapsed = start.elapsed();
+
+        // Efficiently compute the next run time by simply adding one second to the previously scheduled (not actual) scheduled time.
+        let next_run_time = this_run_time + Duration::seconds(1);
+
+        info!(
+            task_name = %task_descriptor,
+            next_run_time = %next_run_time.to_rfc3339_opts(SecondsFormat::AutoSi, true),
+            duration = %format!("{:?}", elapsed),
+            "Scheduled task ran! Next one running in {}",
+            format_duration((next_run_time - Utc::now()).to_std().unwrap_or(std::time::Duration::from_millis(1000)))
+        );
+
+        scheduled_run_time = Some(next_run_time);
     }
 }

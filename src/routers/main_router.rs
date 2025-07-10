@@ -60,7 +60,7 @@ async fn static_asset_handler(uri: Uri) -> impl IntoResponse {
     }
 
     // 1. Check for a pre-compressed .zst file first
-    let zstd_path = format!("{}.zst", path);
+    let zstd_path = format!("{path}.zst");
     if let Some(content) = EmbeddedAssets::get(&zstd_path) {
         let mime = from_path(&path).first_or_octet_stream(); // Guess MIME from original path
         return (
