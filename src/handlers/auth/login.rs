@@ -93,7 +93,7 @@ pub async fn login(
     }
 
     let session_id: Uuid = state
-        .new_session(user.user_id, user.user_is_email_verified, None)
+        .new_session(&user, user.user_is_email_verified, None)
         .await
         .map_err(|e| code_err(CodeError::SESSION_ID_ALREADY_EXISTS, e))?;
 
