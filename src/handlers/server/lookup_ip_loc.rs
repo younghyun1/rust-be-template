@@ -23,7 +23,7 @@ pub async fn lookup_ip_location(
         .map_err(|e| code_err(CodeError::INVALID_IP_ADDRESS, e))?;
 
     let info: IpInfo = state
-        .lookup_ip_location(ip_address)
+        .lookup_ip_location(std::net::IpAddr::V4(ip_address))
         .ok_or_else(|| code_err(CodeError::INVALID_IP_ADDRESS, "IP geo info not in DB!"))?;
 
     Ok(http_resp(info, (), start))

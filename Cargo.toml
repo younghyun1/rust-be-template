@@ -130,5 +130,8 @@ reqwest = { version = "0.12.22", features = ["rustls-tls", "gzip"] }
 rust-embed = "8.7.2"
 mime_guess = "2.0.5"
 
+# internment
+internment = "0.8.6"
+
 [build-dependencies]
 chrono = { version = "0.4.41" }

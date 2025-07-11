@@ -1,5 +1,5 @@
-use std::collections::{BTreeMap, VecDeque};
-use std::net::Ipv4Addr;
+use std::collections::VecDeque;
+use std::net::IpAddr;
 
 use std::sync::atomic::AtomicU64;
 
@@ -22,7 +22,7 @@ use crate::domain::i18n::i18n::InternationalizationString;
 use crate::domain::i18n::i18n_cache::I18nCache;
 use crate::schema::{iso_country, iso_country_subdivision, iso_currency, iso_language};
 use crate::util::geographic::ip_info_lookup::{
-    IpEntry, IpInfo, decompress_and_deserialize, lookup_ip_location_from_map,
+    GeoIpDatabases, IpInfo, decompress_and_deserialize, lookup_ip_location_from_map,
 };
 use crate::util::time::now::tokio_now;
 
@@ -93,7 +93,7 @@ pub struct ServerState {
     // regexes: [regex::Regex; 1],
     session_map: scc::HashMap<uuid::Uuid, Session>, // read/write
     blog_posts_cache: RwLock<Vec<PostInfo>>,        // read/write
-    geo_ip_db: BTreeMap<u32, IpEntry>,              // read-only
+    geo_ip_db: GeoIpDatabases,                      // read-only, full v4+v6
     pub visitor_board_map: scc::HashMap<([u8; 8], [u8; 8]), u64>, // read/write
     api_keys_set: HashSet<Uuid>,                    // read-only
     pub country_map: RwLock<CountryAndSubdivisionsTable>,
@@ -269,7 +269,8 @@ impl ServerState {
         cache_write_lock.push(post.to_owned());
     }
 
-    pub fn lookup_ip_location(&self, ip: Ipv4Addr) -> Option<IpInfo> {
+    /// full v4+v6 support
+    pub fn lookup_ip_location(&self, ip: IpAddr) -> Option<IpInfo> {
         lookup_ip_location_from_map(&self.geo_ip_db, ip)
     }
 
@@ -455,9 +456,9 @@ impl ServerStateBuilder {
             session_map: scc::HashMap::new(),
             blog_posts_cache: tokio::sync::RwLock::new(vec![]),
             geo_ip_db: {
-                let (map, dur) = decompress_and_deserialize()?;
-                info!(elapsed=%format!("{dur:?}"), "Geo-IP database mapped to BTreeMap.");
-                map
+                let (dbs, dur) = decompress_and_deserialize()?;
+                info!(elapsed=%format!("{dur:?}"), "Geo-IP database loaded and interned.");
+                dbs
             },
             api_keys_set: scc::HashSet::<Uuid>::new(),
             country_map: RwLock::new(CountryAndSubdivisionsTable::new_empty()),
