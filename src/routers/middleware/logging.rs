@@ -143,7 +143,7 @@ async fn log_visitors(state: Arc<ServerState>, ip: String) {
         }
     };
 
-    let ip_info: IpInfo = match state.lookup_ip_location(ipv4_addr) {
+    let ip_info: IpInfo = match state.lookup_ip_location(IpAddr::V4(ipv4_addr)) {
         Some(info) => info,
         None => {
             tracing::error!(kind = "ip_lookup_fail", ip = %ip, "Failed to look up IP location");

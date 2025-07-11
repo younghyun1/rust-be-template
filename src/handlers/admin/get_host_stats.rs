@@ -62,7 +62,7 @@ pub async fn ws_host_stats_handler(
     ws.on_upgrade(move |socket| handle_host_stats_socket(socket, state.clone()))
 }
 
-async fn handle_host_stats_socket(mut socket: WebSocket, state: Arc<ServerState>) {
+async fn handle_host_stats_socket(mut socket: WebSocket, _state: Arc<ServerState>) {
     let mut interval = time::interval(Duration::from_millis(1000));
     loop {
         interval.tick().await;
