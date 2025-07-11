@@ -1,11 +1,18 @@
+use std::sync::Arc;
+
 use axum::{
     body::Bytes,
-    extract::ws::{Message, WebSocket, WebSocketUpgrade},
+    extract::{
+        State,
+        ws::{Message, WebSocket, WebSocketUpgrade},
+    },
     response::Response,
 };
 use sysinfo::System;
 use tokio::time::{self, Duration};
 use tracing::{error, info};
+
+use crate::init::state::ServerState;
 
 pub struct HostStats {
     pub cpu_usage: f32,
@@ -48,12 +55,15 @@ pub fn get_host_stats() -> HostStats {
     }
 }
 
-pub async fn ws_host_stats_handler(ws: WebSocketUpgrade) -> Response {
-    ws.on_upgrade(handle_host_stats_socket)
+pub async fn ws_host_stats_handler(
+    State(state): State<Arc<ServerState>>,
+    ws: WebSocketUpgrade,
+) -> Response {
+    ws.on_upgrade(move |socket| handle_host_stats_socket(socket, state.clone()))
 }
 
-async fn handle_host_stats_socket(mut socket: WebSocket) {
-    let mut interval = time::interval(Duration::from_millis(200));
+async fn handle_host_stats_socket(mut socket: WebSocket, state: Arc<ServerState>) {
+    let mut interval = time::interval(Duration::from_millis(1000));
     loop {
         interval.tick().await;
 

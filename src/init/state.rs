@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 use std::net::Ipv4Addr;
 
 use std::sync::atomic::AtomicU64;
@@ -39,6 +39,51 @@ pub enum DeploymentEnvironment {
     Prod,
 }
 
+pub struct SystemInfoState {
+    pub history: VecDeque<SystemInfo>,
+    pub len: usize,
+}
+
+impl Default for SystemInfoState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SystemInfoState {
+    pub fn new() -> Self {
+        SystemInfoState {
+            history: VecDeque::with_capacity(3600),
+            len: 3600,
+        }
+    }
+
+    pub fn push(&mut self, info: SystemInfo) {
+        if self.history.len() == self.len {
+            self.history.pop_front();
+        }
+        self.history.push_back(info);
+    }
+
+    pub fn len(&self) -> usize {
+        self.history.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.history.is_empty()
+    }
+
+    pub fn iter(&self) -> std::collections::vec_deque::Iter<'_, SystemInfo> {
+        self.history.iter()
+    }
+}
+
+pub struct SystemInfo {
+    pub cpu_usage: f64,
+    pub memory_usage: u64, // bytes
+    pub memory_total: u64,
+}
+
 pub struct ServerState {
     app_name_version: String,
     server_start_time: tokio::time::Instant,
@@ -57,6 +102,7 @@ pub struct ServerState {
     pub i18n_cache: RwLock<I18nCache>,
     deployment_environment: DeploymentEnvironment,
     request_client: reqwest::Client,
+    pub system_info_state: RwLock<SystemInfoState>,
 }
 
 impl ServerState {
@@ -426,6 +472,7 @@ impl ServerStateBuilder {
                 .user_agent("cyhdev.com")
                 .build()?,
             visitor_board_map: scc::HashMap::new(),
+            system_info_state: RwLock::new(SystemInfoState::new()),
         })
     }
 }
