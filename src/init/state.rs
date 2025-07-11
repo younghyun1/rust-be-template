@@ -20,6 +20,7 @@ use crate::domain::country::{
 };
 use crate::domain::i18n::i18n::InternationalizationString;
 use crate::domain::i18n::i18n_cache::I18nCache;
+use crate::domain::user::User;
 use crate::schema::{iso_country, iso_country_subdivision, iso_currency, iso_language};
 use crate::util::geographic::ip_info_lookup::{
     GeoIpDatabases, IpInfo, decompress_and_deserialize, lookup_ip_location_from_map,
@@ -108,7 +109,7 @@ pub struct ServerState {
 impl ServerState {
     pub async fn new_session(
         &self,
-        user_id: Uuid,
+        user: &User,
         is_email_verified: bool,
         valid_for: Option<chrono::Duration>,
     ) -> anyhow::Result<Uuid> {
@@ -121,10 +122,13 @@ impl ServerState {
                 session_id,
                 Session {
                     session_id,
-                    user_id,
                     is_email_verified,
                     created_at: now,
                     expires_at,
+                    user_id: user.user_id,
+                    user_language: user.user_language,
+                    user_name: user.user_name.clone(),
+                    user_country: user.user_country,
                 },
             )
             .await
@@ -482,6 +486,9 @@ impl ServerStateBuilder {
 pub struct Session {
     session_id: uuid::Uuid,
     user_id: uuid::Uuid,
+    user_name: String,
+    user_country: i32,
+    user_language: i32,
     is_email_verified: bool,
     created_at: chrono::DateTime<chrono::Utc>,
     expires_at: chrono::DateTime<chrono::Utc>,
