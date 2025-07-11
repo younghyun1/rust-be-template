@@ -22,4 +22,5 @@
 30) publish button gets obscured w. long text lol
 31) for auto-purged users, all their stuff is cascade-deleted - use 5) to keep the content around
 32) send emails out to auto-purged users
-33) 
+33) improved client IP capturing - ConnectInfo(addr), not x-forwarded-for
+34) 
