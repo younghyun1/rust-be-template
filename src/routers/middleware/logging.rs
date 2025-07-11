@@ -16,7 +16,6 @@ use tracing::{Level, error, info};
 
 use crate::{
     build_info::{AXUM_VERSION, BUILD_TIME},
-    domain::geo::osm_service::{city_country_to_lat_lon, get_osm_data_for_ip_addr},
     init::state::ServerState,
     util::{geographic::ip_info_lookup::IpInfo, time::now::tokio_now},
 };
@@ -129,7 +128,6 @@ pub async fn log_middleware(
 fn header_value_to_str(value: Option<&HeaderValue>) -> Option<&str> {
     value.and_then(|v| v.to_str().ok())
 }
-
 async fn log_visitors(state: Arc<ServerState>, ip: String) {
     let start = tokio_now();
     use diesel_async::RunQueryDsl;
@@ -151,26 +149,11 @@ async fn log_visitors(state: Arc<ServerState>, ip: String) {
         }
     };
 
-    let client = state.get_request_client();
-
-    let (city, country): (String, String) =
-        match get_osm_data_for_ip_addr(ip_info.latitude, ip_info.longitude, client).await {
-            Ok(tuple) => tuple,
-            Err(e) => {
-                tracing::error!(kind = "osm_data_error", error = %e, "Failed to fetch OSM data");
-                return;
-            }
-        };
-
-    let (city_lat, city_lon): (f64, f64) = match city_country_to_lat_lon(&city, &country, client)
-        .await
-    {
-        Ok(tup) => tup,
-        Err(e) => {
-            tracing::error!(kind = "city_country_error", error = %e, "Failed to fetch city and country");
-            return;
-        }
-    };
+    // Use the already available data from IpInfo directly.
+    let city = ip_info.city.clone();
+    let country = ip_info.country_name.clone();
+    let city_lat = ip_info.latitude;
+    let city_lon = ip_info.longitude;
 
     // now toss that into the state scc cache
     // Use only the lower 8 bytes of the big-endian representation of each f64 as key
