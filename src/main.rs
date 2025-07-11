@@ -67,7 +67,17 @@ async fn main() -> anyhow::Result<()> {
     // Apparently, when you listen in from Tokio's main thread, that slows down performance due to delegation overhead as the main thread is reserved...
     let server_handle = tokio::spawn(async move { server_init_proc(start).await });
 
-    server_handle.await??;
+    match server_handle.await {
+        Ok(Ok(_)) => {}
+        Ok(Err(e)) => {
+            tracing::error!(error = ?e, "Server initialization failed (inner error)");
+            return Err(e);
+        }
+        Err(e) => {
+            tracing::error!(error = ?e, "Server task join failed");
+            return Err(anyhow::anyhow!("Server task join error: {e}"));
+        }
+    }
 
     Ok(())
 }
