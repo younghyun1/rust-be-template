@@ -34,32 +34,11 @@ pub struct RawGeoIpBundle {
 fn main() {
     // Arguments: -ipv [4|6] <geocsv> <output-bundle>
     let args: Vec<String> = std::env::args().collect();
-    if args.len() != 4 {
+    if args.len() != 5 || args[1] != "-ipv" || (args[2] != "4" && args[2] != "6") {
         eprintln!("Usage: {} -ipv [4|6] <geocsv> <output-bundle>", args[0]);
         std::process::exit(1);
     }
-    let ip_version = &args[1];
-    let input_path = &args[2];
-    let output_path = &args[3];
-    let is_ipv6 = match ip_version.as_str() {
-        "-ipv" => {
-            // Next is either 4 or 6
-            if args[2] == "6" {
-                true
-            } else if args[2] == "4" {
-                false
-            } else {
-                eprintln!("Usage: {} -ipv [4|6] <geocsv> <output-bundle>", args[0]);
-                std::process::exit(1);
-            }
-        }
-        _ => {
-            eprintln!("Usage: {} -ipv [4|6] <geocsv> <output-bundle>", args[0]);
-            std::process::exit(1);
-        }
-    };
-
-    // Shift input path/output to right indexes
+    let is_ipv6 = args[2] == "6";
     let input_path = &args[3];
     let output_path = &args[4];
 
