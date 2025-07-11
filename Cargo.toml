@@ -12,6 +12,10 @@ strip = true
 lto = true
 panic = "unwind"
 
+[[bin]]
+name = "process_ip2location_dbs"
+path = "src/util/geographic/process_ip2location_dbs.rs"
+
 [dependencies]
 # web framework
 axum = { version = "0.8.4", features = [
