@@ -7,10 +7,16 @@ use std::{
     io::{BufRead, BufReader, Write},
 };
 
+#[derive(Encode, Decode, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum IpRangeKey {
+    V4(u32),
+    V6(u128),
+}
+
 #[derive(Encode, Decode, Debug, Clone)]
 pub struct RawIpEntry {
-    start: u32,
-    end: u32,
+    start: IpRangeKey,
+    end: IpRangeKey,
     country_code: String,
     country_name: String,
     state: String,
@@ -22,18 +28,40 @@ pub struct RawIpEntry {
 
 #[derive(Encode, Decode, Debug, Clone)]
 pub struct RawGeoIpBundle {
-    entries: BTreeMap<u32, RawIpEntry>,
+    entries: BTreeMap<IpRangeKey, RawIpEntry>,
 }
 
 fn main() {
-    // Argument: txt CSV file, output: bundle
+    // Arguments: -ipv [4|6] <geocsv> <output-bundle>
     let args: Vec<String> = std::env::args().collect();
-    if args.len() != 3 {
-        eprintln!("Usage: {} <geocsv> <output-bundle>", args[0]);
+    if args.len() != 4 {
+        eprintln!("Usage: {} -ipv [4|6] <geocsv> <output-bundle>", args[0]);
         std::process::exit(1);
     }
-    let input_path = &args[1];
-    let output_path = &args[2];
+    let ip_version = &args[1];
+    let input_path = &args[2];
+    let output_path = &args[3];
+    let is_ipv6 = match ip_version.as_str() {
+        "-ipv" => {
+            // Next is either 4 or 6
+            if args[2] == "6" {
+                true
+            } else if args[2] == "4" {
+                false
+            } else {
+                eprintln!("Usage: {} -ipv [4|6] <geocsv> <output-bundle>", args[0]);
+                std::process::exit(1);
+            }
+        }
+        _ => {
+            eprintln!("Usage: {} -ipv [4|6] <geocsv> <output-bundle>", args[0]);
+            std::process::exit(1);
+        }
+    };
+
+    // Shift input path/output to right indexes
+    let input_path = &args[3];
+    let output_path = &args[4];
 
     // 1) Load CSV into RAM
     let mut raw_csv_data = Vec::new();
@@ -48,7 +76,7 @@ fn main() {
     println!("Input file size: {input_kib:.2} KiB");
 
     // Parse CSV into RawIpEntry structs
-    let mut raw_ip_map = BTreeMap::<u32, RawIpEntry>::new();
+    let mut raw_ip_map = BTreeMap::<IpRangeKey, RawIpEntry>::new();
     let reader = BufReader::new(&raw_csv_data[..]);
     for line in reader.lines() {
         let line = line.expect("read error");
@@ -77,8 +105,17 @@ fn main() {
             continue;
         }
 
-        let start = fields[0].parse::<u32>().unwrap_or(0);
-        let end = fields[1].parse::<u32>().unwrap_or(0);
+        let (start, end) = if is_ipv6 {
+            (
+                IpRangeKey::V6(fields[0].parse::<u128>().unwrap_or(0)),
+                IpRangeKey::V6(fields[1].parse::<u128>().unwrap_or(0)),
+            )
+        } else {
+            (
+                IpRangeKey::V4(fields[0].parse::<u32>().unwrap_or(0)),
+                IpRangeKey::V4(fields[1].parse::<u32>().unwrap_or(0)),
+            )
+        };
 
         let country_code_str = fields[2].to_owned();
         let country_name_str = fields[3].to_owned();
@@ -89,7 +126,7 @@ fn main() {
         let postal_str = fields[8].to_owned();
 
         let raw_entry = RawIpEntry {
-            start,
+            start: start.clone(),
             end,
             country_code: country_code_str,
             country_name: country_name_str,
@@ -112,11 +149,14 @@ fn main() {
 
     // 3) zstd 22 compress
     let mut out_file = File::create(output_path).expect("cannot open output file");
-    let mut encoder = zstd::Encoder::new(&mut out_file, 22).expect("zstd");
+    let mut encoder =
+        zstd::Encoder::new(&mut out_file, 22).expect("couldn't produce zstd encoder fsr");
     encoder.multithread(num_cpus::get() as u32).ok();
     encoder.long_distance_matching(true).ok();
-    encoder.write_all(&raw_encoded).expect("write zstd");
-    let _encoder = encoder.finish().expect("zstd finish");
+    encoder
+        .write_all(&raw_encoded)
+        .expect("write zstd exception");
+    let _encoder = encoder.finish().expect("zstd finish exception");
     let out_file_size = std::fs::metadata(output_path).map(|m| m.len()).unwrap_or(0);
     let compressed_kib = out_file_size as f64 / 1024.0;
     println!("Compressed size: {compressed_kib:.2} KiB");
