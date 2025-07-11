@@ -1,5 +1,4 @@
 5) OAuth
-6) Increased FE integration
 8) Soft deletion
 9) Profile image endpoints and S3 persistence
 11) Session map disk persistence
@@ -8,7 +7,7 @@
 16) Hot-reloading sessions upon any kind of user info alteration - email checks, and user info updates
 17) PostInfo not being utilized properly in post view. Votes, views, etc. Also have delete, edit, etc.
 17-2) hierarchal comment view (reply button, etc)
-18) Roles-based endpoint access control
+18) Roles-based endpoint access control - it's *my* blog.
 19) Forum
 20) User roles and permissions - admin interface?
 21) Pretty code formatting
@@ -17,3 +16,10 @@
 24) live text chat demo
 25) throughput demo
 26) photography section
+27) better visitor board logging - OSM is angry
+28) Source-code links for major components, especially auth
+29) code highlighting for tagged markdown blocks
+30) publish button gets obscured w. long text lol
+31) for auto-purged users, all their stuff is cascade-deleted - use 5) to keep the content around
+32) send emails out to auto-purged users
+33) 
