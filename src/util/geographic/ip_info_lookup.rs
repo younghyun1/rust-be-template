@@ -71,7 +71,13 @@ pub fn decompress_and_deserialize() -> anyhow::Result<(GeoIpDatabases, std::time
 
     // Process v4 file in its own scope to ensure cleanup
     let v4_interned = {
-        let file = File::open(Path::new("./new_bundle_ipv4.db"))?;
+        let file = match File::open(Path::new("./new_bundle_ipv4.db")) {
+            Ok(f) => f,
+            Err(e) => {
+                tracing::error!(error = ?e, "Failed to open ./new_bundle_ipv4.db");
+                return Err(e.into());
+            }
+        };
         let decompressed = decode_all(BufReader::new(file))?;
         let raw: RawGeoIpBundle = bitcode::decode(&decompressed)?;
         drop(decompressed);
@@ -98,7 +104,13 @@ pub fn decompress_and_deserialize() -> anyhow::Result<(GeoIpDatabases, std::time
 
     // Process v6 file in its own scope (v4 raw data is already dropped)
     let v6_interned = {
-        let file = File::open(Path::new("./new_bundle_ipv6.db"))?;
+        let file = match File::open(Path::new("./new_bundle_ipv6.db")) {
+            Ok(f) => f,
+            Err(e) => {
+                tracing::error!(error = ?e, "Failed to open ./new_bundle_ipv6.db");
+                return Err(e.into());
+            }
+        };
         let decompressed = decode_all(BufReader::new(file))?;
         let raw: RawGeoIpBundle = bitcode::decode(&decompressed)?;
         drop(decompressed);
