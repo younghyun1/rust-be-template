@@ -1,4 +1,4 @@
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::IpAddr;
 
 use anyhow::Result;
 use serde_derive::Deserialize;
@@ -127,11 +127,11 @@ pub async fn city_country_to_lat_lon(
 }
 
 pub async fn get_lat_lon_for_ip_addr(ip_addr: &str, state: &ServerState) -> Result<(f64, f64)> {
-    let ipv4_addr = ip_addr
-        .parse::<Ipv4Addr>()
+    let ip_addr = ip_addr
+        .parse::<IpAddr>()
         .map_err(|e| anyhow::anyhow!("Failed to parse IP address: {}", e))?;
     let ip_addr_lat_lon: IpInfo = state
-        .lookup_ip_location(IpAddr::V4(ipv4_addr))
+        .lookup_ip_location(ip_addr)
         .ok_or_else(|| anyhow::anyhow!("Could not find location for IP address"))?;
     let client = state.get_request_client();
 
