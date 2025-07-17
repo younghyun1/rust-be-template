@@ -474,7 +474,7 @@ impl ServerStateBuilder {
             deployment_environment: match std::env::var("CURR_ENV").as_deref() {
                 Ok(s) => match s.to_ascii_lowercase().as_str() {
                     // Local
-                    "local" | "localhost" | "_" => DeploymentEnvironment::Local,
+                    "local" | "localhost" => DeploymentEnvironment::Local,
                     // Dev
                     "dev" | "develop" | "development" => DeploymentEnvironment::Dev,
                     // Staging
