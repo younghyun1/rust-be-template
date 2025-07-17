@@ -101,7 +101,9 @@ pub async fn login(
     let cookie: Cookie;
 
     match state.get_deployment_environment() {
-        DeploymentEnvironment::Local => {
+        DeploymentEnvironment::Local
+        | DeploymentEnvironment::Dev
+        | DeploymentEnvironment::Staging => {
             cookie = Cookie::build(("session_id", session_id.to_string()))
                 .path("/")
                 .http_only(true)
