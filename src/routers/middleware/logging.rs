@@ -15,7 +15,7 @@ use tokio::time::Instant;
 use tracing::{Level, error, info};
 
 use crate::{
-    build_info::{AXUM_VERSION, BUILD_TIME},
+    build_info::{BUILD_TIME_UTC, LIB_VERSION_MAP, RUSTC_VERSION},
     init::state::ServerState,
     util::{geographic::ip_info_lookup::IpInfo, time::now::tokio_now},
 };
@@ -82,11 +82,25 @@ pub async fn log_middleware(
         let duration = start.elapsed();
         let headers = response.headers_mut();
 
-        headers.insert("x-server-built-time", HeaderValue::from_static(BUILD_TIME));
-        headers.insert("x-server-name", HeaderValue::from_static(AXUM_VERSION));
+        headers.insert(
+            "x-server-built-time",
+            HeaderValue::from_static(BUILD_TIME_UTC),
+        );
+        headers.insert(
+            "x-server-name",
+            match LIB_VERSION_MAP.get("axum") {
+                Some(libversion) => HeaderValue::from_str(&format!(
+                    "{}{}",
+                    libversion.get_name(),
+                    libversion.get_version()
+                ))
+                .unwrap_or_else(|_| HeaderValue::from_static("unknown")),
+                None => HeaderValue::from_static("unknown"),
+            },
+        );
         headers.insert(
             "x-server-rust-version",
-            HeaderValue::from_static(crate::build_info::RUST_VERSION),
+            HeaderValue::from_static(RUSTC_VERSION),
         );
 
         tracing::info!(kind = %"RESP", method = %method, path = %path, client_ip = ?client_ip, duration = ?duration);
@@ -122,11 +136,25 @@ pub async fn log_middleware(
         headers.remove("x-error-message");
         headers.remove("x-error-detail");
 
-        headers.insert("x-server-built-time", HeaderValue::from_static(BUILD_TIME));
-        headers.insert("x-server-name", HeaderValue::from_static(AXUM_VERSION));
+        headers.insert(
+            "x-server-built-time",
+            HeaderValue::from_static(BUILD_TIME_UTC),
+        );
+        headers.insert(
+            "x-server-name",
+            match LIB_VERSION_MAP.get("axum") {
+                Some(libversion) => HeaderValue::from_str(&format!(
+                    "{} {}",
+                    libversion.get_name(),
+                    libversion.get_version()
+                ))
+                .unwrap_or_else(|_| HeaderValue::from_static("unknown")),
+                None => HeaderValue::from_static("unknown"),
+            },
+        );
         headers.insert(
             "x-server-rust-version",
-            HeaderValue::from_static(crate::build_info::RUST_VERSION),
+            HeaderValue::from_static(RUSTC_VERSION),
         );
     }
 
