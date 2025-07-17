@@ -87,3 +87,6 @@ deploy.sh
 
 *.CSV
 *.csv
+
+# geo-ip dbs
+*.db
