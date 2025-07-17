@@ -45,6 +45,17 @@ pub struct IpEntry {
     pub longitude: f64,
 }
 
+impl IpEntry {
+    fn contains_ip(&self, ip: IpAddr) -> bool {
+        match (ip, &self.end) {
+            (IpAddr::V4(addr), IpRangeKey::V4(end)) => u32::from(addr) <= *end,
+            (IpAddr::V6(addr), IpRangeKey::V6(end)) => u128::from(addr) <= *end,
+            // Mismatched IP versions can't be in the range.
+            _ => false,
+        }
+    }
+}
+
 /// unchanged public lookup result
 #[derive(serde::Serialize, Clone)]
 pub struct IpInfo {
@@ -82,9 +93,7 @@ pub fn decompress_and_deserialize() -> anyhow::Result<(GeoIpDatabases, std::time
         let raw: RawGeoIpBundle = bitcode::decode(&decompressed)?;
         drop(decompressed);
 
-        
-        raw
-            .entries
+        raw.entries
             .into_iter()
             .map(|(k, raw)| {
                 let ie = IpEntry {
@@ -115,9 +124,7 @@ pub fn decompress_and_deserialize() -> anyhow::Result<(GeoIpDatabases, std::time
         let raw: RawGeoIpBundle = bitcode::decode(&decompressed)?;
         drop(decompressed);
 
-        
-        raw
-            .entries
+        raw.entries
             .into_iter()
             .map(|(k, raw)| {
                 let ie = IpEntry {
@@ -143,45 +150,27 @@ pub fn decompress_and_deserialize() -> anyhow::Result<(GeoIpDatabases, std::time
 }
 
 pub fn lookup_ip_location_from_map(geo: &GeoIpDatabases, ip: IpAddr) -> Option<IpInfo> {
-    match ip {
+    let candidate = match ip {
         IpAddr::V4(addr) => {
-            let x = u32::from(addr);
-            for (start_key, entry) in geo.v4.range(IpRangeKey::V4(0)..=IpRangeKey::V4(x)).rev() {
-                if let (IpRangeKey::V4(s), IpRangeKey::V4(e)) = (start_key, &entry.end) {
-                    if *s <= x && x <= *e {
-                        return Some(IpInfo {
-                            ip,
-                            country_code: entry.country_code.to_string(),
-                            country_name: entry.country_name.to_string(),
-                            state: entry.state.to_string(),
-                            city: entry.city.to_string(),
-                            postal: entry.postal.to_string(),
-                            latitude: entry.latitude,
-                            longitude: entry.longitude,
-                        });
-                    }
-                }
-            }
+            let key = IpRangeKey::V4(addr.into());
+            geo.v4.range(..=key).next_back()
         }
         IpAddr::V6(addr) => {
-            let x = u128::from(addr);
-            for (start_key, entry) in geo.v6.range(IpRangeKey::V6(0)..=IpRangeKey::V6(x)).rev() {
-                if let (IpRangeKey::V6(s), IpRangeKey::V6(e)) = (start_key, &entry.end) {
-                    if *s <= x && x <= *e {
-                        return Some(IpInfo {
-                            ip,
-                            country_code: entry.country_code.to_string(),
-                            country_name: entry.country_name.to_string(),
-                            state: entry.state.to_string(),
-                            city: entry.city.to_string(),
-                            postal: entry.postal.to_string(),
-                            latitude: entry.latitude,
-                            longitude: entry.longitude,
-                        });
-                    }
-                }
-            }
+            let key = IpRangeKey::V6(addr.into());
+            geo.v6.range(..=key).next_back()
         }
-    }
-    None
+    };
+
+    candidate
+        .filter(|(_start_key, entry)| entry.contains_ip(ip))
+        .map(|(_start_key, entry)| IpInfo {
+            ip,
+            country_code: entry.country_code.to_string(),
+            country_name: entry.country_name.to_string(),
+            state: entry.state.to_string(),
+            city: entry.city.to_string(),
+            postal: entry.postal.to_string(),
+            latitude: entry.latitude,
+            longitude: entry.longitude,
+        })
 }
