@@ -24,11 +24,11 @@ use crate::{
 macro_rules! log_codeerror {
     ($level:expr_2021, $kind:expr_2021, response.method = $method:expr_2021, response.path = $path:expr_2021, response.client_ip = $client_ip:expr_2021, response.status = $status:expr_2021, response.status_code = $status_code:expr_2021, response.duration = $duration:expr_2021, response.error_code = $error_code:expr_2021, response.message = $message:expr_2021, response.detail = $detail:expr_2021) => {
         match $level {
-            Level::ERROR => tracing::error!(kind = %$kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
-            Level::WARN => tracing::warn!(kind = %$kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
-            Level::INFO => tracing::info!(kind = %$kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
-            Level::DEBUG => tracing::debug!(kind = %$kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
-            Level::TRACE => tracing::trace!(kind = %$kind, method = %$method, path = %$path, client_ip = %$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
+            Level::ERROR => tracing::error!(kind = %$kind, method = %$method, path = %$path, client_ip = ?$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
+            Level::WARN => tracing::warn!(kind = %$kind, method = %$method, path = %$path, client_ip = ?$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
+            Level::INFO => tracing::info!(kind = %$kind, method = %$method, path = %$path, client_ip = ?$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
+            Level::DEBUG => tracing::debug!(kind = %$kind, method = %$method, path = %$path, client_ip = ?$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
+            Level::TRACE => tracing::trace!(kind = %$kind, method = %$method, path = %$path, client_ip = ?$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
         }
     };
 }
@@ -56,6 +56,14 @@ pub async fn log_middleware(
         None => info.to_string(),
     };
 
+    let client_ip: Option<IpAddr> = match client_ip.parse() {
+        Ok(ip) => Some(ip),
+        Err(e) => {
+            error!(error=?e, client_ip, "Could not parse IP address into IpAddr");
+            None
+        }
+    };
+
     if std::env::var("CURR_ENV")
         .ok()
         .as_deref()
@@ -65,7 +73,7 @@ pub async fn log_middleware(
         tokio::spawn(log_visitors(state.clone(), client_ip.clone()));
     }
 
-    tracing::info!(kind = %"RECV", method = %method, path = %path, client_ip = %client_ip);
+    tracing::info!(kind = %"RECV", method = %method, path = %path, client_ip = ?client_ip);
     request.extensions_mut().insert(now);
 
     let mut response = next.run(request).await;
@@ -81,7 +89,7 @@ pub async fn log_middleware(
             HeaderValue::from_static(crate::build_info::RUST_VERSION),
         );
 
-        tracing::info!(kind = %"RESP", method = %method, path = %path, client_ip = %client_ip, duration = ?duration);
+        tracing::info!(kind = %"RESP", method = %method, path = %path, client_ip = ?client_ip, duration = ?duration);
     } else {
         // Use lowercase header keys for consistency and use empty strings if headers are not present
         let headers = response.headers_mut();
@@ -128,20 +136,21 @@ pub async fn log_middleware(
 fn header_value_to_str(value: Option<&HeaderValue>) -> Option<&str> {
     value.and_then(|v| v.to_str().ok())
 }
-async fn log_visitors(state: Arc<ServerState>, ip: String) {
+
+async fn log_visitors(state: Arc<ServerState>, inp_ip: Option<IpAddr>) {
     let start = tokio_now();
     use diesel_async::RunQueryDsl;
 
-    let ip_str = ip.split(':').next().unwrap_or(&ip);
-    let ipv4_addr: std::net::Ipv4Addr = match ip_str.parse::<std::net::Ipv4Addr>() {
-        Ok(addr) => addr,
-        Err(e) => {
-            tracing::error!(kind = "parse_ip_error", ip = %ip, error = %e, "Failed to parse IP to Ipv4Addr");
+    let ip: IpAddr;
+    match inp_ip {
+        Some(inp_ip) => {
+            ip = inp_ip;
+        }
+        None => {
             return;
         }
-    };
-
-    let ip_info: IpInfo = match state.lookup_ip_location(IpAddr::V4(ipv4_addr)) {
+    }
+    let ip_info: IpInfo = match state.lookup_ip_location(ip) {
         Some(info) => info,
         None => {
             tracing::error!(kind = "ip_lookup_fail", ip = %ip, "Failed to look up IP location");
@@ -189,7 +198,7 @@ async fn log_visitors(state: Arc<ServerState>, ip: String) {
     let new_row = (
         visitation_data::latitude.eq(city_lat),
         visitation_data::longitude.eq(city_lon),
-        visitation_data::ip_address.eq(ipnet::IpNet::from(IpAddr::V4(ipv4_addr))),
+        visitation_data::ip_address.eq(ipnet::IpNet::from(ip)),
         visitation_data::city.eq(city.clone()),
         visitation_data::country.eq(country.clone()),
         visitation_data::visited_at.eq(visited_at),

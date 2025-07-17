@@ -34,6 +34,7 @@ async fn main() -> anyhow::Result<()> {
         dotenvy::dotenv().map_err(|e| anyhow::anyhow!("Failed to load .env: {}", e))?;
     }
 
+    // TODO: replace with a more refined build.rs constant
     let app_name_version = std::env::var("APP_NAME_VERSION")
         .map_err(|e| anyhow::anyhow!("Failed to get APP_NAME_VERSION: {}", e))?;
 
