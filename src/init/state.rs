@@ -37,6 +37,8 @@ const DEFAULT_SESSION_DURATION: chrono::Duration = chrono::Duration::hours(1);
 #[derive(Copy, Clone)]
 pub enum DeploymentEnvironment {
     Local,
+    Dev,
+    Staging,
     Prod,
 }
 
@@ -470,8 +472,19 @@ impl ServerStateBuilder {
             currency_map: RwLock::new(IsoCurrencyTable::new_empty()),
             i18n_cache: RwLock::new(I18nCache::new()),
             deployment_environment: match std::env::var("CURR_ENV").as_deref() {
-                Ok("local") | Ok("LOCAL") => DeploymentEnvironment::Local,
-                _ => DeploymentEnvironment::Prod,
+                Ok(s) => match s.to_ascii_lowercase().as_str() {
+                    // Local
+                    "local" | "localhost" | "_" => DeploymentEnvironment::Local,
+                    // Dev
+                    "dev" | "develop" | "development" => DeploymentEnvironment::Dev,
+                    // Staging
+                    "staging" | "stage" | "stg" => DeploymentEnvironment::Staging,
+                    // Prod
+                    "prd" | "prod" | "production" => DeploymentEnvironment::Prod,
+                    // Default fallback: push _ to Local
+                    _ => DeploymentEnvironment::Local,
+                },
+                Err(_) => DeploymentEnvironment::Prod,
             },
             request_client: reqwest::Client::builder()
                 .user_agent("cyhdev.com")
