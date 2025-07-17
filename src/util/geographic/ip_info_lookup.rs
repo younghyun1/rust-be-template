@@ -142,8 +142,6 @@ pub fn decompress_and_deserialize() -> anyhow::Result<(GeoIpDatabases, std::time
     Ok((dbs, start.elapsed()))
 }
 
-/// exactly the same logic, but now you pass *any* IpAddr
-/// and we stash the interned strings in IpEntry and only clone‐to‐String on hit.
 pub fn lookup_ip_location_from_map(geo: &GeoIpDatabases, ip: IpAddr) -> Option<IpInfo> {
     match ip {
         IpAddr::V4(addr) => {
