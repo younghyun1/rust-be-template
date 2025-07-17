@@ -70,7 +70,7 @@ pub async fn log_middleware(
         .map(|v| v.trim().to_lowercase() == "prd")
         .unwrap_or(false)
     {
-        tokio::spawn(log_visitors(state.clone(), client_ip.clone()));
+        tokio::spawn(log_visitors(state.clone(), client_ip));
     }
 
     tracing::info!(kind = %"RECV", method = %method, path = %path, client_ip = ?client_ip);

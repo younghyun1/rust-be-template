@@ -82,7 +82,8 @@ pub fn decompress_and_deserialize() -> anyhow::Result<(GeoIpDatabases, std::time
         let raw: RawGeoIpBundle = bitcode::decode(&decompressed)?;
         drop(decompressed);
 
-        let interned = raw
+        
+        raw
             .entries
             .into_iter()
             .map(|(k, raw)| {
@@ -98,8 +99,7 @@ pub fn decompress_and_deserialize() -> anyhow::Result<(GeoIpDatabases, std::time
                 };
                 (k, ie)
             })
-            .collect();
-        interned
+            .collect()
     };
 
     // Process v6 file in its own scope (v4 raw data is already dropped)
@@ -115,7 +115,8 @@ pub fn decompress_and_deserialize() -> anyhow::Result<(GeoIpDatabases, std::time
         let raw: RawGeoIpBundle = bitcode::decode(&decompressed)?;
         drop(decompressed);
 
-        let interned = raw
+        
+        raw
             .entries
             .into_iter()
             .map(|(k, raw)| {
@@ -131,8 +132,7 @@ pub fn decompress_and_deserialize() -> anyhow::Result<(GeoIpDatabases, std::time
                 };
                 (k, ie)
             })
-            .collect();
-        interned
+            .collect()
     };
 
     let dbs = GeoIpDatabases {
