@@ -16,7 +16,7 @@ use tracing::{Level, error, info};
 
 use crate::{
     build_info::{BUILD_TIME_UTC, LIB_VERSION_MAP, RUSTC_VERSION},
-    init::state::ServerState,
+    init::state::{DeploymentEnvironment, ServerState},
     util::{geographic::ip_info_lookup::IpInfo, time::now::tokio_now},
 };
 
@@ -47,32 +47,36 @@ pub async fn log_middleware(
     let method = request.method().clone();
     let path = request.uri().path().to_owned();
 
-    let client_ip: String = match request
+    let client_ip_str: String = match request
         .headers()
         .get("x-forwarded-for")
         .and_then(|value| value.to_str().ok())
     {
         Some(val) => val.to_owned(),
-        None => info.to_string(),
+        None => info.ip().to_string(),
     };
 
-    let client_ip: Option<IpAddr> = match client_ip.parse() {
+    let client_ip: Option<IpAddr> = match client_ip_str.parse() {
         Ok(ip) => Some(ip),
         Err(e) => {
-            error!(error=?e, client_ip, "Could not parse IP address into IpAddr");
+            error!(
+                error = ?e,
+                client_ip = %client_ip_str,
+                "Could not parse IP address into IpAddr"
+            );
             None
         }
     };
 
-    if std::env::var("CURR_ENV")
-        .ok()
-        .as_deref()
-        .map(|v| v.trim().to_lowercase() == "prd")
-        .unwrap_or(false)
-    {
-        tokio::spawn(log_visitors(state.clone(), client_ip));
+    match state.get_deployment_environment() {
+        DeploymentEnvironment::Local
+        | DeploymentEnvironment::Staging
+        | DeploymentEnvironment::Dev => (),
+        DeploymentEnvironment::Prod => {
+            tokio::spawn(log_visitors(state.clone(), client_ip));
+        }
     }
-
+    
     tracing::info!(kind = %"RECV", method = %method, path = %path, client_ip = ?client_ip);
     request.extensions_mut().insert(now);
 
