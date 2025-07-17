@@ -1,4 +1,5 @@
 pub mod check_if_user_exists;
+pub mod delete_account;
 pub mod login;
 pub mod logout;
 pub mod me;
