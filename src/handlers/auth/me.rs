@@ -7,7 +7,7 @@ use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 
 use crate::{
-    build_info::{AXUM_VERSION, BUILD_TIME},
+    build_info::{BUILD_TIME_UTC, LIB_VERSION_MAP},
     domain::user::{UserInfo, UserProfilePicture},
     dto::responses::{auth::me_response::MeResponse, response_data::http_resp},
     errors::code_error::{CodeError, HandlerResponse, code_err},
@@ -52,23 +52,35 @@ pub async fn me_handler(
 
         drop(conn);
 
+        let axum_version: Option<&crate::build_info::LibVersion> = LIB_VERSION_MAP.get("axum");
+        let axum_version = match axum_version {
+            Some(lib) => [lib.get_name(), lib.get_version()].concat(),
+            None => String::from("Unknown"),
+        };
+
         Ok(http_resp(
             MeResponse {
                 user_info,
                 user_profile_picture,
-                build_time: BUILD_TIME,
-                axum_version: AXUM_VERSION,
+                build_time: BUILD_TIME_UTC,
+                axum_version: axum_version,
             },
             (),
             start,
         ))
     } else {
+        let axum_version: Option<&crate::build_info::LibVersion> = LIB_VERSION_MAP.get("axum");
+        let axum_version = match axum_version {
+            Some(lib) => [lib.get_name(), lib.get_version()].concat(),
+            None => String::from("Unknown"),
+        };
+
         Ok(http_resp(
             MeResponse {
                 user_info: None,
                 user_profile_picture: None,
-                build_time: BUILD_TIME,
-                axum_version: AXUM_VERSION,
+                build_time: BUILD_TIME_UTC,
+                axum_version: axum_version,
             },
             (),
             start,
