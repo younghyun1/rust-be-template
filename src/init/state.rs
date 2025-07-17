@@ -1,6 +1,5 @@
 use std::collections::VecDeque;
 use std::net::IpAddr;
-
 use std::sync::atomic::AtomicU64;
 
 use chrono::Utc;
@@ -26,10 +25,7 @@ use crate::util::geographic::ip_info_lookup::{
     GeoIpDatabases, IpInfo, decompress_and_deserialize, lookup_ip_location_from_map,
 };
 use crate::util::time::now::tokio_now;
-
 use super::load_cache::post_info::load_post_info;
-
-// use super::compile_regex::get_email_regex;
 
 const DEFAULT_SESSION_DURATION: chrono::Duration = chrono::Duration::hours(1);
 

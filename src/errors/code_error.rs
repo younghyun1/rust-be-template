@@ -298,6 +298,13 @@ impl CodeError {
         message: "Could not sync i18n cache!",
         log_level: Level::ERROR,
     };
+    pub const COULD_NOT_RUN_FASTFETCH: CodeError = CodeError {
+        success: false,
+        error_code: 40,
+        http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
+        message: "Could not run fastfetch!",
+        log_level: Level::ERROR,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
