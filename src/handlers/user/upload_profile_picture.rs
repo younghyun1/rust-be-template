@@ -17,7 +17,9 @@ use crate::{
     util::{
         image::{
             map_image_format_to_db_enum::map_image_format_to_str,
-            process_uploaded_images::{IMAGE_ENCODING_FORMAT, process_uploaded_image},
+            process_uploaded_images::{
+                CyhdevImageType, IMAGE_ENCODING_FORMAT, process_uploaded_image,
+            },
         },
         time::now::tokio_now,
     },
@@ -42,6 +44,8 @@ const ALLOWED_MIME_TYPES: [&str; 16] = [
     "image/qoi",                // QOI
     "image/vnd.zbrush.pcx",     // PCX
 ];
+
+const AWS_S3_BUCKET_NAME: &str = "cyhdev-img";
 
 // TODO: STREAM to file, don't keep the whole damn thing around
 pub async fn upload_profile_picture(
@@ -100,24 +104,20 @@ pub async fn upload_profile_picture(
     }
 
     // compress and process image here in a blocking thread
-    let processed_image = process_uploaded_image(uploaded_file, None)
-        .await
-        .map_err(|e| code_err(CodeError::COULD_NOT_PROCESS_IMAGE, e))?;
+    let processed_image: Vec<u8> =
+        process_uploaded_image(uploaded_file, None, CyhdevImageType::ProfilePicture)
+            .await
+            .map_err(|e| code_err(CodeError::COULD_NOT_PROCESS_IMAGE, e))?;
 
     // store in filesystem or S3
     let image_id: Uuid = uuid::Uuid::new_v4();
     let (extension, image_type_db_id) = map_image_format_to_str(IMAGE_ENCODING_FORMAT);
 
-    tokio::fs::create_dir_all("images")
-        .await
-        .map_err(|e| code_err(CodeError::COULD_NOT_CREATE_DIRECTORY, e))?;
-
     let image_path = format!("images/{image_id}.{extension}");
 
-    tokio::fs::write(&image_path, processed_image)
-        .await
-        .map_err(|e| code_err(CodeError::COULD_NOT_WRITE_FILE, e))?;
-
+    // upload to S3 here
+    
+    
     let mut conn = state
         .get_conn()
         .await

@@ -1,6 +1,16 @@
 5) OAuth
 8) Soft deletion
 9) Profile image endpoints and S3 persistence
+    - provide a FE menu for Edit Profile
+        - Integrate to top bar
+        - Prepare BE API and req/resp type
+        - debug
+    - have a Profile Picture Upload button
+    - multipart upload to profile picture endpoint
+    - process to WebP
+    - toss to S3
+    - update user_profile_picture row
+    - resp. w. data
 11) Session map disk persistence
 14) Global host system ticker
 15) Increased Session scope - roles, etc

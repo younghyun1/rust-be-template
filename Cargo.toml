@@ -64,12 +64,12 @@ anyhow = "1.0.98"
 
 # system information
 num_cpus = "1.17.0"
-sysinfo = "0.36.0"
+sysinfo = "0.36.1"
 
 # serialization/deserialization
 serde = "1.0.219"
 serde_derive = "1.0.219"
-serde_json = { version = "1.0.140", features = ["preserve_order"] }
+serde_json = { version = "1.0.141", features = ["preserve_order"] }
 bitcode = "0.6.6"
 
 # types
@@ -133,6 +133,9 @@ mime_guess = "2.0.5"
 # internment
 internment = "0.8.6"
 
+# aws
+aws-sdk-s3 = { version = "1.98.0", features = ["behavior-version-latest"] }
+
 [build-dependencies]
 chrono = { version = "0.4.41" }
-serde_json = { version = "1.0.140", features = ["preserve_order"] }
+serde_json = { version = "1.0.141", features = ["preserve_order"] }
