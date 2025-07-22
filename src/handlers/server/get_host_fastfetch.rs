@@ -10,7 +10,7 @@ use crate::{
 };
 
 pub async fn get_host_fastfetch(
-    State(state): State<Arc<ServerState>>,
+    State(_state): State<Arc<ServerState>>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
