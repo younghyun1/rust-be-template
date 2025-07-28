@@ -83,6 +83,7 @@ async fn static_asset_handler(uri: Uri) -> impl IntoResponse {
         )
             .into_response();
     }
+    
 
     // 3. If no direct asset is found, handle SPA fallback to index.html
     // This handles client-side routes like `/login` or `/dashboard`
