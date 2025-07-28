@@ -52,7 +52,7 @@ diesel-async = { version = "0.6.1", features = ["bb8", "postgres"] }
 dotenvy = "0.15.7"
 
 # async runtime
-tokio = { version = "1.46.1", features = ["full"] }
+tokio = { version = "1.47.0", features = ["full"] }
 
 # loggers
 tracing = { version = "0.1.41", features = ["std"] }
@@ -100,7 +100,7 @@ zeroize = { version = "1.8.1", features = ["derive"] }
 mimalloc = "0.1.47"
 
 # email
-lettre = { version = "0.11.17", default-features = false, features = [
+lettre = { version = "0.11.18", default-features = false, features = [
     "builder",
     "hostname",
     "pool",
@@ -121,7 +121,7 @@ bigdecimal = { version = "0.4.8", features = ["serde"] }
 image = "0.25.6"
 
 # markdown
-comrak = { version = "0.39.1", features = ["emojis", "shortcodes"] }
+comrak = { version = "0.40.0", features = ["emojis", "shortcodes"] }
 
 # request to external
 reqwest = { version = "0.12.22", features = ["rustls-tls", "gzip"] }
@@ -134,7 +134,7 @@ mime_guess = "2.0.5"
 internment = "0.8.6"
 
 # aws
-aws-sdk-s3 = { version = "1.98.0", features = ["behavior-version-latest"] }
+aws-sdk-s3 = { version = "1.100.0", features = ["behavior-version-latest"] }
 
 [build-dependencies]
 chrono = { version = "0.4.41" }
