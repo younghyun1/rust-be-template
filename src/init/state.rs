@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::net::IpAddr;
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicBool, AtomicU64};
 
 use chrono::Utc;
 use diesel::QueryDsl;
@@ -12,6 +12,7 @@ use tokio::sync::RwLock;
 use tracing::{error, info};
 use uuid::Uuid;
 
+use super::load_cache::post_info::load_post_info;
 use crate::domain::blog::blog::PostInfo;
 use crate::domain::country::{
     CountryAndSubdivisionsTable, IsoCountry, IsoCountrySubdivision, IsoCurrency, IsoCurrencyTable,
@@ -25,7 +26,6 @@ use crate::util::geographic::ip_info_lookup::{
     GeoIpDatabases, IpInfo, decompress_and_deserialize, lookup_ip_location_from_map,
 };
 use crate::util::time::now::tokio_now;
-use super::load_cache::post_info::load_post_info;
 
 const DEFAULT_SESSION_DURATION: chrono::Duration = chrono::Duration::hours(1);
 
@@ -102,6 +102,8 @@ pub struct ServerState {
     deployment_environment: DeploymentEnvironment,
     request_client: reqwest::Client,
     pub system_info_state: RwLock<SystemInfoState>,
+    pub fastfetch_cache: RwLock<Option<String>>,
+    pub fastfetch_cache_exists: AtomicBool,
 }
 
 impl ServerState {
@@ -487,6 +489,8 @@ impl ServerStateBuilder {
                 .build()?,
             visitor_board_map: scc::HashMap::new(),
             system_info_state: RwLock::new(SystemInfoState::new()),
+            fastfetch_cache: RwLock::new(None),
+            fastfetch_cache_exists: AtomicBool::new(false),
         })
     }
 }

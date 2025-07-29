@@ -76,7 +76,7 @@ pub async fn log_middleware(
             tokio::spawn(log_visitors(state.clone(), client_ip));
         }
     }
-    
+
     tracing::info!(kind = %"RECV", method = %method, path = %path, client_ip = ?client_ip);
     request.extensions_mut().insert(now);
 

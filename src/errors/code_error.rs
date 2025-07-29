@@ -305,6 +305,13 @@ impl CodeError {
         message: "Could not run fastfetch!",
         log_level: Level::ERROR,
     };
+    pub const ANSI_TO_HTML_FAILED: CodeError = CodeError {
+        success: false,
+        error_code: 41,
+        http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
+        message: "Failed to convert ANSI to HTML!",
+        log_level: Level::ERROR,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {

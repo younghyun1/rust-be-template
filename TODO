@@ -34,4 +34,4 @@
 32) send emails out to auto-purged users
 33) improved client IP capturing - ConnectInfo(addr), not x-forwarded-for
 34) global in-RAM response cache for authentication non-required endpoint
-35)
+35) fix CORS

@@ -26,7 +26,8 @@ pub async fn get_country(
         .ok_or("No country found by ID!")
         .map_err(|e| code_err(CodeError::COUNTRY_NOT_FOUND, e))?;
 
-    let country_and_subdivisions = country_map_lock.rows[country_id].clone();
+    let country_and_subdivisions: crate::domain::country::CountryAndSubdivisions =
+        country_map_lock.rows[country_id].clone();
 
     drop(country_map_lock);
 

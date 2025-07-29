@@ -33,7 +33,8 @@ use crate::{
         },
         i18n::get_country_language_bundle::get_country_language_bundle,
         server::{
-            healthcheck::healthcheck, lookup_ip_loc::lookup_ip_location, root::root_handler,
+            get_host_fastfetch::get_host_fastfetch, healthcheck::healthcheck,
+            lookup_ip_loc::lookup_ip_location, root::root_handler,
             visitor_board::get_visitor_board_entries,
         },
         user::upload_profile_picture::upload_profile_picture,
@@ -83,7 +84,6 @@ async fn static_asset_handler(uri: Uri) -> impl IntoResponse {
         )
             .into_response();
     }
-    
 
     // 3. If no direct asset is found, handle SPA fallback to index.html
     // This handles client-side routes like `/login` or `/dashboard`
@@ -109,7 +109,44 @@ async fn static_asset_handler(uri: Uri) -> impl IntoResponse {
     }
 
     // 4. If nothing is found, return an error
-    (StatusCode::NOT_FOUND, "Not Found").into_response()
+    (
+        StatusCode::NOT_FOUND,
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>404 Not Found</title>
+  <style>
+    body {
+      background: #111;
+      color: #eee;
+      font-family: system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      flex-direction: column;
+    }
+    h1 {
+      font-size: 3em;
+      margin-bottom: 0.2em;
+    }
+    p {
+      font-size: 1.5em;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <h1>🚫 404: Not Found</h1>
+  <p>Sorry, the page you requested is not here.</p>
+</body>
+</html>
+"#,
+    )
+        .into_response()
 }
 
 pub fn build_router(state: Arc<ServerState>) -> axum::Router {
@@ -124,6 +161,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let public_router = Router::new()
         .route("/api/healthcheck/server", get(healthcheck))
         .route("/api/healthcheck/state", get(root_handler))
+        .route("/api/healthcheck/fastfetch", get(get_host_fastfetch))
         .route("/ws/host-stats", get(ws_host_stats_handler))
         .route("/api/dropdown/language", get(get_languages))
         .route("/api/dropdown/language/{language_id}", get(get_language))

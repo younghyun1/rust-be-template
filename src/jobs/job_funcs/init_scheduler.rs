@@ -8,8 +8,11 @@ use crate::{
         auth::{
             invalidate_sessions::invalidate_sessions,
             purge_nonverified_users::purge_nonverified_users,
+            update_fastfetch_cache::update_fastfetch_cache,
         },
-        job_funcs::every_hour::schedule_task_every_hour_at,
+        job_funcs::{
+            every_hour::schedule_task_every_hour_at, every_minute::schedule_task_every_minute_at,
+        },
     },
 };
 
@@ -40,6 +43,20 @@ pub async fn task_init(state: Arc<ServerState>) -> anyhow::Result<()> {
             String::from("PURGE_NONVERIFIED_USERS"),
             15, // minutes
             00, // seconds
+        )
+        .await
+    });
+
+    let coroutine_state = Arc::clone(&state);
+    tokio::spawn(async move {
+        schedule_task_every_minute_at(
+            coroutine_state,
+            move |coroutine_state: Arc<ServerState>| async move {
+                update_fastfetch_cache(coroutine_state).await
+            },
+            String::from("UPDATE_FASTFETCH_CACHE"),
+            20,
+            20,
         )
         .await
     });

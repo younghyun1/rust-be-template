@@ -45,7 +45,7 @@ const ALLOWED_MIME_TYPES: [&str; 16] = [
     "image/vnd.zbrush.pcx",     // PCX
 ];
 
-const AWS_S3_BUCKET_NAME: &str = "cyhdev-img";
+const _AWS_S3_BUCKET_NAME: &str = "cyhdev-img";
 
 // TODO: STREAM to file, don't keep the whole damn thing around
 pub async fn upload_profile_picture(
@@ -104,7 +104,7 @@ pub async fn upload_profile_picture(
     }
 
     // compress and process image here in a blocking thread
-    let processed_image: Vec<u8> =
+    let _processed_image: Vec<u8> =
         process_uploaded_image(uploaded_file, None, CyhdevImageType::ProfilePicture)
             .await
             .map_err(|e| code_err(CodeError::COULD_NOT_PROCESS_IMAGE, e))?;
@@ -116,8 +116,7 @@ pub async fn upload_profile_picture(
     let image_path = format!("images/{image_id}.{extension}");
 
     // upload to S3 here
-    
-    
+
     let mut conn = state
         .get_conn()
         .await

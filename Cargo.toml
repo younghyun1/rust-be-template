@@ -135,6 +135,7 @@ internment = "0.8.6"
 
 # aws
 aws-sdk-s3 = { version = "1.100.0", features = ["behavior-version-latest"] }
+ansi-to-html = "0.2.2"
 
 [build-dependencies]
 chrono = { version = "0.4.41" }
