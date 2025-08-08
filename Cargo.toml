@@ -52,7 +52,7 @@ diesel-async = { version = "0.6.1", features = ["bb8", "postgres"] }
 dotenvy = "0.15.7"
 
 # async runtime
-tokio = { version = "1.47.0", features = ["full"] }
+tokio = { version = "1.47.1", features = ["full"] }
 
 # loggers
 tracing = { version = "0.1.41", features = ["std"] }
@@ -69,7 +69,7 @@ sysinfo = "0.36.1"
 # serialization/deserialization
 serde = "1.0.219"
 serde_derive = "1.0.219"
-serde_json = { version = "1.0.141", features = ["preserve_order"] }
+serde_json = { version = "1.0.142", features = ["preserve_order"] }
 bitcode = "0.6.6"
 
 # types
@@ -93,7 +93,7 @@ email_address = "0.2.9"
 argon2 = "0.5.3"
 rand = "0.9"
 rand_08 = { package = "rand", version = "0.8.5" }
-rustls = { version = "0.23.29", features = [] }
+rustls = { version = "0.23.31", features = [] }
 zeroize = { version = "1.8.1", features = ["derive"] }
 
 # memory allocator
@@ -134,8 +134,8 @@ mime_guess = "2.0.5"
 internment = "0.8.6"
 
 # aws
-aws-sdk-s3 = { version = "1.100.0", features = ["behavior-version-latest"] }
+aws-sdk-s3 = { version = "1.101.0", features = ["behavior-version-latest"] }
 
 [build-dependencies]
 chrono = { version = "0.4.41" }
-serde_json = { version = "1.0.141", features = ["preserve_order"] }
+serde_json = { version = "1.0.142", features = ["preserve_order"] }
