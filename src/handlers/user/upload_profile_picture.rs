@@ -55,7 +55,7 @@ pub async fn upload_profile_picture(
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
     let mut uploaded_file: Vec<u8> = Vec::with_capacity(MAX_SIZE_OF_UPLOADABLE_PROFILE_PICTURE);
-    let mut mime: String;
+    let mut mime: Option<String> = None;
     let mut _extension: String = String::new();
 
     // Process the multipart fields
@@ -75,16 +75,22 @@ pub async fn upload_profile_picture(
                         "No extensions, that's illegal!",
                     )
                 })?;
-            mime = field
-                .content_type()
-                .map(|mime| mime.to_string())
-                .ok_or_else(|| {
-                    code_err(
-                        CodeError::FILE_UPLOAD_ERROR,
-                        "No MIME extensions, that's illegal!",
-                    )
-                })?;
-            if !ALLOWED_MIME_TYPES.contains(&mime.as_ref()) {
+            mime = Some(
+                field
+                    .content_type()
+                    .map(|mime| mime.to_string())
+                    .ok_or_else(|| {
+                        code_err(
+                            CodeError::FILE_UPLOAD_ERROR,
+                            "No MIME extensions, that's illegal!",
+                        )
+                    })?,
+            );
+            if !mime
+                .as_ref()
+                .map(|m| ALLOWED_MIME_TYPES.contains(&m.as_str()))
+                .unwrap_or(false)
+            {
                 return Err(code_err(
                     CodeError::FILE_UPLOAD_ERROR,
                     "Unsupported image type; no PSDs!",
@@ -116,8 +122,32 @@ pub async fn upload_profile_picture(
     let image_path = format!("images/{image_id}.{extension}");
 
     // upload to S3 here
-    
-    
+    // Initialize AWS S3 client from environment and upload the image
+    let s3_client = aws_sdk_s3::Client::new(&state.aws_profile_picture_config);
+
+    s3_client
+        .put_object()
+        .bucket(AWS_S3_BUCKET_NAME)
+        .key(&image_path)
+        .content_type(mime.as_deref().unwrap_or("application/octet-stream"))
+        .body(aws_sdk_s3::primitives::ByteStream::from(processed_image))
+        .send()
+        .await
+        .map_err(|e| code_err(CodeError::FILE_UPLOAD_ERROR, e))?;
+
+    // Assemble the public S3 object URL
+    // Replace `<region>` below with your actual AWS region as appropriate
+    let s3_region: String = state
+        .aws_profile_picture_config
+        .region()
+        .map(|r| r.to_string())
+        .unwrap_or_else(|| "ap-northeast-2".to_string());
+
+    let object_url: String = format!(
+        "https://{}.s3.{}.amazonaws.com/{}",
+        AWS_S3_BUCKET_NAME, s3_region, image_path
+    );
+
     let mut conn = state
         .get_conn()
         .await
@@ -129,7 +159,7 @@ pub async fn upload_profile_picture(
                 user_id,
                 user_profile_picture_image_type: image_type_db_id,
                 user_profile_picture_is_on_cloud: true,
-                user_profile_picture_link: None,
+                user_profile_picture_link: Some(object_url),
             })
             .returning(user_profile_pictures::user_profile_picture_id)
             .get_result(&mut conn)
