@@ -440,7 +440,7 @@ impl ServerStateBuilder {
         self
     }
 
-    pub fn build(self) -> anyhow::Result<ServerState> {
+    pub async fn build(self) -> anyhow::Result<ServerState> {
         let aws_profile_picture_config = {
             use aws_config::BehaviorVersion;
             use aws_config::meta::region::RegionProviderChain;
@@ -458,12 +458,11 @@ impl ServerStateBuilder {
             );
             // Use default region chain or fallback if not set.
             let region_provider = RegionProviderChain::default_provider().or_else("ap-northeast-2");
-            tokio::runtime::Handle::current().block_on(
-                aws_config::defaults(BehaviorVersion::latest())
-                    .region(region_provider)
-                    .credentials_provider(credentials)
-                    .load(),
-            )
+            aws_config::defaults(BehaviorVersion::latest())
+                .region(region_provider)
+                .credentials_provider(credentials)
+                .load()
+                .await
         };
 
         Ok(ServerState {

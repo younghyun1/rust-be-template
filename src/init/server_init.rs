@@ -102,6 +102,7 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
             .server_start_time(start)
             .email_client(email_client)
             .build()
+            .await
             .map_err(|e| anyhow::anyhow!("Failed to build ServerState: {}", e))?,
     );
 
