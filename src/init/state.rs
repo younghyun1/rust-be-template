@@ -12,6 +12,7 @@ use tokio::sync::RwLock;
 use tracing::{error, info};
 use uuid::Uuid;
 
+use super::load_cache::post_info::load_post_info;
 use crate::domain::blog::blog::PostInfo;
 use crate::domain::country::{
     CountryAndSubdivisionsTable, IsoCountry, IsoCountrySubdivision, IsoCurrency, IsoCurrencyTable,
@@ -25,7 +26,6 @@ use crate::util::geographic::ip_info_lookup::{
     GeoIpDatabases, IpInfo, decompress_and_deserialize, lookup_ip_location_from_map,
 };
 use crate::util::time::now::tokio_now;
-use super::load_cache::post_info::load_post_info;
 
 const DEFAULT_SESSION_DURATION: chrono::Duration = chrono::Duration::hours(1);
 
@@ -102,6 +102,7 @@ pub struct ServerState {
     deployment_environment: DeploymentEnvironment,
     request_client: reqwest::Client,
     pub system_info_state: RwLock<SystemInfoState>,
+    pub aws_profile_picture_config: aws_config::SdkConfig,
 }
 
 impl ServerState {
@@ -440,6 +441,31 @@ impl ServerStateBuilder {
     }
 
     pub fn build(self) -> anyhow::Result<ServerState> {
+        let aws_profile_picture_config = {
+            use aws_config::BehaviorVersion;
+            use aws_config::meta::region::RegionProviderChain;
+
+            let aws_key = std::env::var("AWS_IMAGE_UPLOAD_KEY")
+                .map_err(|_| anyhow::anyhow!("AWS_IMAGE_UPLOAD_KEY not set"))?;
+            let aws_secret = std::env::var("AWS_IMAGE_UPLOAD_SECRET_KEY")
+                .map_err(|_| anyhow::anyhow!("AWS_IMAGE_UPLOAD_SECRET_KEY not set"))?;
+            let credentials = aws_sdk_s3::config::Credentials::new(
+                aws_key,
+                aws_secret,
+                None,                     // token
+                None,                     // expiration
+                "cyhdev-profile-picture", // provider name
+            );
+            // Use default region chain or fallback if not set.
+            let region_provider = RegionProviderChain::default_provider().or_else("ap-northeast-2");
+            tokio::runtime::Handle::current().block_on(
+                aws_config::defaults(BehaviorVersion::latest())
+                    .region(region_provider)
+                    .credentials_provider(credentials)
+                    .load(),
+            )
+        };
+
         Ok(ServerState {
             app_name_version: self
                 .app_name_version
@@ -487,6 +513,7 @@ impl ServerStateBuilder {
                 .build()?,
             visitor_board_map: scc::HashMap::new(),
             system_info_state: RwLock::new(SystemInfoState::new()),
+            aws_profile_picture_config,
         })
     }
 }
