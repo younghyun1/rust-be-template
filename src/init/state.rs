@@ -457,7 +457,7 @@ impl ServerStateBuilder {
                 "cyhdev-profile-picture", // provider name
             );
             // Use default region chain or fallback if not set.
-            let region_provider = RegionProviderChain::default_provider().or_else("ap-northeast-2");
+            let region_provider = RegionProviderChain::default_provider().or_else("us-west-1");
             aws_config::defaults(BehaviorVersion::latest())
                 .region(region_provider)
                 .credentials_provider(credentials)

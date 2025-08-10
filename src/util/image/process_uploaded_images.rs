@@ -5,7 +5,7 @@ use image::{
 };
 use std::io::Cursor;
 
-pub const IMAGE_ENCODING_FORMAT: ImageFormat = ImageFormat::WebP;
+pub const IMAGE_ENCODING_FORMAT: ImageFormat = ImageFormat::Avif;
 
 #[repr(u8)]
 pub enum CyhdevImageType {
@@ -16,7 +16,7 @@ pub enum CyhdevImageType {
 impl CyhdevImageType {
     pub fn max_long_width(&self) -> u32 {
         match self {
-            CyhdevImageType::ProfilePicture => 800,
+            CyhdevImageType::ProfilePicture => 400,
             CyhdevImageType::Photograph => 3840,
         }
     }
