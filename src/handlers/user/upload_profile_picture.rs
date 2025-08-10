@@ -6,6 +6,7 @@ use axum::{
     response::IntoResponse,
 };
 use diesel_async::RunQueryDsl;
+use tracing::error;
 use uuid::Uuid;
 
 use crate::{
@@ -59,17 +60,17 @@ pub async fn upload_profile_picture(
     let mut _extension: String = String::new();
 
     // Process the multipart fields
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .map_err(|e| code_err(CodeError::FILE_UPLOAD_ERROR, e))?
-    {
+    while let Some(field) = multipart.next_field().await.map_err(|e| {
+        error!(error = ?e, user_id = %user_id, "Failed to fetch next multipart field");
+        code_err(CodeError::FILE_UPLOAD_ERROR, e)
+    })? {
         // For the first field, extract metadata (file name and MIME type)
         if uploaded_file.is_empty() {
             _extension = field
                 .file_name()
                 .and_then(|name| name.rsplit('.').next().map(|ext| ext.to_string()))
                 .ok_or_else(|| {
+                    error!(user_id = %user_id, "Missing file extension in uploaded filename");
                     code_err(
                         CodeError::FILE_UPLOAD_ERROR,
                         "No extensions, that's illegal!",
@@ -80,6 +81,7 @@ pub async fn upload_profile_picture(
                     .content_type()
                     .map(|mime| mime.to_string())
                     .ok_or_else(|| {
+                        error!(user_id = %user_id, "No MIME content type on uploaded file");
                         code_err(
                             CodeError::FILE_UPLOAD_ERROR,
                             "No MIME extensions, that's illegal!",
@@ -91,6 +93,11 @@ pub async fn upload_profile_picture(
                 .map(|m| ALLOWED_MIME_TYPES.contains(&m.as_str()))
                 .unwrap_or(false)
             {
+                error!(
+                    user_id = %user_id,
+                    mime = ?mime,
+                    "Unsupported image type; rejecting upload"
+                );
                 return Err(code_err(
                     CodeError::FILE_UPLOAD_ERROR,
                     "Unsupported image type; no PSDs!",
@@ -98,22 +105,29 @@ pub async fn upload_profile_picture(
             }
         }
         // Read and accumulate the field's bytes.
-        let bytes = field
-            .bytes()
-            .await
-            .map_err(|e| code_err(CodeError::FILE_UPLOAD_ERROR, e))?;
+        let bytes = field.bytes().await.map_err(|e| {
+            error!(error = ?e, user_id = %user_id, "Failed reading multipart field bytes");
+            code_err(CodeError::FILE_UPLOAD_ERROR, e)
+        })?;
         uploaded_file.extend_from_slice(&bytes);
     }
 
     if uploaded_file.is_empty() {
+        error!(user_id = %user_id, "Uploaded file is empty");
         return Err(code_err(CodeError::FILE_UPLOAD_ERROR, "File is empty!"));
     }
 
     // compress and process image here in a blocking thread
-    let processed_image: Vec<u8> =
-        process_uploaded_image(uploaded_file, None, CyhdevImageType::ProfilePicture)
-            .await
-            .map_err(|e| code_err(CodeError::COULD_NOT_PROCESS_IMAGE, e))?;
+    let processed_image: Vec<u8> = process_uploaded_image(
+        uploaded_file,
+        None,
+        CyhdevImageType::ProfilePicture,
+    )
+    .await
+    .map_err(|e| {
+        error!(error = ?e, user_id = %user_id, "Failed to process uploaded profile picture");
+        code_err(CodeError::COULD_NOT_PROCESS_IMAGE, e)
+    })?;
 
     // store in filesystem or S3
     let image_id: Uuid = uuid::Uuid::new_v4();
@@ -133,7 +147,16 @@ pub async fn upload_profile_picture(
         .body(aws_sdk_s3::primitives::ByteStream::from(processed_image))
         .send()
         .await
-        .map_err(|e| code_err(CodeError::FILE_UPLOAD_ERROR, e))?;
+        .map_err(|e| {
+            error!(
+                error = ?e,
+                user_id = %user_id,
+                bucket = AWS_S3_BUCKET_NAME,
+                key = %image_path,
+                "Failed to upload profile picture to S3"
+            );
+            code_err(CodeError::FILE_UPLOAD_ERROR, e)
+        })?;
 
     // Assemble the public S3 object URL
     // Replace `<region>` below with your actual AWS region as appropriate
@@ -141,17 +164,17 @@ pub async fn upload_profile_picture(
         .aws_profile_picture_config
         .region()
         .map(|r| r.to_string())
-        .unwrap_or_else(|| "ap-northeast-2".to_string());
+        .unwrap_or_else(|| "us-west-1".to_string());
 
     let object_url: String = format!(
         "https://{}.s3.{}.amazonaws.com/{}",
         AWS_S3_BUCKET_NAME, s3_region, image_path
     );
 
-    let mut conn = state
-        .get_conn()
-        .await
-        .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
+    let mut conn = state.get_conn().await.map_err(|e| {
+        error!(error = ?e, user_id = %user_id, "Failed to get DB connection from pool");
+        code_err(CodeError::POOL_ERROR, e)
+    })?;
 
     let db_result: Result<Uuid, diesel::result::Error> =
         diesel::insert_into(user_profile_pictures::table)
@@ -167,6 +190,12 @@ pub async fn upload_profile_picture(
 
     match db_result {
         Err(e) => {
+            error!(
+                error = ?e,
+                user_id = %user_id,
+                key = %image_path,
+                "Failed to insert user profile picture row into DB"
+            );
             // Clean up the image file if DB insertion fails
             tokio::fs::remove_file(&image_path).await.ok();
             return Err(code_err(CodeError::DB_INSERTION_ERROR, e));
