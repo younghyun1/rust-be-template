@@ -168,16 +168,17 @@ impl ServerState {
 
     pub async fn purge_expired_sessions(&self) -> (usize, usize) {
         let now = chrono::Utc::now();
-        let (mut pruned, mut remaining): (usize, usize) = (0usize, 0usize);
+        let (mut pruned, mut remaining): (usize, usize) = (0, 0);
 
         self.session_map
-            .prune_async(|_, session| {
-                if session.expires_at < now {
+            .iter_mut_async(|entry| {
+                if entry.1.expires_at < now {
                     pruned += 1;
-                    None
+                    let _ = entry.consume();
+                    false // continue iterating with mutation
                 } else {
                     remaining += 1;
-                    Some(session)
+                    true // keep going
                 }
             })
             .await;
@@ -388,12 +389,13 @@ impl ServerState {
     pub async fn get_visitor_board_entries(&self) -> Vec<((f64, f64), u64)> {
         let mut result = Vec::new();
         self.visitor_board_map
-            .scan_async(|&(lat_bytes, long_bytes), &count| {
+            .iter_async(|&(lat_bytes, long_bytes), &count| {
                 let lat = f64::from_be_bytes(lat_bytes);
                 let long = f64::from_be_bytes(long_bytes);
                 if !lat.is_nan() && !long.is_nan() {
                     result.push(((lat, long), count));
                 }
+                true // continue iteration
             })
             .await;
         result

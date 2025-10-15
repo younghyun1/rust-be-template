@@ -18,14 +18,14 @@ path = "src/util/geographic/process_ip2location_dbs.rs"
 
 [dependencies]
 # web framework
-axum = { version = "0.8.4", features = [
+axum = { version = "0.8.6", features = [
     "http2",
     "multipart",
     "ws",
     "macros",
     "multipart",
 ] }
-axum-extra = { version = "0.10.1", features = ["cookie", "attachment", "form"] }
+axum-extra = { version = "0.10.3", features = ["cookie", "attachment", "form"] }
 axum-server = { version = "0.7.2", features = ["tls-rustls", "tokio-rustls"] }
 tower-http = { version = "0.6.6", features = [
     "compression-zstd",
@@ -38,45 +38,45 @@ tower-http = { version = "0.6.6", features = [
 # rayon = "1.10.0"
 
 # ORM
-diesel = { version = "2.2.12", features = [
+diesel = { version = "2.3.2", features = [
     "postgres",
     "chrono",
     "serde_json",
     "uuid",
     "ipnet-address",
 ] }
-diesel-async = { version = "0.6.1", features = ["bb8", "postgres"] }
+diesel-async = { version = "0.7.3", features = ["bb8", "postgres"] }
 
 
 # .env loading
 dotenvy = "0.15.7"
 
 # async runtime
-tokio = { version = "1.47.1", features = ["full"] }
+tokio = { version = "1.48.0", features = ["full"] }
 
 # loggers
 tracing = { version = "0.1.41", features = ["std"] }
-tracing-subscriber = { version = "0.3.19", features = ["fmt", "json"] }
+tracing-subscriber = { version = "0.3.20", features = ["fmt", "json"] }
 tracing-appender = "0.2.3"
 
 # error
-anyhow = "1.0.98"
+anyhow = "1.0.100"
 
 # system information
 num_cpus = "1.17.0"
-sysinfo = "0.36.1"
+sysinfo = "0.37.2"
 
 # serialization/deserialization
-serde = "1.0.219"
-serde_derive = "1.0.219"
-serde_json = { version = "1.0.142", features = ["preserve_order"] }
-bitcode = "0.6.6"
+serde = "1.0.228"
+serde_derive = "1.0.228"
+serde_json = { version = "1.0.145", features = ["preserve_order"] }
+bitcode = "0.6.7"
 
 # types
-chrono = { version = "0.4.41", features = ["serde"] }
+chrono = { version = "0.4.42", features = ["serde"] }
 chrono-tz = { version = "0.10.4", features = ["serde"] }
-scc = "2.3.4"
-uuid = { version = "1.17.0", features = [
+scc = "3.3.1"
+uuid = { version = "1.18.1", features = [
     "v4",
     "v7",
     "serde",
@@ -93,14 +93,14 @@ email_address = "0.2.9"
 argon2 = "0.5.3"
 rand = "0.9"
 rand_08 = { package = "rand", version = "0.8.5" }
-rustls = { version = "0.23.31", features = [] }
-zeroize = { version = "1.8.1", features = ["derive"] }
+rustls = { version = "0.23.32", features = [] }
+zeroize = { version = "1.8.2", features = ["derive"] }
 
 # memory allocator
-mimalloc = "0.1.47"
+mimalloc = "0.1.48"
 
 # email
-lettre = { version = "0.11.18", default-features = false, features = [
+lettre = { version = "0.11.19", default-features = false, features = [
     "builder",
     "hostname",
     "pool",
@@ -112,19 +112,19 @@ lettre = { version = "0.11.18", default-features = false, features = [
 ] }
 
 # compression
-zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt", "pkg-config"] }
+zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt"] }
 
 # numeric
 bigdecimal = { version = "0.4.8", features = ["serde"] }
 
 # image processing
-image = "0.25.6"
+image = "0.25.8"
 
 # markdown
-comrak = { version = "0.41.0", features = ["emojis", "shortcodes"] }
+comrak = { version = "0.44.0", features = ["emojis", "shortcodes"] }
 
 # request to external
-reqwest = { version = "0.12.22", features = ["rustls-tls", "gzip"] }
+reqwest = { version = "0.12.24", features = ["rustls-tls", "gzip"] }
 
 # embed assets into binary
 rust-embed = "8.7.2"
@@ -134,13 +134,13 @@ mime_guess = "2.0.5"
 internment = "0.8.6"
 
 # aws
-aws-sdk-s3 = { version = "1.101.0", features = ["behavior-version-latest"] }
-aws-config = { version = "1.8.4", features = [
+aws-sdk-s3 = { version = "1.108.0", features = ["behavior-version-latest"] }
+aws-config = { version = "1.8.8", features = [
     "rustls",
     "behavior-version-latest",
 ] }
-aws-types = "1.3.8"
+aws-types = "1.3.9"
 
 [build-dependencies]
-chrono = { version = "0.4.41" }
-serde_json = { version = "1.0.142", features = ["preserve_order"] }
+chrono = { version = "0.4.42" }
+serde_json = { version = "1.0.145", features = ["preserve_order"] }

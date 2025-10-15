@@ -76,7 +76,7 @@ pub async fn log_middleware(
             tokio::spawn(log_visitors(state.clone(), client_ip));
         }
     }
-    
+
     tracing::info!(kind = %"RECV", method = %method, path = %path, client_ip = ?client_ip);
     request.extensions_mut().insert(now);
 
@@ -203,7 +203,7 @@ async fn log_visitors(state: Arc<ServerState>, inp_ip: Option<IpAddr>) {
 
     let key = (lat_bytes, lon_bytes);
 
-    match state.visitor_board_map.entry(key) {
+    match state.visitor_board_map.entry_async(key).await {
         Entry::Occupied(mut occ) => {
             *occ.get_mut() += 1;
         }
