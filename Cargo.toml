@@ -112,11 +112,7 @@ lettre = { version = "0.11.19", default-features = false, features = [
 ] }
 
 # compression
-[target.'cfg(target_os = "linux")'.dependencies]
 zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt", "pkg-config"] }
-
-[target.'cfg(not(target_os = "linux"))'.dependencies]
-zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt"] }
 
 # numeric
 bigdecimal = { version = "0.4.8", features = ["serde"] }
