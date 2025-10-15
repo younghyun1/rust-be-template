@@ -1,5 +1,5 @@
 [build]
-rustflags = ["-Ctarget-cpu=sapphirerapids"]
+rustflags = ["-Ctarget-cpu=native"]
 
 [unstable]
 build-std = ["std", "core", "alloc"]
