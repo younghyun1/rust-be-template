@@ -30,7 +30,7 @@ async fn main() -> anyhow::Result<()> {
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
-    if std::env::var("IS_AWS").is_err() {
+    if std::env::var("IS_AWS_ECS").is_err() {
         dotenvy::dotenv().map_err(|e| anyhow::anyhow!("Failed to load .env: {}", e))?;
     }
 
