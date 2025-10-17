@@ -64,7 +64,7 @@ anyhow = "1.0.100"
 
 # system information
 num_cpus = "1.17.0"
-sysinfo = "0.37.2"
+# sysinfo = "0.37.2"
 
 # serialization/deserialization
 serde = "1.0.228"

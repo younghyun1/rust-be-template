@@ -8,9 +8,8 @@ use axum::{
     },
     response::Response,
 };
-use sysinfo::System;
 use tokio::time::{self, Duration};
-use tracing::{error, info};
+use tracing::info;
 
 use crate::init::state::ServerState;
 
@@ -32,26 +31,14 @@ impl HostStats {
 
 // TODO: system information querying is unusually heavyweight for some reason. switch to cat proc or something lol
 // run on spawn_blocking; heavily blocking function fsr
-pub fn get_host_stats() -> HostStats {
-    let mut system = System::new_all();
-    std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
-    system.refresh_cpu_usage();
-    system.refresh_memory();
-
-    let cpu_list = system.cpus();
-    let cpu_total: f32 = cpu_list.iter().map(|cpu| cpu.cpu_usage()).sum();
-    let cpu_usage: f32 = if !cpu_list.is_empty() {
-        cpu_total / cpu_list.len() as f32
-    } else {
-        0.0
-    };
-    let mem_total = system.total_memory();
-    let mem_free = system.free_memory();
-
+pub async fn get_host_stats(state: Arc<ServerState>) -> HostStats {
+    let mem_total = state.system_info_state.get_total_memory();
+    let mem_usage = state.system_info_state.get_memory_usage().await;
+    let cpu_usage = state.system_info_state.get_cpu_usage().await;
     HostStats {
-        cpu_usage,
+        cpu_usage: cpu_usage as f32,
         mem_total,
-        mem_free,
+        mem_free: mem_total - mem_usage,
     }
 }
 
@@ -62,19 +49,12 @@ pub async fn ws_host_stats_handler(
     ws.on_upgrade(move |socket| handle_host_stats_socket(socket, state.clone()))
 }
 
-async fn handle_host_stats_socket(mut socket: WebSocket, _state: Arc<ServerState>) {
+async fn handle_host_stats_socket(mut socket: WebSocket, state: Arc<ServerState>) {
     let mut interval = time::interval(Duration::from_millis(1000));
     loop {
         interval.tick().await;
 
-        let host_stats_result = tokio::task::spawn_blocking(get_host_stats).await;
-        let host_stats = match host_stats_result {
-            Ok(stats) => stats,
-            Err(e) => {
-                error!(error = ?e, "Failed to spawn_blocking get_host_stats");
-                return;
-            }
-        };
+        let host_stats = get_host_stats(state.clone()).await;
 
         // Fix: Bytes::from for Message::Binary
         if let Err(e) = socket
