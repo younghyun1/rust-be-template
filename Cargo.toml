@@ -111,9 +111,6 @@ lettre = { version = "0.11.19", default-features = false, features = [
     "serde",
 ] }
 
-# compression
-zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt"] }
-
 # numeric
 bigdecimal = { version = "0.4.8", features = ["serde"] }
 
@@ -147,6 +144,8 @@ serde_json = { version = "1.0.145", features = ["preserve_order"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = { version = "0.2.177", features = [] }
+zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt", "pkg-config"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62.2", features = ["Win32_System_SystemInformation", "Win32_System_Threading"] }
+zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt"] }
