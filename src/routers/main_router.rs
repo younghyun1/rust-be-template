@@ -51,22 +51,22 @@ const MAX_REQUEST_SIZE: usize = 1024 * 1024 * 50; // 50MB
 #[folder = "fe/"]
 struct EmbeddedAssets;
 
-/// Serves static files embedded in the binary, prioritizing pre-compressed .zst files.
+/// Serves static files embedded in the binary, prioritizing pre-compressed .gz files.
 async fn static_asset_handler(uri: Uri) -> impl IntoResponse {
     let mut path = uri.path().trim_start_matches('/').to_string();
     if path.is_empty() {
         path = "index.html".to_string();
     }
 
-    // 1. Check for a pre-compressed .zst file first
-    let zstd_path = format!("{path}.zst");
-    if let Some(content) = EmbeddedAssets::get(&zstd_path) {
+    // 1. Check for a pre-compressed .gz file first
+    let gzip_path = format!("{path}.gz");
+    if let Some(content) = EmbeddedAssets::get(&gzip_path) {
         let mime = from_path(&path).first_or_octet_stream(); // Guess MIME from original path
         return (
             StatusCode::OK,
             [
                 (header::CONTENT_TYPE, mime.as_ref()),
-                (header::CONTENT_ENCODING, "zstd"),
+                (header::CONTENT_ENCODING, "gzip"),
             ],
             content.data,
         )
@@ -86,12 +86,12 @@ async fn static_asset_handler(uri: Uri) -> impl IntoResponse {
 
     // 3. If no direct asset is found, handle SPA fallback to index.html
     // This handles client-side routes like `/login` or `/dashboard`
-    if let Some(content) = EmbeddedAssets::get("index.html.zst") {
+    if let Some(content) = EmbeddedAssets::get("index.html.gz") {
         return (
             StatusCode::OK,
             [
                 (header::CONTENT_TYPE, "text/html"),
-                (header::CONTENT_ENCODING, "zstd"),
+                (header::CONTENT_ENCODING, "gzip"),
             ],
             content.data,
         )
@@ -116,7 +116,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     // let api_key_check_middleware = from_fn_with_state(state.clone(), api_key_check_middleware);
     let log_middleware = from_fn_with_state(state.clone(), log_middleware);
     let is_logged_in_middleware = from_fn_with_state(state.clone(), is_logged_in_middleware);
-    let compression_middleware = CompressionLayer::new().zstd(true);
+    let compression_middleware = CompressionLayer::new().gzip(true);
     let cors_layer = CorsLayer::very_permissive();
 
     // Publicly accessible API routes
