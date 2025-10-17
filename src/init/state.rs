@@ -25,6 +25,9 @@ use crate::schema::{iso_country, iso_country_subdivision, iso_currency, iso_lang
 use crate::util::geographic::ip_info_lookup::{
     GeoIpDatabases, IpInfo, decompress_and_deserialize, lookup_ip_location_from_map,
 };
+use crate::util::system::get_cpu_usage::get_cpu_usage;
+use crate::util::system::get_memory_size::get_memory_size;
+use crate::util::system::get_memory_usage::get_memory_usage;
 use crate::util::time::now::tokio_now;
 
 const DEFAULT_SESSION_DURATION: chrono::Duration = chrono::Duration::hours(1);
@@ -40,7 +43,8 @@ pub enum DeploymentEnvironment {
 
 pub struct SystemInfoState {
     pub history: VecDeque<SystemInfo>,
-    pub len: usize,
+    pub max_len: usize,
+    pub ram_total_size: u64,
 }
 
 impl Default for SystemInfoState {
@@ -53,12 +57,13 @@ impl SystemInfoState {
     pub fn new() -> Self {
         SystemInfoState {
             history: VecDeque::with_capacity(3600),
-            len: 3600,
+            max_len: 3600,
+            ram_total_size: get_memory_size(),
         }
     }
 
     pub fn push(&mut self, info: SystemInfo) {
-        if self.history.len() == self.len {
+        if self.history.len() == self.max_len {
             self.history.pop_front();
         }
         self.history.push_back(info);
@@ -75,12 +80,33 @@ impl SystemInfoState {
     pub fn iter(&self) -> std::collections::vec_deque::Iter<'_, SystemInfo> {
         self.history.iter()
     }
+
+    pub fn get_cpu_usage(&self) -> f64 {
+        self.history
+            .back()
+            .map(|info| info.cpu_usage)
+            .unwrap_or(0.0)
+    }
+
+    pub fn update(&mut self) {
+        let info = SystemInfo {
+            cpu_usage: get_cpu_usage(),
+            memory_usage: get_memory_usage(),
+        };
+        self.push(info);
+    }
+
+    pub fn get_memory_usage(&self) -> u64 {
+        self.history
+            .back()
+            .map(|info| info.memory_usage)
+            .unwrap_or(0)
+    }
 }
 
 pub struct SystemInfo {
     pub cpu_usage: f64,
     pub memory_usage: u64, // bytes
-    pub memory_total: u64,
 }
 
 pub struct ServerState {
@@ -101,7 +127,7 @@ pub struct ServerState {
     pub i18n_cache: RwLock<I18nCache>,
     deployment_environment: DeploymentEnvironment,
     request_client: reqwest::Client,
-    pub system_info_state: RwLock<SystemInfoState>,
+    pub system_info_state: SystemInfoState,
     pub aws_profile_picture_config: aws_config::SdkConfig,
 }
 
@@ -513,7 +539,7 @@ impl ServerStateBuilder {
                 .user_agent("cyhdev.com")
                 .build()?,
             visitor_board_map: scc::HashMap::new(),
-            system_info_state: RwLock::new(SystemInfoState::new()),
+            system_info_state: SystemInfoState::new(),
             aws_profile_picture_config,
         })
     }
