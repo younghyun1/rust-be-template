@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow};
 use chrono::{DateTime, Duration, SecondsFormat, Timelike, Utc};
 use std::sync::Arc;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::init::state::ServerState;
 use crate::util::time::duration_formatter::format_duration;
@@ -112,7 +112,7 @@ where
         // Efficiently compute the next run time by simply adding one second to the previously scheduled (not actual) scheduled time.
         let next_run_time = this_run_time + Duration::seconds(1);
 
-        info!(
+        debug!(
             task_name = %task_descriptor,
             next_run_time = %next_run_time.to_rfc3339_opts(SecondsFormat::AutoSi, true),
             duration = %format!("{:?}", elapsed),
