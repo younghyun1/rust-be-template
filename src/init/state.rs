@@ -80,6 +80,10 @@ impl SystemInfoState {
         history.is_empty()
     }
 
+    pub fn get_total_memory(&self) -> u64 {
+        self.ram_total_size
+    }
+
     pub async fn get_cpu_usage(&self) -> f64 {
         let history = self.history.read().await;
         history.back().map(|info| info.cpu_usage).unwrap_or(0.0)
