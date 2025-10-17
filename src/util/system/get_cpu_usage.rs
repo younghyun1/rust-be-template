@@ -118,3 +118,19 @@ pub async fn get_cpu_usage() -> f64 {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::get_cpu_usage;
+    use std::time::Instant;
+
+    #[tokio::test]
+    async fn test_get_cpu_usage() {
+        let start = Instant::now();
+        let usage = get_cpu_usage().await;
+        let dur = start.elapsed();
+        println!("CPU usage: {:.2}%", usage);
+        println!("Elapsed time: {:?}", dur);
+        assert!(usage >= 0.0 && usage <= 100.0);
+    }
+}
