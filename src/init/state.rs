@@ -87,7 +87,7 @@ impl SystemInfoState {
 
     pub async fn update(&self) {
         let info = SystemInfo {
-            cpu_usage: get_cpu_usage(),
+            cpu_usage: get_cpu_usage().await,
             memory_usage: get_memory_usage(),
         };
         self.push(info).await;

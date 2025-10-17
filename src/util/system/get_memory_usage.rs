@@ -33,3 +33,24 @@ pub fn get_memory_usage() -> u64 {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_memory_usage_nonzero_and_logs_time() {
+        use std::time::Instant;
+        // For logging, print to stdout
+        let start = Instant::now();
+        let usage = get_memory_usage();
+        let duration = start.elapsed();
+        println!(
+            "get_memory_usage() took {:?} and returned {} bytes.",
+            duration, usage
+        );
+        // It's possible for usage to be zero on error, but typically should be nonzero
+        // On CI or very rare OS situations, it might still be zero, so just assert it's at least 0
+        assert!(usage > 0);
+    }
+}

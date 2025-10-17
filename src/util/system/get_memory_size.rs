@@ -30,3 +30,23 @@ pub fn get_memory_size() -> u64 {
         0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Instant;
+
+    #[test]
+    fn test_get_memory_size_nonzero() {
+        let start = Instant::now();
+        let mem = get_memory_size();
+        let duration = start.elapsed();
+        println!("get_memory_size() took {:?}", duration);
+        // Should be at least 128 MB on modern systems
+        assert!(
+            mem > 128 * 1024 * 1024,
+            "Memory size too small: {} bytes",
+            mem
+        );
+    }
+}

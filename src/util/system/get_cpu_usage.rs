@@ -1,7 +1,7 @@
-pub fn get_cpu_usage() -> f64 {
+pub async fn get_cpu_usage() -> f64 {
     #[cfg(target_os = "windows")]
     {
-        use std::{mem::zeroed, thread::sleep, time::Duration};
+        use std::{mem::zeroed, time::Duration};
         use windows::Win32::Foundation::FILETIME;
         use windows::Win32::System::Threading::GetSystemTimes;
 
@@ -25,7 +25,7 @@ pub fn get_cpu_usage() -> f64 {
                 return 0.0;
             }
 
-            sleep(Duration::from_millis(100));
+            tokio::time::sleep(Duration::from_millis(100)).await;
 
             let mut idle_time2: FILETIME = zeroed();
             let mut kernel_time2: FILETIME = zeroed();
@@ -67,7 +67,6 @@ pub fn get_cpu_usage() -> f64 {
         use std::{
             fs::File,
             io::{BufRead, BufReader},
-            thread::sleep,
             time::Duration,
         };
 
@@ -102,7 +101,7 @@ pub fn get_cpu_usage() -> f64 {
             None => return 0.0,
         };
 
-        sleep(Duration::from_millis(100));
+        tokio::time::sleep(Duration::from_millis(100));
 
         let (total2, idle2) = match read_proc_stat() {
             Some(vals) => vals,
