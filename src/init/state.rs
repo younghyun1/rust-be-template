@@ -42,7 +42,7 @@ pub enum DeploymentEnvironment {
 }
 
 pub struct SystemInfoState {
-    pub history: VecDeque<SystemInfo>,
+    pub history: RwLock<VecDeque<SystemInfo>>,
     pub max_len: usize,
     pub ram_total_size: u64,
 }
@@ -56,51 +56,46 @@ impl Default for SystemInfoState {
 impl SystemInfoState {
     pub fn new() -> Self {
         SystemInfoState {
-            history: VecDeque::with_capacity(3600),
+            history: RwLock::new(VecDeque::with_capacity(3600)),
             max_len: 3600,
             ram_total_size: get_memory_size(),
         }
     }
 
-    pub fn push(&mut self, info: SystemInfo) {
-        if self.history.len() == self.max_len {
-            self.history.pop_front();
+    pub async fn push(&self, info: SystemInfo) {
+        let mut history = self.history.write().await;
+        if history.len() == self.max_len {
+            history.pop_front();
         }
-        self.history.push_back(info);
+        history.push_back(info);
     }
 
-    pub fn len(&self) -> usize {
-        self.history.len()
+    pub async fn len(&self) -> usize {
+        let history = self.history.read().await;
+        history.len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.history.is_empty()
+    pub async fn is_empty(&self) -> bool {
+        let history = self.history.read().await;
+        history.is_empty()
     }
 
-    pub fn iter(&self) -> std::collections::vec_deque::Iter<'_, SystemInfo> {
-        self.history.iter()
+    pub async fn get_cpu_usage(&self) -> f64 {
+        let history = self.history.read().await;
+        history.back().map(|info| info.cpu_usage).unwrap_or(0.0)
     }
 
-    pub fn get_cpu_usage(&self) -> f64 {
-        self.history
-            .back()
-            .map(|info| info.cpu_usage)
-            .unwrap_or(0.0)
-    }
-
-    pub fn update(&mut self) {
+    pub async fn update(&self) {
         let info = SystemInfo {
             cpu_usage: get_cpu_usage(),
             memory_usage: get_memory_usage(),
         };
-        self.push(info);
+        self.push(info).await;
     }
 
-    pub fn get_memory_usage(&self) -> u64 {
-        self.history
-            .back()
-            .map(|info| info.memory_usage)
-            .unwrap_or(0)
+    pub async fn get_memory_usage(&self) -> u64 {
+        let history = self.history.read().await;
+        history.back().map(|info| info.memory_usage).unwrap_or(0)
     }
 }
 
