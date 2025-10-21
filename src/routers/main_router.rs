@@ -22,10 +22,10 @@ use crate::{
             verify_user_email::verify_user_email,
         },
         blog::{
-            delete_comment::delete_comment, get_posts::get_posts, read_post::read_post,
-            rescind_comment_vote::rescind_comment_vote, rescind_post_vote::rescind_post_vote,
-            submit_comment::submit_comment, submit_post::submit_post, vote_comment::vote_comment,
-            vote_post::vote_post,
+            delete_comment::delete_comment, delete_post::delete_post, get_posts::get_posts,
+            read_post::read_post, rescind_comment_vote::rescind_comment_vote,
+            rescind_post_vote::rescind_post_vote, submit_comment::submit_comment,
+            submit_post::submit_post, vote_comment::vote_comment, vote_post::vote_post,
         },
         countries::{
             get_countries::get_countries, get_country::get_country, get_language::get_language,
@@ -171,6 +171,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/api/blog/{post_id}/{comment_id}/vote", post(vote_comment))
         .route("/api/blog/{post_id}/vote", delete(rescind_post_vote))
         .route("/api/blog/{post_id}/{comment_id}", delete(delete_comment))
+        .route("/api/blog/{post_id}", delete(delete_post))
         .route("/api/blog/{post_id}/comment", post(submit_comment))
         .route(
             "/api/blog/{post_id}/{comment_id}/vote",

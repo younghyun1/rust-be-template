@@ -17,7 +17,7 @@ use crate::{
     init::state::ServerState,
     routers::middleware::is_logged_in::AuthStatus,
     schema::comments,
-    util::time::now::tokio_now,
+    util::{auth::is_superuser::is_superuser, time::now::tokio_now},
 };
 
 pub async fn delete_comment(
@@ -30,8 +30,6 @@ pub async fn delete_comment(
     // 1. Check comment author against requester ID:
     // TODO: If requester is superuser, allow deletion regardless of author
 
-    let is_superuser: bool = false;
-
     // 1-1. Extract requester ID from extension
     let requester_id: Uuid = match is_logged_in {
         AuthStatus::LoggedIn(id) => id,
@@ -41,6 +39,11 @@ pub async fn delete_comment(
                 "Unauthorized deletion request!",
             ));
         }
+    };
+
+    let is_superuser: bool = match is_superuser(state.clone(), requester_id).await {
+        Ok(is_superuser) => is_superuser,
+        Err(e) => return Err(code_err(CodeError::DB_QUERY_ERROR, e)),
     };
 
     // 1-2. Check who the author of the comment is
