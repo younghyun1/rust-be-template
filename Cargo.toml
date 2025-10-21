@@ -112,7 +112,7 @@ lettre = { version = "0.11.19", default-features = false, features = [
 ] }
 
 # numeric
-bigdecimal = { version = "0.4.8", features = ["serde"] }
+bigdecimal = { version = "0.4.9", features = ["serde"] }
 
 # image processing
 image = "0.25.8"
@@ -124,7 +124,7 @@ comrak = { version = "0.44.0", features = ["emojis", "shortcodes"] }
 reqwest = { version = "0.12.24", features = ["rustls-tls", "gzip"] }
 
 # embed assets into binary
-rust-embed = "8.7.2"
+rust-embed = "8.8.0"
 mime_guess = "2.0.5"
 
 # internment

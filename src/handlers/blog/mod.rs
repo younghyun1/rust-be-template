@@ -1,3 +1,4 @@
+pub mod delete_comment;
 pub mod get_posts;
 pub mod read_post;
 pub mod rescind_comment_vote;
