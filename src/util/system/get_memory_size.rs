@@ -4,7 +4,7 @@ pub fn get_memory_size() -> u64 {
         use windows::Win32::System::SystemInformation::GetPhysicallyInstalledSystemMemory;
         let mut kilobytes: u64 = 0;
         unsafe {
-            let _ = GetPhysicallyInstalledSystemMemory(&mut kilobytes).unwrap();
+            GetPhysicallyInstalledSystemMemory(&mut kilobytes).unwrap();
         }
 
         kilobytes * 1024 // bytes
