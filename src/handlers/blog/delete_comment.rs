@@ -23,7 +23,7 @@ use crate::{
 pub async fn delete_comment(
     Extension(is_logged_in): Extension<AuthStatus>,
     State(state): State<Arc<ServerState>>,
-    Path(comment_id): Path<Uuid>,
+    Path((_post_id, comment_id)): Path<(Uuid, Uuid)>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
