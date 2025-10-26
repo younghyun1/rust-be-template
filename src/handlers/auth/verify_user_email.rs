@@ -2,8 +2,11 @@ use std::sync::Arc;
 
 use crate::{
     domain::user::EmailVerificationToken,
-    dto::responses::{
-        auth::email_validate_response::EmailValidateResponse, response_data::http_resp,
+    dto::{
+        requests::auth::verify_user_email_request::EmailValidationToken,
+        responses::{
+            auth::email_validate_response::EmailValidateResponse, response_data::http_resp,
+        },
     },
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
@@ -18,11 +21,10 @@ use axum::{
 use chrono::Utc;
 use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::{AsyncConnection, RunQueryDsl};
-use uuid::Uuid;
 
 pub async fn verify_user_email(
     State(state): State<Arc<ServerState>>,
-    Query(token_id): Query<Uuid>,
+    Query(token): Query<EmailValidationToken>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
     let now = Utc::now();
@@ -33,7 +35,10 @@ pub async fn verify_user_email(
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
     let email_verification_token: EmailVerificationToken = email_verification_tokens::table
-        .filter(email_verification_tokens::email_verification_token.eq(&token_id))
+        .filter(
+            email_verification_tokens::email_verification_token
+                .eq(&token.email_validation_token_id),
+        )
         .get_result(&mut conn)
         .await
         .map_err(|e| code_err(CodeError::INVALID_EMAIL_VERIFICATION_TOKEN, e))?;
