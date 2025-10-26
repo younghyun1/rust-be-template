@@ -1,6 +1,6 @@
 -- This file should undo anything in `up.sql`
 CREATE TABLE public.refresh_tokens (
-    refresh_token_id UUID DEFAULT uuid_generate_v4 () NOT NULL,
+    refresh_token_id UUID DEFAULT uuidv7 () NOT NULL,
     user_id UUID NOT NULL,
     refresh_token UUID NOT NULL,
     refresh_token_issued_at TIMESTAMPTZ DEFAULT now () NOT NULL,

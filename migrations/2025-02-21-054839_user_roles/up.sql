@@ -3,7 +3,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create Roles Table with appropriate constraints and indexes
 CREATE TABLE roles (
-    role_id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
+    role_id UUID PRIMARY KEY DEFAULT uuidv7 (),
     role_name TEXT NOT NULL UNIQUE, -- Use TEXT type for strings that do not have a length requirement
     role_description TEXT
 );
@@ -13,7 +13,7 @@ CREATE INDEX idx_roles_role_name ON roles (role_name);
 
 -- Create Permissions Table with appropriate constraints and indexes
 CREATE TABLE permissions (
-    permission_id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
+    permission_id UUID PRIMARY KEY DEFAULT uuidv7 (),
     permission_name TEXT NOT NULL UNIQUE,
     permission_description TEXT
 );
@@ -23,7 +23,7 @@ CREATE INDEX idx_permissions_permission_name ON permissions (permission_name);
 
 -- Create Role_Permissions Join Table with appropriate constraints and indexes
 CREATE TABLE role_permissions (
-    role_permission_id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
+    role_permission_id UUID PRIMARY KEY DEFAULT uuidv7 (),
     role_id UUID NOT NULL,
     permission_id UUID NOT NULL,
     FOREIGN KEY (role_id) REFERENCES roles (role_id) ON DELETE CASCADE,
@@ -38,7 +38,7 @@ CREATE INDEX idx_role_permissions_permission_id ON role_permissions (permission_
 
 -- Create User_Roles Table for Exclusive Roles Assignment with appropriate constraints and indexes
 CREATE TABLE user_roles (
-    user_role_id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
+    user_role_id UUID PRIMARY KEY DEFAULT uuidv7 (),
     user_id UUID NOT NULL UNIQUE,
     role_id UUID NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE,

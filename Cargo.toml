@@ -38,7 +38,7 @@ tower-http = { version = "0.6.6", features = [
 # rayon = "1.10.0"
 
 # ORM
-diesel = { version = "2.3.2", features = [
+diesel = { version = "2.3.3", features = [
     "postgres",
     "chrono",
     "serde_json",
@@ -46,7 +46,6 @@ diesel = { version = "2.3.2", features = [
     "ipnet-address",
 ] }
 diesel-async = { version = "0.7.3", features = ["bb8", "postgres"] }
-
 
 # .env loading
 dotenvy = "0.15.7"
@@ -93,7 +92,7 @@ email_address = "0.2.9"
 argon2 = "0.5.3"
 rand = "0.9"
 rand_08 = { package = "rand", version = "0.8.5" }
-rustls = { version = "0.23.33", features = [] }
+rustls = { version = "0.23.34", features = [] }
 zeroize = { version = "1.8.2", features = ["derive"] }
 
 # memory allocator
@@ -118,7 +117,7 @@ bigdecimal = { version = "0.4.9", features = ["serde"] }
 image = "0.25.8"
 
 # markdown
-comrak = { version = "0.44.0", features = ["emojis", "shortcodes"] }
+comrak = { version = "0.45.0", features = ["emojis", "shortcodes"] }
 
 # request to external
 reqwest = { version = "0.12.24", features = ["rustls-tls", "gzip"] }
@@ -137,6 +136,10 @@ aws-config = { version = "1.8.8", features = [
     "behavior-version-latest",
 ] }
 aws-types = "1.3.9"
+
+# enable for dockerization?
+# encryption
+# openssl = { version = "0.10.74", features = ["vendored"] }
 
 [build-dependencies]
 chrono = { version = "0.4.42" }

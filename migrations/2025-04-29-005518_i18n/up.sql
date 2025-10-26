@@ -1,5 +1,5 @@
 CREATE TABLE public.i18n_strings (
-	i18n_string_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+	i18n_string_id uuid DEFAULT uuidv7() NOT NULL,
 	i18n_string_content varchar NOT NULL,
 	i18n_string_created_at timestamptz DEFAULT now() NOT NULL,
 	i18n_string_created_by uuid DEFAULT '00000000-0000-0000-0000-000000000000'::uuid NOT NULL,

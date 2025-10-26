@@ -2,7 +2,7 @@
 -- Create the posts table
 ------------------------------------------------------------
 CREATE TABLE posts (
-    post_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    post_id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL,
     post_title VARCHAR NOT NULL,
     post_slug VARCHAR NOT NULL,
@@ -32,7 +32,7 @@ CREATE INDEX idx_posts_published_at ON posts (post_published_at);
 -- Create the comments table
 ------------------------------------------------------------
 CREATE TABLE comments (
-    comment_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    comment_id UUID PRIMARY KEY DEFAULT uuidv7(),
     post_id UUID NOT NULL,
     user_id UUID NOT NULL,
     comment_content TEXT NOT NULL,
