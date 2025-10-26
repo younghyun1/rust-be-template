@@ -147,7 +147,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
             post(reset_password_request_process),
         )
         .route("/api/auth/reset-password", post(reset_password))
-        .route("/api/auth/verify-user-email", post(verify_user_email))
+        .route("/api/auth/verify-user-email", get(verify_user_email))
         .route("/api/blog/posts", get(get_posts))
         .route("/api/blog/posts/{post_id}", get(read_post))
         .route("/api/blog/posts", post(submit_post))
