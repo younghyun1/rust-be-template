@@ -61,7 +61,7 @@ pub async fn submit_post(
     // Generate slug (only for new posts or if title changed)
     let slug: String = generate_slug(&request.post_title);
     let rendered_markdown: String =
-        comrak::markdown_to_html(&request.post_content, &comrak::ComrakOptions::default());
+        comrak::markdown_to_html(&request.post_content, &comrak::Options::default());
 
     let post: Post = match request.post_id {
         // CASE: Editing an existing post

@@ -1,5 +1,5 @@
 CREATE TABLE public.post_upvotes (
- upvote_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+ upvote_id uuid DEFAULT uuidv7() NOT NULL,
  post_id uuid NOT NULL,
  user_id uuid NOT NULL,
  upvoted_at timestamptz DEFAULT now() NOT NULL,

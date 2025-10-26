@@ -2,7 +2,7 @@ ALTER TABLE public.users
 ADD COLUMN user_is_email_verified BOOLEAN DEFAULT FALSE NOT NULL;
 
 CREATE TABLE public.email_verification_tokens (
-    email_verification_token_id UUID DEFAULT uuid_generate_v4 () NOT NULL,
+    email_verification_token_id UUID DEFAULT uuidv7 () NOT NULL,
     user_id UUID NOT NULL,
     email_verification_token UUID NOT NULL,
     email_verification_token_expires_at TIMESTAMPTZ NOT NULL,
@@ -16,7 +16,7 @@ CREATE INDEX idx_email_verification_tokens_user_id ON public.email_verification_
 CREATE INDEX idx_email_verification_tokens_token ON public.email_verification_tokens (email_verification_token);
 
 CREATE TABLE public.password_reset_tokens (
-    password_reset_token_id UUID DEFAULT uuid_generate_v4 () NOT NULL,
+    password_reset_token_id UUID DEFAULT uuidv7 () NOT NULL,
     user_id UUID NOT NULL,
     password_reset_token UUID NOT NULL,
     password_reset_token_expires_at TIMESTAMPTZ NOT NULL,
@@ -30,7 +30,7 @@ CREATE INDEX idx_password_reset_tokens_user_id ON public.password_reset_tokens (
 CREATE INDEX idx_password_reset_tokens_token ON public.password_reset_tokens (password_reset_token);
 
 CREATE TABLE public.refresh_tokens (
-    refresh_token_id UUID DEFAULT uuid_generate_v4 () NOT NULL,
+    refresh_token_id UUID DEFAULT uuidv7 () NOT NULL,
     user_id UUID NOT NULL,
     refresh_token UUID NOT NULL,
     refresh_token_issued_at TIMESTAMPTZ DEFAULT now () NOT NULL,

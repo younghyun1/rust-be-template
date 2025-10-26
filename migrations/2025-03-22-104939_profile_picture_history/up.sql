@@ -15,7 +15,7 @@ VALUES
     (6, 'gif');
 
 CREATE TABLE public.user_profile_pictures (
-    user_profile_picture_id uuid DEFAULT uuid_generate_v4 () NOT NULL,
+    user_profile_picture_id uuid DEFAULT uuidv7 () NOT NULL,
     user_id uuid NOT NULL,
     user_profile_picture_created_at timestamptz DEFAULT now () NOT NULL,
     user_profile_picture_updated_at timestamptz DEFAULT now () NOT NULL,

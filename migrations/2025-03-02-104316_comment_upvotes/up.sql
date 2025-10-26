@@ -1,6 +1,6 @@
 -- Comment upvotes table definition
 CREATE TABLE public."comment_upvotes" (
- upvote_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+ upvote_id uuid DEFAULT uuidv7() NOT NULL,
  comment_id uuid NOT NULL,
  user_id uuid NOT NULL,
  created_at timestamptz DEFAULT now() NOT NULL,
