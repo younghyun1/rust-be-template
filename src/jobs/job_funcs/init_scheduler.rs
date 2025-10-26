@@ -27,7 +27,7 @@ pub async fn task_init(state: Arc<ServerState>) -> anyhow::Result<()> {
                 invalidate_sessions(coroutine_state).await
             },
             String::from("INVALIDATE_EXPIRED_SESSIONS"),
-            45, // minutes
+            30, // minutes
             00, // seconds
         )
         .await
@@ -41,7 +41,7 @@ pub async fn task_init(state: Arc<ServerState>) -> anyhow::Result<()> {
                 purge_nonverified_users(coroutine_state).await
             },
             String::from("PURGE_NONVERIFIED_USERS"),
-            15, // minutes
+            00, // minutes
             00, // seconds
         )
         .await

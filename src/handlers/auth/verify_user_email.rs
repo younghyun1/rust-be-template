@@ -4,8 +4,8 @@ use crate::{
     domain::user::EmailVerificationToken,
     dto::{
         requests::auth::verify_user_email_request::EmailValidationToken,
-        responses::{
-            auth::email_validate_response::EmailValidateResponse, response_data::http_resp,
+        responses::auth::email_validate_response::{
+            EmailValidateResponse, hydrate_email_validate_response_page,
         },
     },
     errors::code_error::{CodeError, HandlerResponse, code_err},
@@ -16,7 +16,7 @@ use crate::{
 
 use axum::{
     extract::{Query, State},
-    response::IntoResponse,
+    response::{Html, IntoResponse},
 };
 use chrono::Utc;
 use diesel::{ExpressionMethods, QueryDsl};
@@ -108,12 +108,16 @@ pub async fn verify_user_email(
         }
     };
 
-    Ok(http_resp(
-        EmailValidateResponse {
-            user_email: updated_user_email,
-            verified_at: now,
-        },
-        (),
-        start,
-    ))
+    // Create the response struct
+    let email_validate_response = EmailValidateResponse {
+        user_email: updated_user_email,
+        verified_at: now,
+        time_to_process: start.elapsed(),
+    };
+
+    // Hydrate the HTML using the provided function
+    let html = hydrate_email_validate_response_page(&email_validate_response);
+
+    // Return HTML as the HTTP response
+    Ok(Html(html))
 }
