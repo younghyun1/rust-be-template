@@ -63,7 +63,7 @@ impl ValidateEmailEmail {
             .replace(
                 "$1",
                 &format!(
-                    "https://{DOMAIN_NAME}/account/signup/validate-email?email_validation_token_id={token_id}"
+                    "https://{DOMAIN_NAME}/api/auth/verify-user-email?email_validation_token_id={token_id}"
                 ),
             )
             .replace("$2", &valid_until.to_string());
