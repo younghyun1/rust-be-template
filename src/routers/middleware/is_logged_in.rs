@@ -26,7 +26,9 @@ pub async fn is_logged_in_middleware(
     let auth_status = if let Some(session_cookie) = cookie_jar.get("session_id") {
         match Uuid::from_str(session_cookie.value()) {
             Ok(session_id) => match state.get_session(&session_id).await {
-                Ok(session) if session.is_valid() => AuthStatus::LoggedIn(session.get_user_id()),
+                Ok(session) if session.is_unexpired() => {
+                    AuthStatus::LoggedIn(session.get_user_id())
+                }
                 _ => AuthStatus::LoggedOut,
             },
             Err(_) => AuthStatus::LoggedOut,

@@ -69,11 +69,6 @@ pub async fn login(
     // Leave no password alive in RAM!
     request.zeroize();
 
-    // Check if user's email is verified
-    if !user.user_is_email_verified {
-        return Err(CodeError::EMAIL_NOT_VERIFIED.into());
-    }
-
     // Invalidate prior session here.
     let old_session_id: Option<Uuid> = match cookie_jar.get("session_id") {
         Some(cookie) => match Uuid::from_str(cookie.value()) {

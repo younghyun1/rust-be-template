@@ -557,10 +557,10 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn is_valid(&self) -> bool {
+    pub fn is_unexpired(&self) -> bool {
         let now = Utc::now();
 
-        self.created_at < now && self.expires_at > now && self.is_email_verified
+        self.created_at < now && self.expires_at > now
     }
 
     pub fn get_user_id(&self) -> uuid::Uuid {
@@ -577,5 +577,9 @@ impl Session {
 
     pub fn get_user_language(&self) -> i32 {
         self.user_language
+    }
+
+    pub fn get_is_email_verified(&self) -> bool {
+        self.is_email_verified
     }
 }
