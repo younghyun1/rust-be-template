@@ -560,10 +560,22 @@ impl Session {
     pub fn is_valid(&self) -> bool {
         let now = Utc::now();
 
-        self.created_at < now && self.expires_at > now
+        self.created_at < now && self.expires_at > now && self.is_email_verified
     }
 
     pub fn get_user_id(&self) -> uuid::Uuid {
         self.user_id
+    }
+
+    pub fn get_user_name(&self) -> &str {
+        &self.user_name
+    }
+
+    pub fn get_user_country(&self) -> i32 {
+        self.user_country
+    }
+
+    pub fn get_user_language(&self) -> i32 {
+        self.user_language
     }
 }

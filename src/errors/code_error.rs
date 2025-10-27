@@ -305,6 +305,13 @@ impl CodeError {
         message: "Could not run fastfetch!",
         log_level: Level::ERROR,
     };
+    pub const EMAIL_NOT_VERIFIED: CodeError = CodeError {
+        success: false,
+        error_code: 41,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Email address is not verified!",
+        log_level: Level::INFO,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
