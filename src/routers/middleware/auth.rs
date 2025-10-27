@@ -38,7 +38,7 @@ pub async fn auth_middleware(
         }
     };
 
-    let session = match state.get_session(&session_id).await {
+    let session: crate::init::state::Session = match state.get_session(&session_id).await {
         Ok(session) => session,
         Err(e) => {
             return Err(code_err(
@@ -48,14 +48,20 @@ pub async fn auth_middleware(
         }
     };
 
-    if !session.is_valid() {
+    if !session.is_unexpired() {
         return Err(code_err(
             CodeError::UNAUTHORIZED_ACCESS,
-            "Session is invalid".to_string(),
+            "Session has expired".to_string(),
         ));
     }
 
-    // Assuming your Session carries a field `user_id` of type Uuid.
+    if !session.get_is_email_verified() {
+        return Err(code_err(
+            CodeError::EMAIL_NOT_VERIFIED,
+            "Email is not verified".to_string(),
+        ));
+    }
+
     request.extensions_mut().insert(session.get_user_id());
 
     let response = next.run(request).await;

@@ -3,6 +3,7 @@ pub mod delete_account;
 pub mod login;
 pub mod logout;
 pub mod me;
+pub mod resend_email_verification_email;
 pub mod reset_password;
 pub mod reset_password_request;
 pub mod signup;

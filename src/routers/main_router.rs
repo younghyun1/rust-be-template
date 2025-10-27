@@ -119,7 +119,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let is_logged_in_middleware = from_fn_with_state(state.clone(), is_logged_in_middleware);
     let compression_middleware = CompressionLayer::new().gzip(true);
     let cors_layer = CorsLayer::very_permissive();
-
+    
     // Publicly accessible API routes
     let public_router = Router::new()
         .route("/api/healthcheck/server", get(healthcheck))
