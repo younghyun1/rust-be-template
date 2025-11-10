@@ -5,7 +5,7 @@ pub struct EmailValidateResponse {
     pub time_to_process: std::time::Duration,
 }
 
-const EMAIL_VALIDATE_RESPONSE_PAGE: &'static str = include_str!("email_validate_response.html");
+const EMAIL_VALIDATE_RESPONSE_PAGE: &str = include_str!("email_validate_response.html");
 
 pub fn hydrate_email_validate_response_page(response: &EmailValidateResponse) -> String {
     let html = EMAIL_VALIDATE_RESPONSE_PAGE;
