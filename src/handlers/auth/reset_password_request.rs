@@ -9,7 +9,7 @@ use tracing::error;
 use uuid::Uuid;
 
 use crate::{
-    domain::user::{NewPasswordResetToken, User},
+    domain::auth::user::{NewPasswordResetToken, User},
     dto::{
         requests::auth::reset_password_request::ResetPasswordRequest,
         responses::{

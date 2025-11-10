@@ -10,7 +10,7 @@ use uuid::Uuid;
 use zeroize::Zeroize;
 
 use crate::{
-    domain::user::{NewEmailVerificationToken, User},
+    domain::auth::user::{NewEmailVerificationToken, User},
     dto::{
         requests::auth::signup_request::SignupRequest,
         responses::{auth::signup_response::SignupResponse, response_data::http_resp},
