@@ -1,4 +1,4 @@
-use crate::domain::user::{UserInfo, UserProfilePicture};
+use crate::domain::auth::user::{UserInfo, UserProfilePicture};
 use serde_derive::Serialize;
 
 #[derive(Serialize)]

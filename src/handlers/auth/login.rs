@@ -2,7 +2,7 @@ use std::{str::FromStr, sync::Arc};
 
 use crate::{
     DOMAIN_NAME,
-    domain::user::User,
+    domain::auth::user::User,
     dto::{
         requests::auth::login_request::LoginRequest,
         responses::{auth::login_response::LoginResponse, response_data::http_resp_with_cookies},

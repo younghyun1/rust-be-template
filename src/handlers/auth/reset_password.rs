@@ -7,7 +7,7 @@ use diesel_async::RunQueryDsl;
 use tracing::error;
 
 use crate::{
-    domain::user::{PasswordResetToken, User},
+    domain::auth::user::{PasswordResetToken, User},
     dto::{
         requests::auth::reset_password::ResetPasswordProcessRequest,
         responses::{

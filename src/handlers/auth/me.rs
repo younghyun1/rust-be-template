@@ -8,7 +8,7 @@ use diesel_async::RunQueryDsl;
 
 use crate::{
     build_info::{BUILD_TIME_UTC, LIB_VERSION_MAP},
-    domain::user::{UserInfo, UserProfilePicture},
+    domain::auth::user::{UserInfo, UserProfilePicture},
     dto::responses::{auth::me_response::MeResponse, response_data::http_resp},
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,

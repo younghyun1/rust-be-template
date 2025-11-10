@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    domain::user::EmailVerificationToken,
+    domain::auth::user::EmailVerificationToken,
     dto::{
         requests::auth::verify_user_email_request::EmailValidationToken,
         responses::auth::email_validate_response::{

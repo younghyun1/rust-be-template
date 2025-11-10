@@ -20,7 +20,7 @@ use crate::domain::country::{
 };
 use crate::domain::i18n::i18n::InternationalizationString;
 use crate::domain::i18n::i18n_cache::I18nCache;
-use crate::domain::user::User;
+use crate::domain::auth::user::User;
 use crate::schema::{iso_country, iso_country_subdivision, iso_currency, iso_language};
 use crate::util::geographic::ip_info_lookup::{
     GeoIpDatabases, IpInfo, decompress_and_deserialize, lookup_ip_location_from_map,
