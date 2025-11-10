@@ -25,7 +25,7 @@ axum = { version = "0.8.6", features = [
     "macros",
     "multipart",
 ] }
-axum-extra = { version = "0.10.3", features = ["cookie", "attachment", "form"] }
+axum-extra = { version = "0.12.1", features = ["cookie", "attachment", "form"] }
 axum-server = { version = "0.7.2", features = ["tls-rustls", "tokio-rustls"] }
 tower-http = { version = "0.6.6", features = [
     "compression-gzip",
@@ -45,7 +45,7 @@ diesel = { version = "2.3.3", features = [
     "uuid",
     "ipnet-address",
 ] }
-diesel-async = { version = "0.7.3", features = ["bb8", "postgres"] }
+diesel-async = { version = "0.7.4", features = ["bb8", "postgres"] }
 
 # .env loading
 dotenvy = "0.15.7"
@@ -74,7 +74,7 @@ bitcode = "0.6.7"
 # types
 chrono = { version = "0.4.42", features = ["serde"] }
 chrono-tz = { version = "0.10.4", features = ["serde"] }
-scc = "3.3.2"
+scc = "3.3.7"
 uuid = { version = "1.18.1", features = [
     "v4",
     "v7",
@@ -92,7 +92,7 @@ email_address = "0.2.9"
 argon2 = "0.5.3"
 rand = "0.9"
 rand_08 = { package = "rand", version = "0.8.5" }
-rustls = { version = "0.23.34", features = [] }
+rustls = { version = "0.23.35", features = [] }
 zeroize = { version = "1.8.2", features = ["derive"] }
 
 # memory allocator
@@ -117,25 +117,25 @@ bigdecimal = { version = "0.4.9", features = ["serde"] }
 image = "0.25.8"
 
 # markdown
-comrak = { version = "0.45.0", features = ["emojis", "shortcodes"] }
+comrak = { version = "0.47.0", features = ["emojis", "shortcodes"] }
 
 # request to external
 reqwest = { version = "0.12.24", features = ["rustls-tls", "gzip"] }
 
 # embed assets into binary
-rust-embed = "8.8.0"
+rust-embed = "8.9.0"
 mime_guess = "2.0.5"
 
 # internment
 internment = "0.8.6"
 
 # aws
-aws-sdk-s3 = { version = "1.108.0", features = ["behavior-version-latest"] }
-aws-config = { version = "1.8.8", features = [
+aws-sdk-s3 = { version = "1.112.0", features = ["behavior-version-latest"] }
+aws-config = { version = "1.8.10", features = [
     "rustls",
     "behavior-version-latest",
 ] }
-aws-types = "1.3.9"
+aws-types = "1.3.10"
 
 # enable for dockerization?
 # encryption
