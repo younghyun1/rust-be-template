@@ -20,6 +20,10 @@
 18) Roles-based endpoint access control - it's *my* blog.
 19) Forum
 20) User roles and permissions - admin interface?
+20-1) When creating a new user, add as guest
+20-2) Regular user upon email validation
+20-3) Include role into session
+20-4) Make sure session is updated upon user info change
 21) Pretty code formatting
 22) Audio chat demo
 23) Video call demo
