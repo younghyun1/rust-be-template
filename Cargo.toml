@@ -117,7 +117,7 @@ bigdecimal = { version = "0.4.9", features = ["serde"] }
 image = "0.25.8"
 
 # markdown
-comrak = { version = "0.47.0", features = ["emojis", "shortcodes"] }
+comrak = { version = "0.48.0", features = ["emojis", "shortcodes"] }
 
 # request to external
 reqwest = { version = "0.12.24", features = ["rustls-tls", "gzip"] }
@@ -152,3 +152,7 @@ zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt", "pkg-config"] }
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62.2", features = ["Win32_System_SystemInformation", "Win32_System_Threading"] }
 zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt"] }
+
+# TODO: remove once axum-server is patched
+[patch.crates-io]
+axum-server = { git = "https://github.com/AlvaroParker/axum-server", branch = "fix-trait-bound" }
