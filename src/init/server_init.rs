@@ -56,14 +56,18 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
 
     info!("Loaded keys.");
 
-    let db_config = DbConfig::from_env()
+    let db_url = DbConfig::from_env()
         .map_err(|e| anyhow::anyhow!("Failed to get DB config from environment: {}", e))?
         .to_url()
         .map_err(|e| anyhow::anyhow!("Failed to convert DB config to URL: {}", e))?;
+
+    // Diagnostic Step 1: Log the exact connection URL to verify its format.
+    info!(url = %db_url, "Attempting to connect to database.");
+
     info!("Loaded DB configuration.");
 
     let pool_config =
-        AsyncDieselConnectionManager::<diesel_async::AsyncPgConnection>::new(db_config);
+        AsyncDieselConnectionManager::<diesel_async::AsyncPgConnection>::new(db_url.clone());
 
     let pool = Pool::builder()
         .min_idle(Some(num_cores))
@@ -71,7 +75,14 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
         .connection_timeout(Duration::from_secs(2))
         .build(pool_config)
         .await
-        .map_err(|e| anyhow::anyhow!("Failed to build connection pool: {}", e))?;
+        .map_err(|e| {
+            // Diagnostic Step 2: Add crucial context to the error message.
+            anyhow::anyhow!(
+                "Failed to build connection pool. URL: '{}'. Error: {}",
+                db_url,
+                e
+            )
+        })?;
 
     info!(
         "Connection pool built with {} connections. Will scale to {} connections.",
