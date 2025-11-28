@@ -42,10 +42,10 @@ pub async fn is_superuser(state: Arc<ServerState>, user_id: Uuid) -> anyhow::Res
         .into_role_type()
         .map_err(|e| anyhow::anyhow!("Failed to convert role type: {}", e))?;
 
-    return match role_type {
+    match role_type {
         crate::domain::auth::role::RoleType::Younghyun => Ok(true),
         crate::domain::auth::role::RoleType::Moderator => Ok(false),
         crate::domain::auth::role::RoleType::User => Ok(false),
         crate::domain::auth::role::RoleType::Guest => Ok(false),
-    };
+    }
 }
