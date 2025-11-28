@@ -354,26 +354,66 @@ impl IntoResponse for CodeErrorResp {
         let body = Json(&self);
         let mut response = (self.http_status_code, body).into_response();
 
-        response.headers_mut().insert(
-            "X-Error-Log-Level",
-            HeaderValue::from_str(&self.log_level.to_string()).unwrap(),
-        );
-        response.headers_mut().insert(
-            "X-Error-Status-Code",
-            HeaderValue::from_str(&self.http_status_code.as_u16().to_string()).unwrap(),
-        );
-        response.headers_mut().insert(
-            "X-Error-Code",
-            HeaderValue::from_str(&self.error_code.to_string()).unwrap(),
-        );
-        response.headers_mut().insert(
-            "X-Error-Message",
-            HeaderValue::from_str(&self.message).unwrap(),
-        );
-        response.headers_mut().insert(
-            "X-Error-Detail",
-            HeaderValue::from_str(&self.error_message).unwrap(),
-        );
+        match HeaderValue::from_str(&self.log_level.to_string()) {
+            Ok(val) => {
+                response.headers_mut().insert("X-Error-Log-Level", val);
+            }
+            Err(e) => {
+                tracing::error!(
+                    "Invalid header value {} for X-Error-Log-Level: {}",
+                    self.log_level.to_string(),
+                    e
+                );
+            }
+        }
+        match HeaderValue::from_str(&self.http_status_code.as_u16().to_string()) {
+            Ok(val) => {
+                response.headers_mut().insert("X-Error-Status-Code", val);
+            }
+            Err(e) => {
+                tracing::error!(
+                    "Invalid header value {} for X-Error-Status-Code: {}",
+                    self.http_status_code.as_u16().to_string(),
+                    e
+                );
+            }
+        }
+        match HeaderValue::from_str(&self.error_code.to_string()) {
+            Ok(val) => {
+                response.headers_mut().insert("X-Error-Code", val);
+            }
+            Err(e) => {
+                tracing::error!(
+                    "Invalid header value {} for X-Error-Code: {}",
+                    self.error_code.to_string(),
+                    e
+                );
+            }
+        }
+        match HeaderValue::from_str(&self.message) {
+            Ok(val) => {
+                response.headers_mut().insert("X-Error-Message", val);
+            }
+            Err(e) => {
+                tracing::error!(
+                    "Invalid header value {} for X-Error-Message: {}",
+                    self.message,
+                    e
+                );
+            }
+        }
+        match HeaderValue::from_str(&self.error_message) {
+            Ok(val) => {
+                response.headers_mut().insert("X-Error-Detail", val);
+            }
+            Err(e) => {
+                tracing::error!(
+                    "Invalid header value {} for X-Error-Detail: {}",
+                    self.error_message,
+                    e
+                );
+            }
+        }
 
         response
     }

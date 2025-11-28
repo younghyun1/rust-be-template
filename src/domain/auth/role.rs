@@ -12,6 +12,18 @@ pub enum RoleType {
     Guest = 3,
 }
 
+impl RoleType {
+    pub fn from_uuid(role_id: Uuid) -> anyhow::Result<RoleType> {
+        match role_id.as_u128() {
+            ROLE_YOUNGHYUN => Ok(RoleType::Younghyun),
+            ROLE_MODERATOR => Ok(RoleType::Moderator),
+            ROLE_USER => Ok(RoleType::User),
+            ROLE_GUEST => Ok(RoleType::Guest),
+            _ => Err(anyhow::anyhow!("Invalid role ID")),
+        }
+    }
+}
+
 // 019a6c86-8bca-7b91-b9c0-1d4cc96b3263
 const ROLE_YOUNGHYUN: u128 = 2131042872073453539493660941469037155;
 // 019a6c86-b163-7452-aa70-5997736b0434
