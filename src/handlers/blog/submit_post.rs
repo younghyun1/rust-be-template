@@ -16,7 +16,10 @@ use crate::{
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::{ServerState, Session},
     schema::posts,
-    util::{string::generate_slug::generate_slug, time::now::tokio_now},
+    util::{
+        auth::is_superuser::is_superuser, string::generate_slug::generate_slug,
+        time::now::tokio_now,
+    },
 };
 
 // .route("/blog/submit-post", post(submit_post))
@@ -57,6 +60,18 @@ pub async fn submit_post(
 
     let user_id: Uuid = session.get_user_id();
     drop(session);
+
+    let is_superuser = match is_superuser(state.clone(), user_id).await {
+        Ok(is_superuser) => is_superuser,
+        Err(e) => return Err(code_err(CodeError::DB_QUERY_ERROR, e)),
+    };
+
+    if !is_superuser {
+        return Err(code_err(
+            CodeError::UNAUTHORIZED_ACCESS,
+            "User is not Younghyun",
+        ));
+    }
 
     // Generate slug (only for new posts or if title changed)
     let slug: String = generate_slug(&request.post_title);
