@@ -24,10 +24,9 @@ impl DbConfig {
             .ok()
             .is_some_and(|host| host.starts_with('/'));
 
-        if !is_socket_path
-            && let Ok(db_url) = std::env::var("DB_URL") {
-                return Self::from_url(&db_url);
-            }
+        if !is_socket_path && let Ok(db_url) = std::env::var("DB_URL") {
+            return Self::from_url(&db_url);
+        }
 
         let db_type = DbType::Postgres;
         let db_host = std::env::var("DB_HOST")

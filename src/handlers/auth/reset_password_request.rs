@@ -9,6 +9,7 @@ use tracing::error;
 use uuid::Uuid;
 
 use crate::{
+    DOMAIN_NAME,
     domain::auth::user::{NewPasswordResetToken, User},
     dto::{
         requests::auth::reset_password_request::ResetPasswordRequest,
@@ -82,7 +83,9 @@ pub async fn reset_password_request_process(
     tokio::spawn(async move {
         let email_client = state.get_email_client();
         let password_reset_email = PasswordResetEmail::new()
-            .set_link("example.com") // TODO: Include token here
+            .set_link(&format!(
+                "https://{DOMAIN_NAME}/reset-password?token={password_reset_token}"
+            ))
             .to_message(&user_email);
 
         match email_client.send(password_reset_email).await {
