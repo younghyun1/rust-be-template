@@ -22,18 +22,17 @@ impl DbConfig {
     pub fn from_env() -> anyhow::Result<Self> {
         let is_socket_path = std::env::var("DB_HOST")
             .ok()
-            .map_or(false, |host| host.starts_with('/'));
-    
-        if !is_socket_path {
-            if let Ok(db_url) = std::env::var("DB_URL") {
+            .is_some_and(|host| host.starts_with('/'));
+
+        if !is_socket_path
+            && let Ok(db_url) = std::env::var("DB_URL") {
                 return Self::from_url(&db_url);
             }
-        }
-    
+
         let db_type = DbType::Postgres;
         let db_host = std::env::var("DB_HOST")
             .map_err(|_| anyhow!("Environment variable DB_HOST not found"))?;
-    
+
         let db_port = if db_host.starts_with('/') {
             None
         } else {
@@ -43,16 +42,16 @@ impl DbConfig {
                     .parse::<u16>()?,
             )
         };
-    
+
         let db_username = std::env::var("DB_USERNAME")
             .map_err(|_| anyhow!("Environment variable DB_USERNAME not found"))?;
-    
+
         let db_password = std::env::var("DB_PASSWORD")
             .map_err(|_| anyhow!("Environment variable DB_PASSWORD not found"))?;
-            
+
         let db_name = std::env::var("DB_NAME")
             .map_err(|_| anyhow!("Environment variable DB_NAME not found"))?;
-    
+
         Ok(DbConfig {
             db_type,
             db_host,
