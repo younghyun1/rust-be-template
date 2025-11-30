@@ -6,19 +6,19 @@ use axum::{
     response::IntoResponse,
 };
 use axum_extra::extract::CookieJar;
-use diesel::prelude::Insertable;
+use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, prelude::Insertable};
 use uuid::Uuid;
 
 use diesel_async::RunQueryDsl;
 
 use crate::{
-    domain::blog::blog::Comment as DbComment,
+    domain::blog::blog::{Comment as DbComment, CommentResponse, UserBadgeInfo, VoteState},
     dto::{
         requests::blog::submit_comment::SubmitCommentRequest, responses::response_data::http_resp,
     },
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::{ServerState, Session},
-    schema::comments,
+    schema::{comments, user_profile_pictures, users},
     util::time::now::tokio_now,
 };
 
@@ -81,7 +81,33 @@ pub async fn submit_comment(
         .await
         .map_err(|e| code_err(CodeError::DB_INSERTION_ERROR, e))?;
 
+    let user_name: String = users::table
+        .filter(users::user_id.eq(user_id))
+        .select(users::user_name)
+        .first(&mut conn)
+        .await
+        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+
+    let user_profile_picture_url: Option<String> = user_profile_pictures::table
+        .filter(user_profile_pictures::user_id.eq(user_id))
+        .order(user_profile_pictures::user_profile_picture_updated_at.desc())
+        .select(user_profile_pictures::user_profile_picture_link)
+        .first(&mut conn)
+        .await
+        .optional()
+        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?
+        .flatten();
+
     drop(conn);
 
-    Ok(http_resp(inserted_comment, (), start))
+    let response = CommentResponse::from_comment_votestate_and_badge_info(
+        inserted_comment,
+        VoteState::DidNotVote,
+        UserBadgeInfo {
+            user_name,
+            user_profile_picture_url: user_profile_picture_url.unwrap_or_default(),
+        },
+    );
+
+    Ok(http_resp(response, (), start))
 }

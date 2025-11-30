@@ -69,9 +69,10 @@ pub async fn read_post(
     let comments: Vec<Comment> =
         comments_result.map_err(|e| code_err(CodeError::JOIN_ERROR, e))??;
 
-    let mut comment_user_ids: Vec<Uuid> = comments.iter().map(|c| c.user_id).collect();
-    comment_user_ids.sort();
-    comment_user_ids.dedup();
+    let mut relevant_user_ids: Vec<Uuid> = comments.iter().map(|c| c.user_id).collect();
+    relevant_user_ids.push(post.user_id);
+    relevant_user_ids.sort();
+    relevant_user_ids.dedup();
 
     let mut conn = state
         .get_conn()
@@ -80,7 +81,7 @@ pub async fn read_post(
 
     // Fetch user names
     let users_info: Vec<(Uuid, String)> = users::table
-        .filter(users::user_id.eq_any(&comment_user_ids))
+        .filter(users::user_id.eq_any(&relevant_user_ids))
         .select((users::user_id, users::user_name))
         .load(&mut conn)
         .await
@@ -90,7 +91,7 @@ pub async fn read_post(
 
     // Fetch profile pictures
     let user_pics: Vec<(Uuid, Option<String>)> = user_profile_pictures::table
-        .filter(user_profile_pictures::user_id.eq_any(&comment_user_ids))
+        .filter(user_profile_pictures::user_id.eq_any(&relevant_user_ids))
         .order(user_profile_pictures::user_profile_picture_updated_at.desc())
         .select((
             user_profile_pictures::user_id,
@@ -102,10 +103,11 @@ pub async fn read_post(
 
     let mut user_pic_map: HashMap<Uuid, String> = HashMap::new();
     for (uid, link) in user_pics {
-        if !user_pic_map.contains_key(&uid)
-            && let Some(l) = link {
+        if !user_pic_map.contains_key(&uid) {
+            if let Some(l) = link {
                 user_pic_map.insert(uid, l);
             }
+        }
     }
 
     drop(conn);
@@ -172,6 +174,12 @@ pub async fn read_post(
 
     comment_responses.sort_by_key(|c| -(c.total_upvotes - c.total_downvotes));
 
+    let post_author_name = user_name_map
+        .get(&post.user_id)
+        .cloned()
+        .unwrap_or_else(|| "Unknown".to_string());
+    let post_author_pic = user_pic_map.get(&post.user_id).cloned().unwrap_or_default();
+
     let post_vote_state = if let AuthStatus::LoggedIn(user_id) = is_logged_in {
         let mut conn = state
             .get_conn()
@@ -199,6 +207,10 @@ pub async fn read_post(
             post,
             comments: comment_responses,
             vote_state: post_vote_state,
+            user_badge_info: UserBadgeInfo {
+                user_name: post_author_name,
+                user_profile_picture_url: post_author_pic,
+            },
         },
         (),
         start,
