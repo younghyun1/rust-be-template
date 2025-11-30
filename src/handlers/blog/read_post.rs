@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use axum::{
     Extension,
@@ -10,12 +10,12 @@ use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
 use crate::{
-    domain::blog::blog::{Comment, CommentResponse, VoteState},
+    domain::blog::blog::{Comment, CommentResponse, UserBadgeInfo, VoteState},
     dto::responses::{blog::read_post_response::ReadPostResponse, response_data::http_resp},
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
     routers::middleware::is_logged_in::AuthStatus,
-    schema::{comment_votes, comments, post_votes, posts},
+    schema::{comment_votes, comments, post_votes, posts, user_profile_pictures, users},
     util::time::now::tokio_now,
 };
 
@@ -69,53 +69,107 @@ pub async fn read_post(
     let comments: Vec<Comment> =
         comments_result.map_err(|e| code_err(CodeError::JOIN_ERROR, e))??;
 
-    // Transform comments into CommentResponse with vote state
-    let mut comment_responses: Vec<CommentResponse> =
-        if let AuthStatus::LoggedIn(user_id) = is_logged_in {
-            let comment_ids: Vec<Uuid> = comments.iter().map(|c| c.comment_id).collect();
-            let mut conn = state
-                .get_conn()
-                .await
-                .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
+    let mut comment_user_ids: Vec<Uuid> = comments.iter().map(|c| c.user_id).collect();
+    comment_user_ids.sort();
+    comment_user_ids.dedup();
 
-            let user_votes: Vec<(Uuid, bool)> = comment_votes::table
-                .filter(comment_votes::comment_id.eq_any(&comment_ids))
-                .filter(comment_votes::user_id.eq(user_id))
-                .select((comment_votes::comment_id, comment_votes::is_upvote))
-                .load::<(Uuid, bool)>(&mut conn)
-                .await
-                .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+    let mut conn = state
+        .get_conn()
+        .await
+        .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-            let vote_map: std::collections::HashMap<Uuid, VoteState> = user_votes
-                .into_iter()
-                .map(|(cid, is_upvote)| {
-                    let vs = if is_upvote {
-                        VoteState::Upvoted
-                    } else {
-                        VoteState::Downvoted
-                    };
-                    (cid, vs)
-                })
-                .collect();
+    // Fetch user names
+    let users_info: Vec<(Uuid, String)> = users::table
+        .filter(users::user_id.eq_any(&comment_user_ids))
+        .select((users::user_id, users::user_name))
+        .load(&mut conn)
+        .await
+        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
 
-            comments
-                .into_iter()
-                .map(|comment| {
-                    let vs = vote_map
-                        .get(&comment.comment_id)
-                        .cloned()
-                        .unwrap_or(VoteState::DidNotVote);
-                    CommentResponse::from_comment_and_votestate(comment, vs)
-                })
-                .collect::<Vec<_>>()
-        } else {
-            comments
-                .into_iter()
-                .map(|comment| {
-                    CommentResponse::from_comment_and_votestate(comment, VoteState::DidNotVote)
-                })
-                .collect::<Vec<_>>()
-        };
+    let user_name_map: HashMap<Uuid, String> = users_info.into_iter().collect();
+
+    // Fetch profile pictures
+    let user_pics: Vec<(Uuid, Option<String>)> = user_profile_pictures::table
+        .filter(user_profile_pictures::user_id.eq_any(&comment_user_ids))
+        .order(user_profile_pictures::user_profile_picture_updated_at.desc())
+        .select((
+            user_profile_pictures::user_id,
+            user_profile_pictures::user_profile_picture_link,
+        ))
+        .load(&mut conn)
+        .await
+        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+
+    let mut user_pic_map: HashMap<Uuid, String> = HashMap::new();
+    for (uid, link) in user_pics {
+        if !user_pic_map.contains_key(&uid) {
+            if let Some(l) = link {
+                user_pic_map.insert(uid, l);
+            }
+        }
+    }
+
+    drop(conn);
+
+    // Fetch vote state for comments if logged in
+    let vote_map = if let AuthStatus::LoggedIn(user_id) = is_logged_in {
+        let comment_ids: Vec<Uuid> = comments.iter().map(|c| c.comment_id).collect();
+        let mut conn = state
+            .get_conn()
+            .await
+            .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
+
+        let user_votes: Vec<(Uuid, bool)> = comment_votes::table
+            .filter(comment_votes::comment_id.eq_any(&comment_ids))
+            .filter(comment_votes::user_id.eq(user_id))
+            .select((comment_votes::comment_id, comment_votes::is_upvote))
+            .load::<(Uuid, bool)>(&mut conn)
+            .await
+            .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+
+        user_votes
+            .into_iter()
+            .map(|(cid, is_upvote)| {
+                let vs = if is_upvote {
+                    VoteState::Upvoted
+                } else {
+                    VoteState::Downvoted
+                };
+                (cid, vs)
+            })
+            .collect::<HashMap<Uuid, VoteState>>()
+    } else {
+        HashMap::new()
+    };
+
+    // Transform comments into CommentResponse
+    let mut comment_responses: Vec<CommentResponse> = comments
+        .into_iter()
+        .map(|comment| {
+            let vs = vote_map
+                .get(&comment.comment_id)
+                .cloned()
+                .unwrap_or(VoteState::DidNotVote);
+
+            let user_name = user_name_map
+                .get(&comment.user_id)
+                .cloned()
+                .unwrap_or_else(|| "Unknown".to_string());
+            let user_profile_picture_url = user_pic_map
+                .get(&comment.user_id)
+                .cloned()
+                .unwrap_or_default();
+
+            CommentResponse::from_comment_votestate_and_badge_info(
+                comment,
+                vs,
+                UserBadgeInfo {
+                    user_name,
+                    user_profile_picture_url,
+                },
+            )
+        })
+        .collect();
 
     comment_responses.sort_by_key(|c| -(c.total_upvotes - c.total_downvotes));
 
