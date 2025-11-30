@@ -1,4 +1,5 @@
 cd ../solid-csr-spa-template/
+git reset --hard && git pull
 ./deploy_to_be.sh
 cd ../rust-be-template/
 cargo upgrade --incompatible
