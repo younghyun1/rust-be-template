@@ -176,9 +176,15 @@ pub struct CommentResponse {
     pub total_upvotes: i64,
     pub total_downvotes: i64,
     pub vote_state: VoteState,
+    pub user_name: String,
+    pub user_profile_picture_url: String,
 }
 impl CommentResponse {
-    pub fn from_comment_and_votestate(comment: Comment, vote_state: VoteState) -> Self {
+    pub fn from_comment_votestate_and_badge_info(
+        comment: Comment,
+        vote_state: VoteState,
+        user_badge_info: UserBadgeInfo,
+    ) -> Self {
         Self {
             comment_id: comment.comment_id,
             post_id: comment.post_id,
@@ -190,6 +196,8 @@ impl CommentResponse {
             total_upvotes: comment.total_upvotes,
             total_downvotes: comment.total_downvotes,
             vote_state,
+            user_name: user_badge_info.user_name,
+            user_profile_picture_url: user_badge_info.user_profile_picture_url,
         }
     }
 }
