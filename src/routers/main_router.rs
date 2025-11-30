@@ -32,6 +32,7 @@ use crate::{
             get_languages::get_languages,
             get_subdivisions_for_country::get_subdivisions_for_country,
         },
+        geo_ip::lookup_ip::lookup_ip_info,
         i18n::get_country_language_bundle::get_country_language_bundle,
         server::{
             healthcheck::healthcheck, lookup_ip_loc::lookup_ip_location, root::root_handler,
@@ -133,8 +134,9 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
             "/api/dropdown/country/{country_id}/subdivision",
             get(get_subdivisions_for_country),
         )
-        .route("/api/geolocate/{ip_address}", get(lookup_ip_location))
         .route("/api/visitor-board", get(get_visitor_board_entries))
+        .route("/api/geolocate/{ip_address}", get(lookup_ip_location))
+        .route("/api/geo-ip-info/{ip_address}", get(lookup_ip_info))
         .route("/api/auth/signup", post(signup_handler))
         .route("/api/auth/me", get(me_handler))
         .route(
