@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use crate::{
-    domain::blog::blog::{PostInfo, PostInfoWithVote, VoteState},
+    domain::blog::blog::{PostInfo, PostInfoWithVote, UserBadgeInfo, VoteState},
     dto::{
         requests::blog::get_posts_request::GetPostsRequest,
         responses::{blog::get_posts::GetPostsResponse, response_data::http_resp},
@@ -9,7 +9,7 @@ use crate::{
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
     routers::middleware::is_logged_in::AuthStatus,
-    schema::post_votes,
+    schema::{post_votes, user_profile_pictures, users},
     util::time::now::tokio_now,
 };
 use axum::{
@@ -39,53 +39,99 @@ pub async fn get_posts(
         .map(|post| post.post_id)
         .collect::<Vec<Uuid>>();
 
-    let posts: Vec<PostInfoWithVote> = match is_logged_in {
-        AuthStatus::LoggedIn(user_id) => {
-            let mut conn = state
-                .get_conn()
-                .await
-                .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
+    let mut user_ids: Vec<Uuid> = post_infos.iter().map(|post| post.user_id).collect();
+    user_ids.sort();
+    user_ids.dedup();
 
-            // Fetch the user's votes for all relevant post_ids
-            let user_votes: Vec<(Uuid, bool)> = post_votes::table
-                .filter(post_votes::post_id.eq_any(&post_ids))
-                .filter(post_votes::user_id.eq(user_id))
-                .select((post_votes::post_id, post_votes::is_upvote))
-                .load::<(Uuid, bool)>(&mut conn)
-                .await
-                .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+    let mut conn = state
+        .get_conn()
+        .await
+        .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-            // Map to HashMap<Uuid, VoteState>
-            let vote_map: HashMap<Uuid, VoteState> = user_votes
-                .into_iter()
-                .map(|(pid, is_upvote)| {
-                    let state = if is_upvote {
-                        VoteState::Upvoted
-                    } else {
-                        VoteState::Downvoted
-                    };
-                    (pid, state)
-                })
-                .collect();
+    // Fetch user names
+    let authors: Vec<(Uuid, String)> = users::table
+        .filter(users::user_id.eq_any(&user_ids))
+        .select((users::user_id, users::user_name))
+        .load(&mut conn)
+        .await
+        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
 
-            drop(conn);
+    let author_map: HashMap<Uuid, String> = authors.into_iter().collect();
 
-            post_infos
-                .into_iter()
-                .map(|post| {
-                    let vote_state = vote_map
-                        .get(&post.post_id)
-                        .cloned()
-                        .unwrap_or(VoteState::DidNotVote);
-                    PostInfoWithVote::from_info_with_vote(post, vote_state)
-                })
-                .collect()
+    // Fetch profile pictures
+    let author_pics: Vec<(Uuid, Option<String>)> = user_profile_pictures::table
+        .filter(user_profile_pictures::user_id.eq_any(&user_ids))
+        .order(user_profile_pictures::user_profile_picture_updated_at.desc())
+        .select((
+            user_profile_pictures::user_id,
+            user_profile_pictures::user_profile_picture_link,
+        ))
+        .load(&mut conn)
+        .await
+        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+
+    let mut author_pic_map: HashMap<Uuid, String> = HashMap::new();
+    for (uid, link) in author_pics {
+        if !author_pic_map.contains_key(&uid) {
+            if let Some(l) = link {
+                author_pic_map.insert(uid, l);
+            }
         }
-        AuthStatus::LoggedOut => post_infos
-            .iter()
-            .map(|post| PostInfoWithVote::from_info_with_vote(post.clone(), VoteState::DidNotVote))
-            .collect(),
+    }
+
+    let vote_map = if let AuthStatus::LoggedIn(user_id) = is_logged_in {
+        let user_votes: Vec<(Uuid, bool)> = post_votes::table
+            .filter(post_votes::post_id.eq_any(&post_ids))
+            .filter(post_votes::user_id.eq(user_id))
+            .select((post_votes::post_id, post_votes::is_upvote))
+            .load::<(Uuid, bool)>(&mut conn)
+            .await
+            .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+
+        user_votes
+            .into_iter()
+            .map(|(pid, is_upvote)| {
+                let state = if is_upvote {
+                    VoteState::Upvoted
+                } else {
+                    VoteState::Downvoted
+                };
+                (pid, state)
+            })
+            .collect::<HashMap<Uuid, VoteState>>()
+    } else {
+        HashMap::new()
     };
+
+    drop(conn);
+
+    let posts: Vec<PostInfoWithVote> = post_infos
+        .into_iter()
+        .map(|post| {
+            let vote_state = vote_map
+                .get(&post.post_id)
+                .cloned()
+                .unwrap_or(VoteState::DidNotVote);
+
+            let user_name = author_map
+                .get(&post.user_id)
+                .cloned()
+                .unwrap_or_else(|| "Unknown".to_string());
+            let user_profile_picture_url = author_pic_map
+                .get(&post.user_id)
+                .cloned()
+                .unwrap_or_default();
+
+            PostInfoWithVote::from_info_with_vote(
+                post,
+                vote_state,
+                UserBadgeInfo {
+                    user_name,
+                    user_profile_picture_url,
+                },
+            )
+        })
+        .collect();
 
     Ok(http_resp(
         GetPostsResponse {

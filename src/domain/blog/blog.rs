@@ -53,9 +53,17 @@ pub struct PostInfo {
 }
 
 #[derive(serde_derive::Serialize)]
+pub struct UserBadgeInfo {
+    pub user_name: String,
+    pub user_profile_picture_url: String,
+}
+
+#[derive(serde_derive::Serialize)]
 pub struct PostInfoWithVote {
     pub post_id: uuid::Uuid,
     pub user_id: uuid::Uuid,
+    pub user_name: String,
+    pub user_profile_picture_url: String,
     pub post_title: String,
     pub post_slug: String,
     pub post_summary: Option<String>,
@@ -70,10 +78,16 @@ pub struct PostInfoWithVote {
 }
 
 impl PostInfoWithVote {
-    pub fn from_info_with_vote(post_info: PostInfo, vote_state: VoteState) -> Self {
+    pub fn from_info_with_vote(
+        post_info: PostInfo,
+        vote_state: VoteState,
+        user_badge_info: UserBadgeInfo,
+    ) -> Self {
         Self {
             post_id: post_info.post_id,
             user_id: post_info.user_id,
+            user_name: user_badge_info.user_name,
+            user_profile_picture_url: user_badge_info.user_profile_picture_url,
             post_title: post_info.post_title,
             post_slug: post_info.post_slug,
             post_summary: post_info.post_summary,
@@ -107,7 +121,6 @@ impl From<Post> for PostInfo {
         }
     }
 }
-
 #[derive(Insertable)]
 #[diesel(table_name = posts)]
 pub struct NewPost<'a> {
@@ -151,7 +164,6 @@ pub struct Comment {
     pub total_upvotes: i64,
     pub total_downvotes: i64,
 }
-
 #[derive(Clone, serde_derive::Serialize)]
 pub struct CommentResponse {
     pub comment_id: uuid::Uuid,
@@ -165,7 +177,6 @@ pub struct CommentResponse {
     pub total_downvotes: i64,
     pub vote_state: VoteState,
 }
-
 impl CommentResponse {
     pub fn from_comment_and_votestate(comment: Comment, vote_state: VoteState) -> Self {
         Self {
