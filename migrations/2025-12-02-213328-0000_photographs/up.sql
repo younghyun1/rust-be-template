@@ -6,7 +6,7 @@ CREATE TABLE public.photographs (
 	photograph_updated_at timestamptz DEFAULT now() NOT NULL,
 	photograph_image_type int4 NOT NULL,
 	photograph_is_on_cloud bool NOT NULL,
-	photograph_link varchar NULL,
+	photograph_link varchar NOT NULL,
 	CONSTRAINT photographs_pk PRIMARY KEY (photograph_id),
 	CONSTRAINT photographs_user_profile_picture_image_types_fk FOREIGN KEY (photograph_image_type) REFERENCES public.user_profile_picture_image_types(image_type_id),
 	CONSTRAINT photographs_users_fk FOREIGN KEY (user_id) REFERENCES public.users(user_id) ON DELETE CASCADE ON UPDATE CASCADE
