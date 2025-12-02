@@ -73,9 +73,10 @@ pub async fn get_posts(
     let mut author_pic_map: HashMap<Uuid, String> = HashMap::new();
     for (uid, link) in author_pics {
         if !author_pic_map.contains_key(&uid)
-            && let Some(l) = link {
-                author_pic_map.insert(uid, l);
-            }
+            && let Some(l) = link
+        {
+            author_pic_map.insert(uid, l);
+        }
     }
 
     let vote_map = if let AuthStatus::LoggedIn(user_id) = is_logged_in {
