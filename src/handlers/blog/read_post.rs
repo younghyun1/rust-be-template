@@ -104,9 +104,10 @@ pub async fn read_post(
     let mut user_pic_map: HashMap<Uuid, String> = HashMap::new();
     for (uid, link) in user_pics {
         if !user_pic_map.contains_key(&uid)
-            && let Some(l) = link {
-                user_pic_map.insert(uid, l);
-            }
+            && let Some(l) = link
+        {
+            user_pic_map.insert(uid, l);
+        }
     }
 
     drop(conn);

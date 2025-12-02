@@ -10,13 +10,15 @@ use tracing::error;
 use uuid::Uuid;
 
 use crate::{
-    domain::auth::user::UserProfilePictureInsertable,
+    domain::photographs::photographs::{Photograph, PhotographInsertable},
     dto::responses::response_data::http_resp,
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
-    schema::user_profile_pictures,
+    schema::photographs,
     util::{
+        auth::is_superuser::is_superuser,
         image::{
+            exif_utils::extract_exif_shot_at,
             map_image_format_to_db_enum::map_image_format_to_str,
             process_uploaded_images::{
                 CyhdevImageType, IMAGE_ENCODING_FORMAT, process_uploaded_image,
@@ -58,6 +60,22 @@ pub async fn upload_photograph(
     let mut uploaded_file: Vec<u8> = Vec::with_capacity(MAX_SIZE_OF_UPLOADABLE_PHOTOGRPAH);
     let mut mime: Option<String> = None;
     let mut _extension: String = String::new();
+
+    let is_superuser = match is_superuser(state.clone(), user_id).await {
+        Ok(is_superuser) => is_superuser,
+        Err(e) => {
+            error!(error = ?e, user_id = %user_id, "Failed to check if user is superuser");
+            return Err(code_err(CodeError::DB_QUERY_ERROR, e));
+        }
+    };
+
+    if !is_superuser {
+        error!(user_id = %user_id, "User is not a superuser; cannot upload photograph");
+        return Err(code_err(
+            CodeError::IS_NOT_SUPERUSER,
+            "User is not a superuser; cannot upload photograph",
+        ));
+    }
 
     // Process the multipart fields
     while let Some(field) = multipart.next_field().await.map_err(|e| {
@@ -117,11 +135,21 @@ pub async fn upload_photograph(
         return Err(code_err(CodeError::FILE_UPLOAD_ERROR, "File is empty!"));
     }
 
+    // Try to extract EXIF shot date from the original bytes.
+    // This may return None if there is no EXIF or no DateTimeOriginal.
+    let photograph_shot_at = match extract_exif_shot_at(&uploaded_file) {
+        Ok(dt_opt) => dt_opt,
+        Err(e) => {
+            error!(error = ?e, user_id = %user_id, "Failed to parse EXIF shot-at datetime");
+            None
+        }
+    };
+
     // compress and process image here in a blocking thread
     let processed_image: Vec<u8> = process_uploaded_image(
         uploaded_file,
         None,
-        CyhdevImageType::ProfilePicture,
+        CyhdevImageType::Photograph,
     )
     .await
     .map_err(|e| {
@@ -176,37 +204,35 @@ pub async fn upload_photograph(
         code_err(CodeError::POOL_ERROR, e)
     })?;
 
-    let db_result: Result<Uuid, diesel::result::Error> =
-        diesel::insert_into(user_profile_pictures::table)
-            .values(UserProfilePictureInsertable {
+    let db_result: Result<Photograph, diesel::result::Error> =
+        diesel::insert_into(photographs::table)
+            .values(PhotographInsertable {
                 user_id,
-                user_profile_picture_image_type: image_type_db_id,
-                user_profile_picture_is_on_cloud: true,
-                user_profile_picture_link: Some(object_url),
+                photograph_shot_at,
+                photograph_image_type: image_type_db_id,
+                photograph_is_on_cloud: true,
+                photograph_link: Some(object_url),
             })
-            .returning(user_profile_pictures::user_profile_picture_id)
             .get_result(&mut conn)
             .await;
 
-    match db_result {
+    let photograph: Photograph = match db_result {
         Err(e) => {
             error!(
                 error = ?e,
                 user_id = %user_id,
                 key = %image_path,
-                "Failed to insert user profile picture row into DB"
+                "Failed to insert photograph row into DB"
             );
             // Clean up the image file if DB insertion fails
             tokio::fs::remove_file(&image_path).await.ok();
             return Err(code_err(CodeError::DB_INSERTION_ERROR, e));
         }
-        Ok(user_profile_picture_id) => {
-            let _user_profile_picture_id = user_profile_picture_id;
-        }
-    }
+        Ok(photograph) => photograph,
+    };
 
     drop(conn);
 
     // TODO: define response dto later
-    Ok(http_resp((), (), start))
+    Ok(http_resp(photograph, (), start))
 }
