@@ -4,5 +4,6 @@ pub mod blog;
 pub mod countries;
 pub mod geo_ip;
 pub mod i18n;
+pub mod photography;
 pub mod server;
 pub mod user;

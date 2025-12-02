@@ -17,7 +17,7 @@ impl CyhdevImageType {
     pub fn max_long_width(&self) -> u32 {
         match self {
             CyhdevImageType::ProfilePicture => 400,
-            CyhdevImageType::Photograph => 3840,
+            CyhdevImageType::Photograph => 6000,
         }
     }
 }
