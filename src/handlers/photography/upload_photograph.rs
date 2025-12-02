@@ -254,14 +254,24 @@ pub async fn upload_photograph(
     };
 
     // compress and process image here in a blocking thread
-    let processed_image: Vec<u8> = process_uploaded_image(
-        uploaded_file,
-        None,
-        CyhdevImageType::Photograph,
-    )
-    .await
-    .map_err(|e| {
-        error!(error = ?e, user_id = %user_id, "Failed to process uploaded profile picture");
+    let uploaded_file_clone = uploaded_file.clone();
+
+    let process_photograph_future =
+        process_uploaded_image(uploaded_file, None, CyhdevImageType::Photograph);
+
+    let process_thumbnail_future =
+        process_uploaded_image(uploaded_file_clone, None, CyhdevImageType::Thumbnail);
+
+    let (processed_image_res, processed_thumbnail_res) =
+        tokio::join!(process_photograph_future, process_thumbnail_future);
+
+    let processed_image: Vec<u8> = processed_image_res.map_err(|e| {
+        error!(error = ?e, user_id = %user_id, "Failed to process uploaded photograph");
+        code_err(CodeError::COULD_NOT_PROCESS_IMAGE, e)
+    })?;
+
+    let processed_thumbnail: Vec<u8> = processed_thumbnail_res.map_err(|e| {
+        error!(error = ?e, user_id = %user_id, "Failed to process uploaded thumbnail");
         code_err(CodeError::COULD_NOT_PROCESS_IMAGE, e)
     })?;
 
@@ -270,11 +280,13 @@ pub async fn upload_photograph(
     let (extension, image_type_db_id) = map_image_format_to_str(IMAGE_ENCODING_FORMAT);
 
     let image_path = format!("images/{image_id}.{extension}");
+    let thumbnail_path = format!("thumbnails/{image_id}.{extension}");
 
     // upload to S3 here
     // Initialize AWS S3 client from environment and upload the image
     let s3_client = aws_sdk_s3::Client::new(&state.aws_profile_picture_config);
 
+    // Upload main photograph
     s3_client
         .put_object()
         .bucket(AWS_S3_BUCKET_NAME)
@@ -294,6 +306,28 @@ pub async fn upload_photograph(
             code_err(CodeError::FILE_UPLOAD_ERROR, e)
         })?;
 
+    // Upload thumbnail
+    s3_client
+        .put_object()
+        .bucket(AWS_S3_BUCKET_NAME)
+        .key(&thumbnail_path)
+        .content_type(mime.as_deref().unwrap_or("application/octet-stream"))
+        .body(aws_sdk_s3::primitives::ByteStream::from(
+            processed_thumbnail,
+        ))
+        .send()
+        .await
+        .map_err(|e| {
+            error!(
+                error = ?e,
+                user_id = %user_id,
+                bucket = AWS_S3_BUCKET_NAME,
+                key = %thumbnail_path,
+                "Failed to upload thumbnail to S3"
+            );
+            code_err(CodeError::FILE_UPLOAD_ERROR, e)
+        })?;
+
     // Assemble the public S3 object URL
     // Replace `<region>` below with your actual AWS region as appropriate
     let s3_region: String = state
@@ -305,6 +339,11 @@ pub async fn upload_photograph(
     let object_url: String = format!(
         "https://{}.s3.{}.amazonaws.com/{}",
         AWS_S3_BUCKET_NAME, s3_region, image_path
+    );
+
+    let thumbnail_url: String = format!(
+        "https://{}.s3.{}.amazonaws.com/{}",
+        AWS_S3_BUCKET_NAME, s3_region, thumbnail_path
     );
 
     let mut conn = state.get_conn().await.map_err(|e| {
@@ -319,10 +358,11 @@ pub async fn upload_photograph(
                 photograph_shot_at,
                 photograph_image_type: image_type_db_id,
                 photograph_is_on_cloud: true,
-                photograph_link: Some(object_url),
+                photograph_link: object_url,
                 photograph_comments,
                 photograph_lat,
                 photograph_lon,
+                photograph_thumbnail_link: thumbnail_url,
             })
             .get_result(&mut conn)
             .await;

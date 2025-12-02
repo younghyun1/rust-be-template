@@ -11,6 +11,7 @@ pub const IMAGE_ENCODING_FORMAT: ImageFormat = ImageFormat::Avif;
 pub enum CyhdevImageType {
     ProfilePicture,
     Photograph,
+    Thumbnail,
 }
 
 impl CyhdevImageType {
@@ -18,6 +19,7 @@ impl CyhdevImageType {
         match self {
             CyhdevImageType::ProfilePicture => 400,
             CyhdevImageType::Photograph => 6000,
+            CyhdevImageType::Thumbnail => 800,
         }
     }
 }
