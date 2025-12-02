@@ -131,7 +131,7 @@ mime_guess = "2.0.5"
 internment = "0.8.6"
 
 # aws
-aws-sdk-s3 = { version = "1.115.0", features = ["behavior-version-latest"] }
+aws-sdk-s3 = { version = "1.116.0", features = ["behavior-version-latest"] }
 aws-config = { version = "1.8.11", features = [
     "rustls",
     "behavior-version-latest",
@@ -147,7 +147,7 @@ chrono = { version = "0.4.42" }
 serde_json = { version = "1.0.145", features = ["preserve_order"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libc = { version = "0.2.177", features = [] }
+libc = { version = "0.2.178", features = [] }
 zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt", "pkg-config"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]

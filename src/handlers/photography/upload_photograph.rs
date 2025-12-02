@@ -57,9 +57,20 @@ pub async fn upload_photograph(
     mut multipart: Multipart,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
+
     let mut uploaded_file: Vec<u8> = Vec::with_capacity(MAX_SIZE_OF_UPLOADABLE_PHOTOGRPAH);
+
     let mut mime: Option<String> = None;
+
     let mut _extension: String = String::new();
+
+    // Additional metadata fields provided in the multipart body (all required)
+
+    let mut photograph_comments: Option<String> = None;
+
+    let mut photograph_lat: Option<f64> = None;
+
+    let mut photograph_lon: Option<f64> = None;
 
     let is_superuser = match is_superuser(state.clone(), user_id).await {
         Ok(is_superuser) => is_superuser,
@@ -82,58 +93,155 @@ pub async fn upload_photograph(
         error!(error = ?e, user_id = %user_id, "Failed to fetch next multipart field");
         code_err(CodeError::FILE_UPLOAD_ERROR, e)
     })? {
-        // For the first field, extract metadata (file name and MIME type)
-        if uploaded_file.is_empty() {
-            _extension = field
-                .file_name()
-                .and_then(|name| name.rsplit('.').next().map(|ext| ext.to_string()))
-                .ok_or_else(|| {
-                    error!(user_id = %user_id, "Missing file extension in uploaded filename");
-                    code_err(
-                        CodeError::FILE_UPLOAD_ERROR,
-                        "No extensions, that's illegal!",
-                    )
-                })?;
-            mime = Some(
-                field
-                    .content_type()
-                    .map(|mime| mime.to_string())
-                    .ok_or_else(|| {
-                        error!(user_id = %user_id, "No MIME content type on uploaded file");
-                        code_err(
+        let name = field.name().map(str::to_owned);
+
+        match name.as_deref() {
+            // Image file field (default / "file")
+            Some("file") | None => {
+                // For the first file field, extract metadata (file name and MIME type)
+                if uploaded_file.is_empty() {
+                    _extension = field
+                        .file_name()
+                        .and_then(|name| name.rsplit('.').next().map(|ext| ext.to_string()))
+                        .ok_or_else(|| {
+                            error!(user_id = %user_id, "Missing file extension in uploaded filename");
+                            code_err(
+                                CodeError::FILE_UPLOAD_ERROR,
+                                "No extensions, that's illegal!",
+                            )
+                        })?;
+                    mime = Some(
+                        field
+                            .content_type()
+                            .map(|mime| mime.to_string())
+                            .ok_or_else(|| {
+                                error!(user_id = %user_id, "No MIME content type on uploaded file");
+                                code_err(
+                                    CodeError::FILE_UPLOAD_ERROR,
+                                    "No MIME extensions, that's illegal!",
+                                )
+                            })?,
+                    );
+                    if !mime
+                        .as_ref()
+                        .map(|m| ALLOWED_MIME_TYPES.contains(&m.as_str()))
+                        .unwrap_or(false)
+                    {
+                        error!(
+                            user_id = %user_id,
+                            mime = ?mime,
+                            "Unsupported image type; rejecting upload"
+                        );
+                        return Err(code_err(
                             CodeError::FILE_UPLOAD_ERROR,
-                            "No MIME extensions, that's illegal!",
-                        )
-                    })?,
-            );
-            if !mime
-                .as_ref()
-                .map(|m| ALLOWED_MIME_TYPES.contains(&m.as_str()))
-                .unwrap_or(false)
-            {
-                error!(
-                    user_id = %user_id,
-                    mime = ?mime,
-                    "Unsupported image type; rejecting upload"
-                );
-                return Err(code_err(
-                    CodeError::FILE_UPLOAD_ERROR,
-                    "Unsupported image type; no PSDs!",
-                ));
+                            "Unsupported image type; no PSDs!",
+                        ));
+                    }
+                }
+                // Read and accumulate the file bytes.
+                let bytes = field.bytes().await.map_err(|e| {
+                    error!(error = ?e, user_id = %user_id, "Failed reading multipart field bytes");
+                    code_err(CodeError::FILE_UPLOAD_ERROR, e)
+                })?;
+                uploaded_file.extend_from_slice(&bytes);
+            }
+
+            // Comments field (required)
+            Some("comments") => {
+                let text = field.text().await.map_err(|e| {
+                    error!(error = ?e, user_id = %user_id, "Failed reading comments field");
+
+                    code_err(CodeError::FILE_UPLOAD_ERROR, e)
+                })?;
+
+                photograph_comments = Some(text);
+            }
+
+            // Latitude field (required)
+            Some("lat") => {
+                let text = field.text().await.map_err(|e| {
+                    error!(error = ?e, user_id = %user_id, "Failed reading lat field");
+
+                    code_err(CodeError::FILE_UPLOAD_ERROR, e)
+                })?;
+
+                match text.parse::<f64>() {
+                    Ok(v) => photograph_lat = Some(v),
+
+                    Err(_) => {
+                        error!(user_id = %user_id, value = %text, "Invalid lat value");
+                        return Err(code_err(
+                            CodeError::FILE_UPLOAD_ERROR,
+                            "Invalid latitude value",
+                        ));
+                    }
+                }
+            }
+
+            // Longitude field (required)
+            Some("lon") => {
+                let text = field.text().await.map_err(|e| {
+                    error!(error = ?e, user_id = %user_id, "Failed reading lon field");
+                    code_err(CodeError::FILE_UPLOAD_ERROR, e)
+                })?;
+                match text.parse::<f64>() {
+                    Ok(v) => photograph_lon = Some(v),
+                    Err(_) => {
+                        error!(user_id = %user_id, value = %text, "Invalid lon value");
+                        return Err(code_err(
+                            CodeError::FILE_UPLOAD_ERROR,
+                            "Invalid longitude value",
+                        ));
+                    }
+                }
+            }
+
+            // Unknown fields: log and ignore
+            Some(other) => {
+                error!(user_id = %user_id, field = other, "Unexpected multipart field");
             }
         }
-        // Read and accumulate the field's bytes.
-        let bytes = field.bytes().await.map_err(|e| {
-            error!(error = ?e, user_id = %user_id, "Failed reading multipart field bytes");
-            code_err(CodeError::FILE_UPLOAD_ERROR, e)
-        })?;
-        uploaded_file.extend_from_slice(&bytes);
     }
 
     if uploaded_file.is_empty() {
         error!(user_id = %user_id, "Uploaded file is empty");
+
         return Err(code_err(CodeError::FILE_UPLOAD_ERROR, "File is empty!"));
     }
+
+    // Ensure required metadata fields are present
+    let photograph_comments = match photograph_comments {
+        Some(c) if !c.is_empty() => c,
+        _ => {
+            error!(user_id = %user_id, "Missing required comments field");
+            return Err(code_err(
+                CodeError::FILE_UPLOAD_ERROR,
+                "Missing required comments field",
+            ));
+        }
+    };
+
+    let photograph_lat = match photograph_lat {
+        Some(v) => v,
+        None => {
+            error!(user_id = %user_id, "Missing required lat field");
+            return Err(code_err(
+                CodeError::FILE_UPLOAD_ERROR,
+                "Missing required latitude field",
+            ));
+        }
+    };
+
+    let photograph_lon = match photograph_lon {
+        Some(v) => v,
+        None => {
+            error!(user_id = %user_id, "Missing required lon field");
+            return Err(code_err(
+                CodeError::FILE_UPLOAD_ERROR,
+                "Missing required longitude field",
+            ));
+        }
+    };
 
     // Try to extract EXIF shot date from the original bytes.
     // This may return None if there is no EXIF or no DateTimeOriginal.
@@ -212,6 +320,9 @@ pub async fn upload_photograph(
                 photograph_image_type: image_type_db_id,
                 photograph_is_on_cloud: true,
                 photograph_link: Some(object_url),
+                photograph_comments,
+                photograph_lat,
+                photograph_lon,
             })
             .get_result(&mut conn)
             .await;
