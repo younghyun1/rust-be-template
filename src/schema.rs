@@ -133,6 +133,9 @@ diesel::table! {
         photograph_image_type -> Int4,
         photograph_is_on_cloud -> Bool,
         photograph_link -> Nullable<Varchar>,
+        photograph_comments -> Varchar,
+        photograph_lat -> Float8,
+        photograph_lon -> Float8,
     }
 }
 
