@@ -124,6 +124,19 @@ diesel::table! {
 }
 
 diesel::table! {
+    photographs (photograph_id) {
+        photograph_id -> Uuid,
+        user_id -> Uuid,
+        photograph_shot_at -> Nullable<Timestamptz>,
+        photograph_created_at -> Timestamptz,
+        photograph_updated_at -> Timestamptz,
+        photograph_image_type -> Int4,
+        photograph_is_on_cloud -> Bool,
+        photograph_link -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
     post_tags (post_id, tag_id) {
         post_id -> Uuid,
         tag_id -> Int2,
@@ -248,6 +261,8 @@ diesel::joinable!(iso_country -> iso_currency (country_currency));
 diesel::joinable!(iso_country -> iso_language (country_primary_language));
 diesel::joinable!(iso_country_subdivision -> iso_country (country_code));
 diesel::joinable!(password_reset_tokens -> users (user_id));
+diesel::joinable!(photographs -> user_profile_picture_image_types (photograph_image_type));
+diesel::joinable!(photographs -> users (user_id));
 diesel::joinable!(post_tags -> posts (post_id));
 diesel::joinable!(post_tags -> tags (tag_id));
 diesel::joinable!(post_votes -> posts (post_id));
@@ -274,6 +289,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     iso_language,
     password_reset_tokens,
     permissions,
+    photographs,
     post_tags,
     post_votes,
     posts,

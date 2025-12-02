@@ -312,6 +312,13 @@ impl CodeError {
         message: "Email address is not verified!",
         log_level: Level::INFO,
     };
+    pub const IS_NOT_SUPERUSER: CodeError = CodeError {
+        success: false,
+        error_code: 42,
+        http_status_code: StatusCode::FORBIDDEN,
+        message: "Operation requires superuser privileges!",
+        log_level: Level::WARN,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
