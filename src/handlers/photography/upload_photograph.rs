@@ -10,7 +10,7 @@ use tracing::error;
 use uuid::Uuid;
 
 use crate::{
-    domain::photographs::photographs::{Photograph, PhotographInsertable},
+    domain::photography::photographs::{Photograph, PhotographInsertable},
     dto::responses::response_data::http_resp,
     errors::code_error::{CodeError, HandlerResponse, code_err},
     init::state::ServerState,
