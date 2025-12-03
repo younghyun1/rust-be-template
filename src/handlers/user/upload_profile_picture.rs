@@ -49,6 +49,7 @@ const ALLOWED_MIME_TYPES: [&str; 16] = [
 const AWS_S3_BUCKET_NAME: &str = "cyhdev-img";
 
 // TODO: STREAM to file, don't keep the whole damn thing around
+// TODO: DELETE old S3 objects
 pub async fn upload_profile_picture(
     Extension(user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,
