@@ -28,7 +28,7 @@ use crate::{
     },
 };
 
-const MAX_SIZE_OF_UPLOADABLE_PHOTOGRPAH: usize = 1024 * 1024 * 50; // 50MB
+const MAX_SIZE_OF_UPLOADABLE_PHOTOGRPAH: usize = 1024 * 1024 * 100; // 100MB
 const ALLOWED_MIME_TYPES: [&str; 16] = [
     "image/png",                // PNG
     "image/jpeg",               // JPEG
