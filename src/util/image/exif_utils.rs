@@ -2,6 +2,7 @@ use anyhow::{Result, anyhow};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use exif::{In, Tag};
 use std::io::Cursor;
+use tracing::{debug, warn};
 
 /// Extract the shot-at datetime from EXIF metadata, if available.
 ///
@@ -20,7 +21,10 @@ pub fn extract_exif_shot_at(image_bytes: &[u8]) -> Result<Option<DateTime<Utc>>>
     // If there is no EXIF or it's unreadable, return Ok(None)
     let exif_reader = match exif::Reader::new().read_from_container(&mut cursor) {
         Ok(r) => r,
-        Err(_) => return Ok(None),
+        Err(e) => {
+            warn!("Failed to read EXIF from container: {}", e);
+            return Ok(None);
+        }
     };
 
     // Prefer DateTimeOriginal; fall back to DateTime if missing
@@ -29,19 +33,28 @@ pub fn extract_exif_shot_at(image_bytes: &[u8]) -> Result<Option<DateTime<Utc>>>
         .or_else(|| exif_reader.get_field(Tag::DateTime, In::PRIMARY));
 
     let Some(field) = field else {
+        warn!("EXIF present but no DateTimeOriginal or DateTime tag found");
         return Ok(None);
     };
 
     // Typical EXIF datetime format: "YYYY:MM:DD HH:MM:SS"
     let raw = field.display_value().to_string();
+    debug!("Found EXIF datetime raw string: '{}'", raw);
+
     let parts: Vec<&str> = raw.split_whitespace().collect();
     if parts.len() != 2 {
+        warn!("EXIF datetime string '{}' does not have 2 parts", raw);
         return Ok(None);
     }
 
     let date_parts: Vec<&str> = parts[0].split(':').collect();
     let time_parts: Vec<&str> = parts[1].split(':').collect();
     if date_parts.len() != 3 || time_parts.len() != 3 {
+        warn!(
+            "EXIF datetime parts invalid structure: date_parts len={}, time_parts len={}",
+            date_parts.len(),
+            time_parts.len()
+        );
         return Ok(None);
     }
 
