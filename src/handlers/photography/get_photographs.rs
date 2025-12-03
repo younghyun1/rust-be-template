@@ -55,9 +55,9 @@ pub async fn get_photographs(
         .await
         .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
 
-    // Fetch a single page of photographs ordered by most recently created
+    // Fetch a single page of photographs ordered by most recently shot
     let results: Result<Vec<Photograph>, diesel::result::Error> = photographs
-        .order(photograph_created_at.desc())
+        .order(photograph_shot_at.desc())
         .offset(offset_val)
         .limit(page_size)
         .load::<Photograph>(&mut conn)
