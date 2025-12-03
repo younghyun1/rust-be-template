@@ -1,6 +1,8 @@
 git reset --hard && git pull
 cd ../solid-csr-spa-template/
 git reset --hard && git pull
+npm update
+npm install
 ./deploy_to_be.sh
 cd ../rust-be-template/
 cargo upgrade --incompatible
