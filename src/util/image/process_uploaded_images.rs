@@ -3,7 +3,8 @@ use image::{
     GenericImageView, ImageFormat, imageops::FilterType, load_from_memory,
     load_from_memory_with_format,
 };
-use std::io::Cursor;
+use std::{io::Cursor, time::Instant};
+use tracing::info;
 
 pub const IMAGE_ENCODING_FORMAT: ImageFormat = ImageFormat::Avif;
 
@@ -22,6 +23,31 @@ impl CyhdevImageType {
             CyhdevImageType::Thumbnail => 800,
         }
     }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            CyhdevImageType::ProfilePicture => "profile_picture",
+            CyhdevImageType::Photograph => "photograph",
+            CyhdevImageType::Thumbnail => "thumbnail",
+        }
+    }
+}
+
+pub fn format_size(bytes: usize) -> String {
+    const KB: f64 = 1024.0;
+    const MB: f64 = KB * 1024.0;
+    const GB: f64 = MB * 1024.0;
+
+    let b = bytes as f64;
+    if b < KB {
+        format!("{bytes} B")
+    } else if b < MB {
+        format!("{:.2} KB", b / KB)
+    } else if b < GB {
+        format!("{:.2} MB", b / MB)
+    } else {
+        format!("{:.2} GB", b / GB)
+    }
 }
 
 pub async fn process_uploaded_image(
@@ -29,21 +55,26 @@ pub async fn process_uploaded_image(
     format: Option<image::ImageFormat>,
     image_type: CyhdevImageType,
 ) -> anyhow::Result<Vec<u8>> {
-    tokio::task::spawn_blocking(move || {
+    let image_type_label = image_type.as_str();
+    let original_size = bits.len();
+    let start = Instant::now();
+
+    let result = tokio::task::spawn_blocking(move || {
         // Attempt to decode the image from memory, using the provided format if auto-detection fails.
         let img = match load_from_memory(&bits) {
             Ok(img) => img,
             Err(e) => {
                 if let Some(fmt) = format {
-                    load_from_memory_with_format(&bits, fmt)
-                        .expect("Failed to decode image with the provided format")
+                    load_from_memory_with_format(&bits, fmt).map_err(|e2| {
+                        anyhow!("Failed to decode image with the provided format: {:?}", e2)
+                    })?
                 } else {
                     return Err(anyhow!("Failed to decode image: {:?}", e));
                 }
             }
         };
 
-        // Determine dimensions and resize if necessary. The long edge is capped at 3840 pixels.
+        // Determine dimensions and resize if necessary.
         let (width, height) = img.dimensions();
         let max_edge = width.max(height);
         let resized_img = if max_edge > image_type.max_long_width() {
@@ -60,10 +91,26 @@ pub async fn process_uploaded_image(
             let mut cursor = Cursor::new(&mut output_buffer);
             resized_img
                 .write_to(&mut cursor, IMAGE_ENCODING_FORMAT)
-                .map_err(|e| anyhow!("Failed to encode image as WebP: {:?}", e))?;
+                .map_err(|e| anyhow!("Failed to encode image as AVIF: {:?}", e))?;
         }
         Ok(output_buffer)
     })
     .await
-    .map_err(|e| anyhow!("Blocking image processing task panicked: {:?}", e))?
+    .map_err(|e| anyhow!("Blocking image processing task panicked: {:?}", e))?;
+
+    let elapsed = start.elapsed();
+    if let Ok(ref processed) = result {
+        let processed_size = processed.len();
+        info!(
+            image_type = image_type_label,
+            original_size_bytes = original_size,
+            original_size_human = %format_size(original_size),
+            processed_size_bytes = processed_size,
+            processed_size_human = %format_size(processed_size),
+            elapsed_ms = %elapsed.as_millis(),
+            "Completed image processing and AVIF encoding"
+        );
+    }
+
+    result
 }
