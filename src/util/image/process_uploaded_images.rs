@@ -1,7 +1,7 @@
 use anyhow::anyhow;
+use fast_image_resize::{PixelType, ResizeOptions, Resizer, images::Image as FastImage};
 use image::{
-    GenericImageView, ImageFormat, imageops::FilterType, load_from_memory,
-    load_from_memory_with_format,
+    DynamicImage, GenericImageView, ImageFormat, load_from_memory, load_from_memory_with_format,
 };
 use std::{io::Cursor, time::Instant};
 use tracing::info;
@@ -79,9 +79,26 @@ pub async fn process_uploaded_image(
         let max_edge = width.max(height);
         let resized_img = if max_edge > image_type.max_long_width() {
             let scale = image_type.max_long_width() as f64 / max_edge as f64;
-            let new_width = (width as f64 * scale).round() as u32;
-            let new_height = (height as f64 * scale).round() as u32;
-            img.resize(new_width, new_height, FilterType::Lanczos3)
+            let new_width = (width as f64 * scale).round().max(1.0) as u32;
+            let new_height = (height as f64 * scale).round().max(1.0) as u32;
+
+            let src_data = img.to_rgba8().into_raw();
+            let src_image = FastImage::from_vec_u8(width, height, src_data, PixelType::U8x4)
+                .map_err(|_| anyhow!("Failed to create fast image from buffer"))?;
+
+            let mut dst_image = FastImage::new(new_width, new_height, src_image.pixel_type());
+
+            let mut resizer = Resizer::new();
+            resizer
+                .resize(&src_image, &mut dst_image, &ResizeOptions::default())
+                .map_err(|_| anyhow!("Failed to resize image"))?;
+
+            let dst_data = dst_image.into_vec();
+            let dst_buffer =
+                image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(new_width, new_height, dst_data)
+                    .ok_or(anyhow!("Failed to create image buffer"))?;
+
+            DynamicImage::ImageRgba8(dst_buffer)
         } else {
             img
         };
