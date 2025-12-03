@@ -6,7 +6,7 @@ use axum::{
     response::IntoResponse,
 };
 use diesel_async::RunQueryDsl;
-use tracing::error;
+use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
@@ -21,7 +21,7 @@ use crate::{
             exif_utils::extract_exif_shot_at,
             map_image_format_to_db_enum::map_image_format_to_str,
             process_uploaded_images::{
-                CyhdevImageType, IMAGE_ENCODING_FORMAT, process_uploaded_image,
+                CyhdevImageType, IMAGE_ENCODING_FORMAT, format_size, process_uploaded_image,
             },
         },
         time::now::tokio_now,
@@ -209,6 +209,13 @@ pub async fn upload_photograph(
         return Err(code_err(CodeError::FILE_UPLOAD_ERROR, "File is empty!"));
     }
 
+    let original_size_bytes = uploaded_file.len() as u64;
+    info!(
+        user_id = %user_id,
+        original_size_bytes,
+        "Received uploaded photograph bytes"
+    );
+
     // Ensure required metadata fields are present
     let photograph_comments = match photograph_comments {
         Some(c) if !c.is_empty() => c,
@@ -248,7 +255,11 @@ pub async fn upload_photograph(
     let photograph_shot_at = match extract_exif_shot_at(&uploaded_file) {
         Ok(dt_opt) => dt_opt,
         Err(e) => {
-            error!(error = ?e, user_id = %user_id, "Failed to parse EXIF shot-at datetime");
+            error!(
+                error = ?e,
+                user_id = %user_id,
+                "Failed to parse EXIF shot-at datetime from uploaded photograph"
+            );
             None
         }
     };
@@ -274,6 +285,10 @@ pub async fn upload_photograph(
         error!(error = ?e, user_id = %user_id, "Failed to process uploaded thumbnail");
         code_err(CodeError::COULD_NOT_PROCESS_IMAGE, e)
     })?;
+
+    // Sizes of processed images for logging
+    let main_size_bytes: usize = processed_image.len();
+    let thumb_size_bytes: usize = processed_thumbnail.len();
 
     // store in filesystem or S3
     let image_id: Uuid = uuid::Uuid::new_v4();
@@ -306,7 +321,17 @@ pub async fn upload_photograph(
             code_err(CodeError::FILE_UPLOAD_ERROR, e)
         })?;
 
+    info!(
+        user_id = %user_id,
+        bucket = AWS_S3_BUCKET_NAME,
+        key = %image_path,
+        main_size_bytes,
+        main_size_human = %format_size(main_size_bytes),
+        "Uploaded main photograph to S3"
+    );
+
     // Upload thumbnail
+
     s3_client
         .put_object()
         .bucket(AWS_S3_BUCKET_NAME)
@@ -325,8 +350,18 @@ pub async fn upload_photograph(
                 key = %thumbnail_path,
                 "Failed to upload thumbnail to S3"
             );
+
             code_err(CodeError::FILE_UPLOAD_ERROR, e)
         })?;
+
+    info!(
+        user_id = %user_id,
+        bucket = AWS_S3_BUCKET_NAME,
+        key = %thumbnail_path,
+        thumb_size_bytes,
+        thumb_size_human = %format_size(thumb_size_bytes),
+        "Uploaded thumbnail photograph to S3"
+    );
 
     // Assemble the public S3 object URL
     // Replace `<region>` below with your actual AWS region as appropriate
@@ -358,11 +393,11 @@ pub async fn upload_photograph(
                 photograph_shot_at,
                 photograph_image_type: image_type_db_id,
                 photograph_is_on_cloud: true,
-                photograph_link: object_url,
+                photograph_link: object_url.clone(),
                 photograph_comments,
                 photograph_lat,
                 photograph_lon,
-                photograph_thumbnail_link: thumbnail_url,
+                photograph_thumbnail_link: thumbnail_url.clone(),
             })
             .get_result(&mut conn)
             .await;
