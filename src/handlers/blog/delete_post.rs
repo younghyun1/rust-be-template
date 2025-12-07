@@ -80,6 +80,9 @@ pub async fn delete_post(
 
     drop(conn);
 
+    // delete from state
+    state.delete_post_from_cache(post_id).await;
+
     Ok(http_resp(
         DeletePostResponse {
             deleted_post_id: post_id,

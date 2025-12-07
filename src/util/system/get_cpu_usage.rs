@@ -14,7 +14,6 @@ pub async fn get_cpu_usage() -> f64 {
             let mut kernel_time1: FILETIME = zeroed();
             let mut user_time1: FILETIME = zeroed();
 
-            // Use GetSystemTimes, not GetSystemTime
             if GetSystemTimes(
                 Some(&mut idle_time1),
                 Some(&mut kernel_time1),
@@ -72,10 +71,9 @@ pub async fn get_cpu_usage() -> f64 {
 
         fn read_proc_stat() -> Option<(u64, u64)> {
             let file = File::open("/proc/stat").ok()?;
-            let mut line = String::new();
-            let mut reader = BufReader::new(file);
+            let reader = BufReader::new(file);
+            let line = reader.lines().next()?.ok()?;
 
-            reader.read_line(&mut line).ok()?;
             let mut parts = line.split_whitespace();
             let _cpu = parts.next()?;
             let user = parts.next()?.parse::<u64>().ok()?;
@@ -86,12 +84,13 @@ pub async fn get_cpu_usage() -> f64 {
             let irq = parts.next()?.parse::<u64>().ok()?;
             let softirq = parts.next()?.parse::<u64>().ok()?;
             let steal = parts.next()?.parse::<u64>().ok()?;
-            let guest = parts.next()?.parse::<u64>().ok()?;
-            let guest_nice = parts.next()?.parse::<u64>().ok()?;
+            // Guest times are already included in user/nice on modern kernels
+            let _guest = parts.next()?.parse::<u64>().ok()?;
+            let _guest_nice = parts.next()?.parse::<u64>().ok()?;
 
             let idle_all = idle + iowait;
-            let total =
-                user + nice + system + idle + iowait + irq + softirq + steal + guest + guest_nice;
+            // Removed guest and guest_nice from total to avoid double counting
+            let total = user + nice + system + idle + iowait + irq + softirq + steal;
 
             Some((total, idle_all))
         }
