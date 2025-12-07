@@ -34,7 +34,10 @@ use crate::{
         },
         geo_ip::lookup_ip::lookup_ip_info,
         i18n::get_country_language_bundle::get_country_language_bundle,
-        photography::{get_photographs::get_photographs, upload_photograph::upload_photograph},
+        photography::{
+            delete_photographs::delete_photographs, get_photographs::get_photographs,
+            upload_photograph::upload_photograph,
+        },
         server::{
             healthcheck::healthcheck, lookup_ip_loc::lookup_ip_location, root::root_handler,
             visitor_board::get_visitor_board_entries,
@@ -182,6 +185,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
             delete(rescind_comment_vote),
         )
         .route("/api/photographs/upload", post(upload_photograph))
+        .route("/api/photographs/delete", delete(delete_photographs))
         .layer(auth_middleware.clone());
 
     // Combine all API routes and apply shared middleware
