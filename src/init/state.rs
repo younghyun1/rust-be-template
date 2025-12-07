@@ -293,6 +293,11 @@ impl ServerState {
         (posts, total_pages)
     }
 
+    pub async fn delete_post_from_cache(&self, post_id: Uuid) {
+        let mut cache_write_lock = self.blog_posts_cache.write().await;
+        cache_write_lock.retain(|post| post.post_id != post_id);
+    }
+
     pub async fn insert_post_to_cache(&self, post: &PostInfo) {
         let mut cache_write_lock = self.blog_posts_cache.write().await;
         cache_write_lock.push(post.to_owned());
