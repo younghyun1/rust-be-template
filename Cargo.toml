@@ -96,7 +96,7 @@ rustls = { version = "0.23.35", features = [] }
 zeroize = { version = "1.8.2", features = ["derive"] }
 
 # memory allocator
-mimalloc = "0.1.48"
+mimalloc = { version = "0.1.48", features = ["v3"] }
 
 # email
 lettre = { version = "0.11.19", default-features = false, features = [
