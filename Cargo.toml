@@ -26,7 +26,7 @@ axum = { version = "0.8.7", features = [
     "multipart",
 ] }
 axum-extra = { version = "0.12.2", features = ["cookie", "attachment", "form"] }
-axum-server = { version = "0.7.3", features = ["tls-rustls", "tokio-rustls"] }
+axum-server = { version = "0.8.0", features = ["tls-rustls", "tokio-rustls"] }
 tower-http = { version = "0.6.7", features = [
     "compression-gzip",
     "trace",
@@ -74,7 +74,7 @@ bitcode = "0.6.7"
 # types
 chrono = { version = "0.4.42", features = ["serde"] }
 chrono-tz = { version = "0.10.4", features = ["serde"] }
-scc = "3.4.2"
+scc = "3.4.4"
 uuid = { version = "1.19.0", features = [
     "v4",
     "v7",
