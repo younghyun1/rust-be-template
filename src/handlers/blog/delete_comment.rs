@@ -54,7 +54,7 @@ pub async fn delete_comment(
 
     let author_id: Uuid = comments::table
         .select(comments::user_id)
-        .filter(comments::user_id.eq(comment_id))
+        .filter(comments::comment_id.eq(comment_id))
         .first(&mut conn)
         .await
         .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;

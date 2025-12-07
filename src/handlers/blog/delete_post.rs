@@ -50,7 +50,7 @@ pub async fn delete_post(
 
     let author_id: Uuid = posts::table
         .select(posts::user_id)
-        .filter(posts::user_id.eq(post_id))
+        .filter(posts::post_id.eq(post_id))
         .first(&mut conn)
         .await
         .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
