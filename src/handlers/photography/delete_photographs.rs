@@ -209,7 +209,7 @@ pub async fn delete_photographs(
 
     Ok(http_resp(
         serde_json::json!({
-            "deleted_count": deleted_rows as usize,
+            "deleted_count": deleted_rows,
             "s3_deleted_count": s3_deleted_count
         }),
         (),
