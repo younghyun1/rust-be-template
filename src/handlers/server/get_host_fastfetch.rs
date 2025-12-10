@@ -10,7 +10,7 @@ use crate::{
     util::time::now::tokio_now,
 };
 
-const UPDATE_INTERVAL: chrono::Duration = chrono::Duration::minutes(5);
+const UPDATE_INTERVAL: chrono::Duration = chrono::Duration::minutes(1);
 
 pub async fn get_host_fastfetch(
     State(state): State<Arc<ServerState>>,
