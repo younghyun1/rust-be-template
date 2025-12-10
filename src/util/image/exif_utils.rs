@@ -30,8 +30,7 @@ pub fn extract_exif_shot_at(image_bytes: &[u8]) -> Result<Option<DateTime<Utc>>>
     let clean_raw = raw
         .trim_matches('"')
         .replace('T', " ")
-        .replace('-', ":")
-        .replace('/', ":");
+        .replace(['-', '/'], ":");
 
     // Now the string should look like "2024:11:27 23:39:00" regardless of input
     let parts: Vec<&str> = clean_raw.split_whitespace().collect();
