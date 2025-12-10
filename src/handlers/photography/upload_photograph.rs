@@ -29,7 +29,7 @@ use crate::{
 };
 
 // TODO: This is not actually checked. Need to check that; also see what's going on with the profile pic size check.
-// 
+//
 const MAX_SIZE_OF_UPLOADABLE_PHOTOGRPAH: usize = 1024 * 1024 * 150; // 150MB
 const ALLOWED_MIME_TYPES: [&str; 16] = [
     "image/png",                // PNG
