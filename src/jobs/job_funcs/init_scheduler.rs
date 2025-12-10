@@ -11,8 +11,10 @@ use crate::{
             update_system_stats::update_system_stats,
         },
         job_funcs::{
-            every_hour::schedule_task_every_hour_at, every_second::schedule_task_every_second_at,
+            every_day::schedule_task_every_day_at, every_hour::schedule_task_every_hour_at,
+            every_second::schedule_task_every_second_at,
         },
+        maintenance::compress_logs::compress_old_logs,
     },
 };
 
@@ -57,6 +59,21 @@ pub async fn task_init(state: Arc<ServerState>) -> anyhow::Result<()> {
             String::from("UPDATE_SYSTEM_STATS"),
             0,
             0,
+        )
+        .await
+    });
+
+    let coroutine_state = Arc::clone(&state);
+    tokio::spawn(async move {
+        schedule_task_every_day_at::<_, _>(
+            coroutine_state,
+            move |coroutine_state: Arc<ServerState>| async move {
+                compress_old_logs(coroutine_state).await
+            },
+            String::from("COMPRESS_OLD_LOGS"),
+            6,
+            30,
+            00,
         )
         .await
     });

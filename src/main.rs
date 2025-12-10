@@ -20,6 +20,7 @@ pub mod schema;
 pub mod util;
 
 pub const DOMAIN_NAME: &str = "cyhdev.com";
+pub const LOGS_DIR: &'static str = "./logs/";
 
 // main function
 #[tokio::main(flavor = "multi_thread")]
@@ -40,7 +41,7 @@ async fn main() -> anyhow::Result<()> {
     let filename = app_name_version.to_string();
 
     let file_appender =
-        tracing_appender::rolling::daily(format!("./logs/{app_name_version}"), filename);
+        tracing_appender::rolling::daily(format!("{LOGS_DIR}{app_name_version}"), filename);
     let (_non_blocking_file, _guard) = tracing_appender::non_blocking(file_appender);
 
     let console_layer = tracing_subscriber::fmt::layer()
