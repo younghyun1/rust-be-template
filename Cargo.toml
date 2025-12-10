@@ -120,6 +120,7 @@ kamadak-exif = "0.6.1"
 
 # markdown
 comrak = { version = "0.48.0", features = ["emojis", "shortcodes"] }
+ansi-to-html = "0.2.2"
 
 # request to external
 reqwest = { version = "0.12.24", features = ["rustls-tls", "gzip"] }
