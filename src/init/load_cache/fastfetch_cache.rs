@@ -35,6 +35,10 @@ impl FastFetchCache {
     pub async fn update_fastfetch_string(&self) -> Result<(), CodeError> {
         // Run the 'fastfetch' command asynchronously
         let output = match Command::new("fastfetch")
+            .arg("--pipe")
+            .arg("false")
+            .arg("--logo-position")
+            .arg("top")
             .env("TERM", "xterm-256color")
             .output()
             .await
