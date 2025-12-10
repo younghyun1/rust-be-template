@@ -39,7 +39,8 @@ use crate::{
             upload_photograph::upload_photograph,
         },
         server::{
-            healthcheck::healthcheck, lookup_ip_loc::lookup_ip_location, root::root_handler,
+            get_host_fastfetch::get_host_fastfetch, healthcheck::healthcheck,
+            lookup_ip_loc::lookup_ip_location, root::root_handler,
             visitor_board::get_visitor_board_entries,
         },
         user::upload_profile_picture::upload_profile_picture,
@@ -129,6 +130,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let public_router = Router::new()
         .route("/api/healthcheck/server", get(healthcheck))
         .route("/api/healthcheck/state", get(root_handler))
+        .route("/api/healthcheck/fastfetch", get(get_host_fastfetch))
         .route("/ws/host-stats", get(ws_host_stats_handler))
         .route("/api/dropdown/language", get(get_languages))
         .route("/api/dropdown/language/{language_id}", get(get_language))

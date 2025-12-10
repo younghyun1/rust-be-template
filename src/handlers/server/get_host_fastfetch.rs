@@ -1,29 +1,31 @@
 use std::sync::Arc;
 
 use axum::{extract::State, response::IntoResponse};
+use chrono::Utc;
 
 use crate::{
     dto::responses::response_data::http_resp,
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{HandlerResponse, code_err},
     init::state::ServerState,
     util::time::now::tokio_now,
 };
 
+const UPDATE_INTERVAL: chrono::Duration = chrono::Duration::minutes(5);
+
 pub async fn get_host_fastfetch(
-    State(_state): State<Arc<ServerState>>,
+    State(state): State<Arc<ServerState>>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
+    let now = Utc::now();
 
-    use tokio::process::Command;
+    if now - state.fastfetch.get_last_fetched_time().await > UPDATE_INTERVAL {
+        match state.fastfetch.update_fastfetch_string().await {
+            Ok(_) => (),
+            Err(e) => return Err(code_err(e, "Could not update fastfetch string")),
+        }
+    }
 
-    // Run the 'fastfetch' command asynchronously
-    let output = Command::new("fastfetch")
-        .output()
-        .await
-        .map_err(|e| code_err(CodeError::COULD_NOT_RUN_FASTFETCH, e))?;
+    let fastfetch = state.fastfetch.get_fastfetch_string().await;
 
-    // Convert stdout to a String, assuming UTF-8/ANSI output
-    let ansi_output = String::from_utf8_lossy(&output.stdout).to_string();
-
-    Ok(http_resp(ansi_output, (), start))
+    Ok(http_resp(fastfetch, (), start))
 }
