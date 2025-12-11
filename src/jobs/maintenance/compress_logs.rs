@@ -34,11 +34,21 @@ pub async fn compress_old_logs(_state: Arc<ServerState>) {
 
         let path = entry.path();
         if path.is_file() {
-            let extension = path.extension().and_then(|ext| ext.to_str());
-            if let Some(ext) = extension {
-                if EXCLUDED_EXTENSIONS.contains(&ext) || path.ends_with(&now_yyyy_mm_dd) {
+            let file_name = match path.file_name().and_then(|n| n.to_str()) {
+                Some(n) => n,
+                None => continue,
+            };
+
+            // Check if extension is excluded
+            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                if EXCLUDED_EXTENSIONS.contains(&ext) {
                     continue;
                 }
+            }
+
+            // Exclude today's log file (by checking filename for today's date)
+            if file_name.contains(&now_yyyy_mm_dd) {
+                continue;
             }
 
             let compressed_path = match path.with_extension(
@@ -64,14 +74,14 @@ pub async fn compress_old_logs(_state: Arc<ServerState>) {
                 Ok(())
             })() {
                 error!("Failed to compress log file {:?}: {}", path, err);
+            } else {
+                let duration = entry_start.elapsed();
+                info!(
+                    log_file_path = %entry.path().display(),
+                    duration = ?duration,
+                    "Log file compressed"
+                );
             }
         }
-
-        let duration = entry_start.elapsed();
-        info!(
-            log_file_path = %entry.path().display(),
-            duration = ?duration,
-            "Log file compressed"
-        );
     }
 }
