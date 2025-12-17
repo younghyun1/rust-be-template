@@ -6,7 +6,7 @@ use axum::{
     http::{StatusCode, Uri, header},
     middleware::from_fn_with_state,
     response::IntoResponse,
-    routing::{delete, get, post},
+    routing::{delete, get, patch, post},
 };
 use mime_guess::from_path;
 use rust_embed::Embed;
@@ -180,14 +180,10 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/api/blog/{post_id}/vote", post(vote_post))
         .route("/api/blog/{post_id}/{comment_id}/vote", post(vote_comment))
         .route("/api/blog/{post_id}/vote", delete(rescind_post_vote))
-        .route(
-            "/api/blog/{post_id}/{comment_id}",
-            delete(delete_comment).patch(update_comment),
-        )
-        .route(
-            "/api/blog/{post_id}",
-            delete(delete_post).patch(update_post),
-        )
+        .route("/api/blog/{post_id}/{comment_id}", delete(delete_comment))
+        .route("/api/blog/{post_id}/{comment_id}", patch(update_comment))
+        .route("/api/blog/{post_id}", delete(delete_post))
+        .route("/api/blog/{post_id}", patch(update_post))
         .route("/api/blog/{post_id}/comment", post(submit_comment))
         .route(
             "/api/blog/{post_id}/{comment_id}/vote",
