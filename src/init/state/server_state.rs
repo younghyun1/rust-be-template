@@ -39,7 +39,7 @@ pub struct ServerState {
     pub(crate) email_client: lettre::AsyncSmtpTransport<Tokio1Executor>,
     // regexes: [regex::Regex; 1],
     pub(crate) session_map: scc::HashMap<uuid::Uuid, Session>, // read/write
-    pub(crate) blog_posts_cache: RwLock<Vec<PostInfo>>,        // read/write
+    pub(crate) blog_posts_cache: scc::HashMap<uuid::Uuid, PostInfo>, // read/write
     pub(crate) geo_ip_db: GeoIpDatabases,                      // read-only, full v4+v6
     pub visitor_board_map: scc::HashMap<([u8; 8], [u8; 8]), u64>, // read/write
     pub(crate) api_keys_set: HashSet<Uuid>,                    // read-only
@@ -181,20 +181,29 @@ impl ServerState {
     pub async fn synchronize_post_info_cache(&self) {
         let start = tokio_now();
 
-        let post_info = match load_post_info(self).await {
-            Ok(post_info) => post_info,
+        let post_info_vec = match load_post_info(self).await {
+            Ok(post_info_vec) => post_info_vec,
             Err(e) => {
                 error!("Could not synchronize post metadata cache: {:?}", e);
                 return;
             }
         };
 
-        let mut cache_write_lock = self.blog_posts_cache.write().await;
-        *cache_write_lock = post_info;
+        for post_info in post_info_vec {
+            match self
+                .blog_posts_cache
+                .insert_async(post_info.post_id, post_info)
+                .await
+            {
+                Ok(_) => (),
+                Err(_) => {
+                    panic!("Could not insert posts into in-RAM cache");
+                }
+            };
+        }
 
         let elapsed = start.elapsed();
-        info!(rows_synchronized = %cache_write_lock.len(), elapsed=%format!("{elapsed:?}"), "Post metadata cache synchronized.");
-        drop(cache_write_lock);
+        info!(rows_synchronized = %self.blog_posts_cache.len(), elapsed=%format!("{elapsed:?}"), "Post metadata cache synchronized.");
     }
 
     pub async fn get_posts_from_cache(
@@ -203,28 +212,45 @@ impl ServerState {
         page_size: usize,
     ) -> (Vec<PostInfo>, usize) {
         let start_index = (page.saturating_sub(1)) * page_size;
-        let end_index = start_index + page_size;
+        let _end_index = start_index + page_size;
 
-        let cache_read_lock = self.blog_posts_cache.read().await;
-        let total_posts = cache_read_lock.len();
+        let total_posts = self.blog_posts_cache.len();
         let total_pages = total_posts.div_ceil(page_size); // Calculate total number of pages
 
         if start_index >= total_posts {
             return (vec![], total_pages);
         }
 
-        let posts = cache_read_lock[start_index..end_index.min(total_posts)].to_vec();
+        let mut all_posts: Vec<PostInfo> = Vec::with_capacity(total_posts);
+
+        self.blog_posts_cache
+            .iter_async(|_, post_info| {
+                all_posts.push(post_info.clone());
+                true
+            })
+            .await;
+
+        all_posts.sort_by_key(|p| p.post_created_at);
+        all_posts.reverse();
+
+        let posts: Vec<PostInfo> = all_posts
+            .into_iter()
+            .skip(start_index)
+            .take(page_size)
+            .collect();
+
         (posts, total_pages)
     }
 
     pub async fn delete_post_from_cache(&self, post_id: Uuid) {
-        let mut cache_write_lock = self.blog_posts_cache.write().await;
-        cache_write_lock.retain(|post| post.post_id != post_id);
+        let _ = self.blog_posts_cache.remove_async(&post_id).await;
     }
 
     pub async fn insert_post_to_cache(&self, post: &PostInfo) {
-        let mut cache_write_lock = self.blog_posts_cache.write().await;
-        cache_write_lock.push(post.to_owned());
+        let _ = self
+            .blog_posts_cache
+            .insert_async(post.post_id, post.to_owned())
+            .await;
     }
 
     /// full v4+v6 support

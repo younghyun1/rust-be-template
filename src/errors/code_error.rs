@@ -319,6 +319,20 @@ impl CodeError {
         message: "Operation requires superuser privileges!",
         log_level: Level::WARN,
     };
+    pub const POST_NOT_FOUND_IN_CACHE: CodeError = CodeError {
+        success: false,
+        error_code: 43,
+        http_status_code: StatusCode::NOT_FOUND,
+        message: "Post not found in RAM cache!",
+        log_level: Level::INFO,
+    };
+    pub const POST_CACHE_INSERTION_ERROR: CodeError = CodeError {
+        success: false,
+        error_code: 44,
+        http_status_code: StatusCode::INTERNAL_SERVER_ERROR,
+        message: "Post cache insertion failed!",
+        log_level: Level::ERROR,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {

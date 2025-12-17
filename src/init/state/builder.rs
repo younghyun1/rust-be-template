@@ -88,7 +88,7 @@ impl ServerStateBuilder {
                 .ok_or_else(|| anyhow::anyhow!("email_client is required"))?,
             // regexes: [get_email_regex()],
             session_map: scc::HashMap::new(),
-            blog_posts_cache: tokio::sync::RwLock::new(vec![]),
+            blog_posts_cache: scc::HashMap::new(),
             geo_ip_db: {
                 let (dbs, dur) = decompress_and_deserialize()?;
                 info!(elapsed=%format!("{dur:?}"), "Geo-IP database loaded and interned.");

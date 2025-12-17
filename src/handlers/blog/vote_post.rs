@@ -10,6 +10,7 @@ use diesel_async::{AsyncConnection, RunQueryDsl};
 use uuid::Uuid;
 
 use crate::{
+    domain::blog::blog::PostInfo,
     dto::{
         requests::blog::upvote_post_request::UpvotePostRequest,
         responses::{blog::vote_post_response::VotePostResponse, response_data::http_resp},
@@ -40,6 +41,16 @@ pub async fn vote_post(
         .get_conn()
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
+
+    let mut post_info: PostInfo = match state.blog_posts_cache.get_async(&post_id).await {
+        Some(post_info) => post_info.clone(),
+        None => {
+            return Err(code_err(
+                CodeError::POST_NOT_FOUND_IN_CACHE,
+                "Post not found",
+            ));
+        }
+    };
 
     let (upvote_count, downvote_count): (i64, i64) = match conn
         .transaction::<_, diesel::result::Error, _>(|conn| {
@@ -93,6 +104,23 @@ pub async fn vote_post(
             ) => return Err(CodeError::UPVOTE_MUST_BE_UNIQUE.into()),
             e => return Err(code_err(CodeError::DB_INSERTION_ERROR, e)),
         },
+    };
+
+    post_info.total_upvotes = upvote_count;
+    post_info.total_downvotes = downvote_count;
+
+    match state
+        .blog_posts_cache
+        .insert_async(post_id, post_info)
+        .await
+    {
+        Ok(_) => (),
+        Err(_) => {
+            return Err(code_err(
+                CodeError::POST_CACHE_INSERTION_ERROR,
+                format!("Could not insert post with ID {}", post_id),
+            ));
+        }
     };
 
     Ok(http_resp(
