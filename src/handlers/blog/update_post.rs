@@ -1,0 +1,107 @@
+use std::sync::Arc;
+
+use axum::{
+    Json,
+    extract::{Path, State},
+    response::IntoResponse,
+};
+use axum_extra::extract::CookieJar;
+use diesel::{ExpressionMethods, QueryDsl};
+use diesel_async::RunQueryDsl;
+use uuid::Uuid;
+
+use crate::{
+    domain::blog::blog::{Post, PostInfo},
+    dto::{
+        requests::blog::update_post_request::UpdatePostRequest,
+        responses::{blog::submit_post_response::SubmitPostResponse, response_data::http_resp},
+    },
+    errors::code_error::{CodeError, HandlerResponse, code_err},
+    init::state::{ServerState, Session},
+    schema::posts,
+    util::{
+        auth::is_superuser::is_superuser, string::generate_slug::generate_slug,
+        time::now::tokio_now,
+    },
+};
+
+pub async fn update_post(
+    cookie_jar: CookieJar,
+    State(state): State<Arc<ServerState>>,
+    Path(post_id): Path<Uuid>,
+    Json(request): Json<UpdatePostRequest>,
+) -> HandlerResponse<impl IntoResponse> {
+    let start = tokio_now();
+
+    let mut conn = state
+        .get_conn()
+        .await
+        .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
+
+    // Authentication
+    let session_id: Uuid = match cookie_jar.get("session_id") {
+        Some(session_id) => match session_id.value().parse::<Uuid>() {
+            Ok(session_id) => session_id,
+            Err(_) => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
+        },
+        None => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
+    };
+
+    let session: Session = state
+        .get_session(&session_id)
+        .await
+        .map_err(|e| code_err(CodeError::UNAUTHORIZED_ACCESS, e))?;
+
+    let user_id: Uuid = session.get_user_id();
+    drop(session);
+
+    let is_superuser = match is_superuser(state.clone(), user_id).await {
+        Ok(is_superuser) => is_superuser,
+        Err(e) => return Err(code_err(CodeError::DB_QUERY_ERROR, e)),
+    };
+
+    if !is_superuser {
+        return Err(code_err(
+            CodeError::UNAUTHORIZED_ACCESS,
+            "User is not authorized to edit posts",
+        ));
+    }
+
+    // Generate slug from title
+    let slug: String = generate_slug(&request.post_title);
+
+    // Update the existing post
+    let post: Post = diesel::update(posts::table.filter(posts::post_id.eq(post_id)))
+        .set((
+            posts::post_title.eq(&request.post_title),
+            posts::post_slug.eq(&slug),
+            posts::post_content.eq(&request.post_content),
+            posts::post_is_published.eq(request.post_is_published),
+            posts::post_updated_at.eq(chrono::Utc::now()),
+        ))
+        .returning(posts::all_columns)
+        .get_result(&mut conn)
+        .await
+        .map_err(|e| code_err(CodeError::DB_UPDATE_ERROR, e))?;
+
+    drop(conn);
+
+    // TODO: Update tags in DB
+
+    // Update cache
+    let post_info: PostInfo = post.clone().into();
+    state.insert_post_to_cache(&post_info).await;
+
+    Ok(http_resp(
+        SubmitPostResponse {
+            post_id: post.post_id,
+            post_title: post.post_title,
+            post_slug: post.post_slug,
+            post_created_at: post.post_created_at,
+            post_updated_at: post.post_updated_at,
+            post_is_published: post.post_is_published,
+        },
+        (),
+        start,
+    ))
+}
