@@ -111,11 +111,13 @@ pub async fn vote_post(
 
     match state
         .blog_posts_cache
-        .insert_async(post_id, post_info)
+        .update_async(&post_id, |_, cached_post_info| {
+            *cached_post_info = post_info.clone();
+        })
         .await
     {
-        Ok(_) => (),
-        Err(_) => {
+        Some(_) => (),
+        None => {
             return Err(code_err(
                 CodeError::POST_CACHE_INSERTION_ERROR,
                 format!("Could not insert post with ID {}", post_id),
