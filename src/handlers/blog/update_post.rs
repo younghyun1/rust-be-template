@@ -69,15 +69,22 @@ pub async fn update_post(
 
     // Generate slug from title
     let slug: String = generate_slug(&request.post_title);
+    let rendered_markdown: String =
+        comrak::markdown_to_html(&request.post_content, &comrak::Options::default());
+
+    let post_metadata = serde_json::json!({
+        "markdown_content": request.post_content
+    });
 
     // Update the existing post
     let post: Post = diesel::update(posts::table.filter(posts::post_id.eq(post_id)))
         .set((
             posts::post_title.eq(&request.post_title),
             posts::post_slug.eq(&slug),
-            posts::post_content.eq(&request.post_content),
+            posts::post_content.eq(&rendered_markdown),
             posts::post_is_published.eq(request.post_is_published),
             posts::post_updated_at.eq(chrono::Utc::now()),
+            posts::post_metadata.eq(&post_metadata),
         ))
         .returning(posts::all_columns)
         .get_result(&mut conn)
@@ -89,8 +96,22 @@ pub async fn update_post(
     // TODO: Update tags in DB
 
     // Update cache
-    let post_info: PostInfo = post.clone().into();
-    state.insert_post_to_cache(&post_info).await;
+    if state
+        .blog_posts_cache
+        .update_async(&post.post_id, |_, cached| {
+            cached.post_title = post.post_title.clone();
+            cached.post_slug = post.post_slug.clone();
+            cached.post_summary = post.post_summary.clone();
+            cached.post_updated_at = post.post_updated_at;
+            cached.post_published_at = post.post_published_at;
+        })
+        .await
+        .is_none()
+    {
+        state
+            .insert_post_to_cache(&PostInfo::from(post.clone()))
+            .await;
+    }
 
     Ok(http_resp(
         SubmitPostResponse {
