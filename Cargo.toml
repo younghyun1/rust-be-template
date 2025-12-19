@@ -38,7 +38,7 @@ tower-http = { version = "0.6.8", features = [
 # rayon = "1.10.0"
 
 # ORM
-diesel = { version = "2.3.4", features = [
+diesel = { version = "2.3.5", features = [
     "postgres",
     "chrono",
     "serde_json",
@@ -54,7 +54,7 @@ dotenvy = "0.15.7"
 tokio = { version = "1.48.0", features = ["full"] }
 
 # loggers
-tracing = { version = "0.1.43", features = ["std"] }
+tracing = { version = "0.1.44", features = ["std"] }
 tracing-subscriber = { version = "0.3.22", features = ["fmt", "json"] }
 tracing-appender = "0.2.4"
 
@@ -70,7 +70,7 @@ walkdir = "2.5.0"
 serde = "1.0.228"
 serde_derive = "1.0.228"
 serde_json = { version = "1.0.145", features = ["preserve_order"] }
-bitcode = "0.6.8"
+bitcode = "0.6.9"
 
 # types
 chrono = { version = "0.4.42", features = ["serde"] }
