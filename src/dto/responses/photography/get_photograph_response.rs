@@ -1,12 +1,13 @@
 use chrono::{DateTime, Utc};
 use serde_derive::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 /// A single photograph item as exposed to API consumers.
 ///
 /// This is intentionally decoupled from the DB `Photograph` struct so we can
 /// change DB details without breaking the public API.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct PhotographItem {
     pub photograph_id: Uuid,
     pub user_id: Uuid,
@@ -23,7 +24,7 @@ pub struct PhotographItem {
 }
 
 /// Pagination metadata for list endpoints.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct PaginationMeta {
     /// Current page number (1-based).
     pub page: i64,
@@ -43,7 +44,7 @@ pub struct PaginationMeta {
 ///
 /// This is what `GET /photographs` should serialize as the `data` portion
 /// of your `http_resp`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct GetPhotographsResponse {
     pub items: Vec<PhotographItem>,
     pub pagination: PaginationMeta,

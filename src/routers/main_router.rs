@@ -11,8 +11,11 @@ use axum::{
 use mime_guess::from_path;
 use rust_embed::Embed;
 use tower_http::{compression::CompressionLayer, cors::CorsLayer};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{
+    docs::ApiDoc,
     handlers::{
         admin::{get_host_stats::ws_host_stats_handler, sync_i18n_cache::sync_i18n_cache},
         auth::{
@@ -207,5 +210,6 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     // Final router: merge API routes and set the static asset handler as the fallback
     Router::new()
         .merge(api_router)
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .fallback_service(get(static_asset_handler))
 }
