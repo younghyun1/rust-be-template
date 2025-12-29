@@ -9,6 +9,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 static GLOBAL: MiMalloc = MiMalloc;
 
 pub mod build_info;
+pub mod docs;
 pub mod domain;
 pub mod dto;
 pub mod errors;

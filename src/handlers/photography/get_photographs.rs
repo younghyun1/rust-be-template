@@ -21,6 +21,18 @@ use crate::{
     util::time::now::tokio_now,
 };
 
+#[utoipa::path(
+    get,
+    path = "/api/photographs/get",
+    params(
+        ("page" = Option<i64>, Query, description = "Page number (default: 1)"),
+        ("page_size" = Option<i64>, Query, description = "Items per page (default: 20, max: 100)")
+    ),
+    responses(
+        (status = 200, description = "Successfully retrieved photographs", body = GetPhotographsResponse),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn get_photographs(
     State(state): State<Arc<ServerState>>,
     Query(params): Query<HashMap<String, String>>,

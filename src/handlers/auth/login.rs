@@ -23,6 +23,17 @@ use tracing::{error, trace, warn};
 use uuid::Uuid;
 use zeroize::Zeroize;
 
+#[utoipa::path(
+    post,
+    path = "/api/auth/login",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "Login successful", body = LoginResponse),
+        (status = 401, description = "Unauthorized"),
+        (status = 404, description = "User not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn login(
     cookie_jar: CookieJar,
     State(state): State<Arc<ServerState>>,
