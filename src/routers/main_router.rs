@@ -203,7 +203,6 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .merge(protected_router)
         .layer(is_logged_in_middleware)
         // .layer(api_key_check_middleware)
-        .layer(compression_middleware)
         .layer(log_middleware)
         .layer(DefaultBodyLimit::max(MAX_REQUEST_SIZE))
         .layer(cors_layer)
@@ -229,7 +228,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
             .layer(auth_middleware.clone());
     }
 
-    router = router.merge(swagger_router);
+    router = router.merge(swagger_router).layer(compression_middleware);
 
     router.fallback_service(get(static_asset_handler))
 }
