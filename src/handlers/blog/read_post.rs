@@ -23,6 +23,7 @@ use crate::{
 #[utoipa::path(
     get,
     path = "/api/blog/posts/{post_id}",
+    tag = "blog",
     params(
         ("post_id" = Uuid, Path, description = "ID of the post to read")
     ),

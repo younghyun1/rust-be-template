@@ -21,6 +21,7 @@ use crate::{
 #[utoipa::path(
     delete,
     path = "/api/blog/{post_id}",
+    tag = "blog",
     params(
         ("post_id" = Uuid, Path, description = "ID of the post to delete")
     ),

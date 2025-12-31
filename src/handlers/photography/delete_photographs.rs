@@ -20,6 +20,7 @@ use crate::{
 #[utoipa::path(
     delete,
     path = "/api/photographs/delete",
+    tag = "photography",
     request_body = DeletePhotographsRequest,
     responses(
         (status = 200, description = "Photographs deleted successfully"),

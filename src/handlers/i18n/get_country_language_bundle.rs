@@ -12,6 +12,7 @@ use crate::{
 #[utoipa::path(
     get,
     path = "/api/i18n/country-language-bundle",
+    tag = "i18n",
     request_body = GetCountryLanguageBundleRequest,
     responses(
         (status = 200, description = "Binary i18n bundle", body = [u8], content_type = "application/octet-stream"),

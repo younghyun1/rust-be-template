@@ -20,6 +20,7 @@ use crate::{
 #[utoipa::path(
     get,
     path = "/api/auth/me",
+    tag = "auth",
     responses(
         (status = 200, description = "Current user information", body = MeResponse),
         (status = 500, description = "Internal server error", body = CodeErrorResp)

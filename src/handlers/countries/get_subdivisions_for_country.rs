@@ -15,6 +15,7 @@ use std::sync::Arc;
 #[utoipa::path(
     get,
     path = "/api/dropdown/country/{country_id}/subdivision",
+    tag = "countries",
     params(
         ("country_id" = i32, Path, description = "ID of the country to retrieve subdivisions for")
     ),

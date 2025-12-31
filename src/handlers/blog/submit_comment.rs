@@ -35,6 +35,7 @@ struct NewComment<'a> {
 #[utoipa::path(
     post,
     path = "/api/blog/{post_id}/comment",
+    tag = "blog",
     params(
         ("post_id" = Uuid, Path, description = "ID of the post to comment on")
     ),

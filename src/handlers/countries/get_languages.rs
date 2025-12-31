@@ -13,6 +13,7 @@ use crate::{
 #[utoipa::path(
     get,
     path = "/api/dropdown/language",
+    tag = "countries",
     responses(
         (status = 200, description = "List of languages", body = [IsoLanguage]),
         (status = 500, description = "Internal server error", body = CodeErrorResp)

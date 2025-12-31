@@ -14,6 +14,7 @@ use crate::{
 #[utoipa::path(
     get,
     path = "/api/admin/sync-country-language-bundle",
+    tag = "admin",
     responses(
         (status = 200, description = "i18n cache synchronized", body = SyncI18nCacheResponse),
         (status = 500, description = "Internal server error", body = CodeErrorResp)

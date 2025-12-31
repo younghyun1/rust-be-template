@@ -25,6 +25,7 @@ use diesel_async::{AsyncConnection, RunQueryDsl};
 #[utoipa::path(
     get,
     path = "/api/auth/verify-user-email",
+    tag = "auth",
     params(
         ("email_validation_token_id" = uuid::Uuid, Query, description = "Email validation token ID")
     ),

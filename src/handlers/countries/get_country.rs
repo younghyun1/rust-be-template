@@ -16,6 +16,7 @@ use crate::{
 #[utoipa::path(
     get,
     path = "/api/dropdown/country/{country_id}",
+    tag = "countries",
     params(
         ("country_id" = i32, Path, description = "ID of the country to retrieve")
     ),

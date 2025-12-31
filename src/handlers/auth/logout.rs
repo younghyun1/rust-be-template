@@ -20,6 +20,7 @@ use crate::{
 #[utoipa::path(
     post,
     path = "/api/auth/logout",
+    tag = "auth",
     responses(
         (status = 200, description = "Logout successful", body = LogoutResponse),
         (status = 500, description = "Internal server error", body = CodeErrorResp)

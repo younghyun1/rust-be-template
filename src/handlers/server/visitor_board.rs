@@ -12,6 +12,7 @@ use crate::{
 #[utoipa::path(
     get,
     path = "/api/visitor-board",
+    tag = "server",
     responses(
         (status = 200, description = "Visitor board entries", body = [((f64, f64), u64)]),
         (status = 500, description = "Internal server error", body = CodeErrorResp)

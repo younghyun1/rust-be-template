@@ -32,6 +32,7 @@ struct VoteCounts {
 #[utoipa::path(
     post,
     path = "/api/blog/{post_id}/vote",
+    tag = "blog",
     params(
         ("post_id" = Uuid, Path, description = "ID of the post to vote for")
     ),

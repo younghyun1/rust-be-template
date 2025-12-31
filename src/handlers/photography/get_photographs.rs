@@ -24,6 +24,7 @@ use crate::{
 #[utoipa::path(
     get,
     path = "/api/photographs/get",
+    tag = "photography",
     params(
         ("page" = Option<i64>, Query, description = "Page number (default: 1)"),
         ("page_size" = Option<i64>, Query, description = "Items per page (default: 20, max: 100)")

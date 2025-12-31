@@ -33,6 +33,7 @@ struct UpdatePassword<'a> {
 #[utoipa::path(
     post,
     path = "/api/auth/reset-password",
+    tag = "auth",
     request_body = ResetPasswordProcessRequest,
     responses(
         (status = 200, description = "Password reset successful", body = ResetPasswordResponse),

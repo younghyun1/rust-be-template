@@ -26,6 +26,7 @@ use zeroize::Zeroize;
 #[utoipa::path(
     post,
     path = "/api/auth/login",
+    tag = "auth",
     request_body = LoginRequest,
     responses(
         (status = 200, description = "Login successful", body = LoginResponse),

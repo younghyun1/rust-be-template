@@ -16,6 +16,7 @@ use crate::{
 #[utoipa::path(
     get,
     path = "/api/geo-ip-info/{ip_address}",
+    tag = "geo",
     params(
         ("ip_address" = String, Path, description = "IP address to lookup")
     ),

@@ -15,6 +15,7 @@ const UPDATE_INTERVAL: chrono::Duration = chrono::Duration::minutes(1);
 #[utoipa::path(
     get,
     path = "/api/healthcheck/fastfetch",
+    tag = "server",
     responses(
         (status = 200, description = "Host fastfetch information", body = String),
         (status = 500, description = "Internal server error", body = CodeErrorResp)

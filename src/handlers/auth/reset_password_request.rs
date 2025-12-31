@@ -30,6 +30,7 @@ const PASSWORD_RESET_TOKEN_VALID_DURATION: chrono::TimeDelta = chrono::Duration:
 #[utoipa::path(
     post,
     path = "/api/auth/reset-password-request",
+    tag = "auth",
     request_body = ResetPasswordRequest,
     responses(
         (status = 200, description = "Password reset request processed", body = ResetPasswordRequestResponse),

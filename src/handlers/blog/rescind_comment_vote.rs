@@ -20,6 +20,7 @@ use crate::{
 #[utoipa::path(
     delete,
     path = "/api/blog/{post_id}/{comment_id}/vote",
+    tag = "blog",
     params(
         ("post_id" = Uuid, Path, description = "ID of the post"),
         ("comment_id" = Uuid, Path, description = "ID of the comment to rescind vote for")

@@ -56,6 +56,7 @@ const AWS_S3_BUCKET_NAME: &str = "cyhdev-img";
 #[utoipa::path(
     post,
     path = "/api/photographs/upload",
+    tag = "photography",
     request_body(content_type = "multipart/form-data"),
     responses(
         (status = 200, description = "Photograph uploaded successfully", body = Photograph),

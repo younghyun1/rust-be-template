@@ -32,6 +32,7 @@ const EMAIL_VERIFICATION_TOKEN_VALID_DURATION: chrono::TimeDelta = chrono::Durat
 #[utoipa::path(
     post,
     path = "/api/auth/signup",
+    tag = "auth",
     request_body = SignupRequest,
     responses(
         (status = 200, description = "User successfully signed up", body = SignupResponse),

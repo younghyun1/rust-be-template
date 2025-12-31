@@ -29,6 +29,7 @@ struct VoteCounts {
 #[utoipa::path(
     delete,
     path = "/api/blog/{post_id}/vote",
+    tag = "blog",
     params(
         ("post_id" = Uuid, Path, description = "ID of the post to rescind vote for")
     ),
