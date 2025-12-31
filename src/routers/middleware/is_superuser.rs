@@ -37,7 +37,7 @@ pub async fn is_superuser_middleware(
 
     if !allowed {
         return Err(code_err(
-            CodeError::UNAUTHORIZED_ACCESS,
+            CodeError::IS_NOT_SUPERUSER,
             "Superuser access required",
         ));
     }
