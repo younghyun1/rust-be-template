@@ -41,9 +41,10 @@ pub async fn compress_old_logs(_state: Arc<ServerState>) {
 
             // Check if extension is excluded
             if let Some(ext) = path.extension().and_then(|e| e.to_str())
-                && EXCLUDED_EXTENSIONS.contains(&ext) {
-                    continue;
-                }
+                && EXCLUDED_EXTENSIONS.contains(&ext)
+            {
+                continue;
+            }
 
             // Exclude today's log file (by checking filename for today's date)
             if file_name.contains(&now_yyyy_mm_dd) {
