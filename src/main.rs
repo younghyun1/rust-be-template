@@ -21,7 +21,7 @@ pub mod schema;
 pub mod util;
 
 pub const DOMAIN_NAME: &str = "cyhdev.com";
-pub const LOGS_DIR: &'static str = "./logs/";
+pub const LOGS_DIR: &str = "./logs/";
 
 // main function
 #[tokio::main(flavor = "multi_thread")]
