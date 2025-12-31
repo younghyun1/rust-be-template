@@ -49,7 +49,7 @@ use crate::{
         },
         user::upload_profile_picture::upload_profile_picture,
     },
-    init::state::ServerState,
+    init::state::{DeploymentEnvironment, ServerState},
 };
 
 use super::middleware::{
@@ -208,8 +208,15 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .with_state(state.clone());
 
     // Final router: merge API routes and set the static asset handler as the fallback
-    Router::new()
-        .merge(api_router)
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
-        .fallback_service(get(static_asset_handler))
+    let mut router = Router::new().merge(api_router);
+
+    if !matches!(
+        state.get_deployment_environment(),
+        DeploymentEnvironment::Prod
+    ) {
+        router = router
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
+    }
+
+    router.fallback_service(get(static_asset_handler))
 }
