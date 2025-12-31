@@ -16,7 +16,7 @@ use crate::{
         requests::blog::update_post_request::UpdatePostRequest,
         responses::{blog::submit_post_response::SubmitPostResponse, response_data::http_resp},
     },
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::{ServerState, Session},
     schema::posts,
     util::{
@@ -25,6 +25,21 @@ use crate::{
     },
 };
 
+#[utoipa::path(
+    patch,
+    path = "/api/blog/{post_id}",
+    params(
+        ("post_id" = Uuid, Path, description = "ID of the post to update")
+    ),
+    request_body = UpdatePostRequest,
+    responses(
+        (status = 200, description = "Post updated successfully", body = SubmitPostResponse),
+        (status = 401, description = "Unauthorized", body = CodeErrorResp),
+        (status = 403, description = "Forbidden", body = CodeErrorResp),
+        (status = 404, description = "Post not found", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn update_post(
     cookie_jar: CookieJar,
     State(state): State<Arc<ServerState>>,

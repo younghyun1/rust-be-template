@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::{
     domain::photography::photographs::{Photograph, PhotographInsertable},
     dto::responses::response_data::http_resp,
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     schema::photographs,
     util::{
@@ -53,6 +53,18 @@ const ALLOWED_MIME_TYPES: [&str; 16] = [
 const AWS_S3_BUCKET_NAME: &str = "cyhdev-img";
 
 // TODO: STREAM to file, don't keep the whole damn thing around
+#[utoipa::path(
+    post,
+    path = "/api/photographs/upload",
+    request_body(content_type = "multipart/form-data"),
+    responses(
+        (status = 200, description = "Photograph uploaded successfully", body = Photograph),
+        (status = 400, description = "Invalid upload payload", body = CodeErrorResp),
+        (status = 401, description = "Unauthorized", body = CodeErrorResp),
+        (status = 403, description = "Forbidden (not superuser)", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn upload_photograph(
     Extension(user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,

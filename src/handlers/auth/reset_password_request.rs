@@ -18,7 +18,7 @@ use crate::{
             response_data::http_resp,
         },
     },
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     schema::{password_reset_tokens, users},
     util::{email::emails::PasswordResetEmail, time::now::tokio_now},
@@ -27,6 +27,17 @@ use crate::{
 const PASSWORD_RESET_TOKEN_VALID_DURATION: chrono::TimeDelta = chrono::Duration::minutes(30);
 
 // TODO
+#[utoipa::path(
+    post,
+    path = "/api/auth/reset-password-request",
+    request_body = ResetPasswordRequest,
+    responses(
+        (status = 200, description = "Password reset request processed", body = ResetPasswordRequestResponse),
+        (status = 400, description = "Invalid email", body = CodeErrorResp),
+        (status = 404, description = "User not found", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn reset_password_request_process(
     State(state): State<Arc<ServerState>>,
     Json(request): Json<ResetPasswordRequest>,

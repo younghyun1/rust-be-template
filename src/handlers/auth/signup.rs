@@ -15,7 +15,7 @@ use crate::{
         requests::auth::signup_request::SignupRequest,
         responses::{auth::signup_response::SignupResponse, response_data::http_resp},
     },
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     schema::{email_verification_tokens, users},
     util::{
@@ -29,6 +29,16 @@ const EMAIL_VERIFICATION_TOKEN_VALID_DURATION: chrono::TimeDelta = chrono::Durat
 
 // TODO: Add profile picture storage func
 // TODO: Validate that request's subdivision does belong to user_country using in-RAM cache
+#[utoipa::path(
+    post,
+    path = "/api/auth/signup",
+    request_body = SignupRequest,
+    responses(
+        (status = 200, description = "User successfully signed up", body = SignupResponse),
+        (status = 400, description = "Invalid input or email already exists", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn signup_handler(
     Extension(request_received_time): Extension<DateTime<Utc>>,
     State(state): State<Arc<ServerState>>,

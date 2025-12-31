@@ -1,7 +1,8 @@
 use serde_derive::Deserialize;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct SubmitPostRequest {
     pub post_id: Option<Uuid>,
     pub post_title: String,

@@ -1,11 +1,12 @@
 use chrono::{DateTime, Utc};
 use diesel::prelude::{Insertable, Queryable, QueryableByName};
 use serde_derive::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::schema::photographs;
 
-#[derive(Serialize, Deserialize, QueryableByName, Queryable)]
+#[derive(Serialize, Deserialize, QueryableByName, Queryable, ToSchema)]
 #[diesel(table_name = photographs)]
 pub struct Photograph {
     pub photograph_id: Uuid,

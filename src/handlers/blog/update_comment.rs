@@ -16,12 +16,28 @@ use crate::{
         requests::blog::update_comment_request::UpdateCommentRequest,
         responses::response_data::http_resp,
     },
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::{ServerState, Session},
     schema::{comments, user_profile_pictures, users},
     util::{auth::is_superuser::is_superuser, time::now::tokio_now},
 };
 
+#[utoipa::path(
+    patch,
+    path = "/api/blog/{post_id}/{comment_id}",
+    params(
+        ("post_id" = Uuid, Path, description = "ID of the post"),
+        ("comment_id" = Uuid, Path, description = "ID of the comment to update")
+    ),
+    request_body = UpdateCommentRequest,
+    responses(
+        (status = 200, description = "Comment updated successfully", body = CommentResponse),
+        (status = 401, description = "Unauthorized", body = CodeErrorResp),
+        (status = 403, description = "Forbidden", body = CodeErrorResp),
+        (status = 404, description = "Comment not found", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn update_comment(
     cookie_jar: CookieJar,
     State(state): State<Arc<ServerState>>,

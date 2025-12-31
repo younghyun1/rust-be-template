@@ -3,10 +3,11 @@ use std::collections::{BTreeMap, HashMap};
 use diesel::{Queryable, QueryableByName};
 use diesel_async::{AsyncPgConnection, RunQueryDsl, pooled_connection::bb8::PooledConnection};
 use serde_derive::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::schema::iso_country;
 
-#[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable)]
+#[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable, ToSchema)]
 #[diesel(table_name = iso_country)]
 pub struct IsoCountry {
     #[diesel(sql_type = diesel::sql_types::Integer, column_name = country_code)]
@@ -91,7 +92,7 @@ impl IsoCountryTable {
 }
 
 // 1. ISO Country Subdivision
-#[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable)]
+#[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable, ToSchema)]
 #[diesel(table_name = iso_country_subdivision)]
 pub struct IsoCountrySubdivision {
     #[diesel(sql_type = diesel::sql_types::Integer)]
@@ -161,7 +162,7 @@ impl IsoCountrySubdivisionTable {
 }
 
 // 2. ISO Currency
-#[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable)]
+#[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable, ToSchema)]
 #[diesel(table_name = iso_currency)]
 pub struct IsoCurrency {
     #[diesel(sql_type = diesel::sql_types::Integer)]
@@ -218,7 +219,7 @@ impl IsoCurrencyTable {
 }
 
 // 3. ISO Language
-#[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable)]
+#[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable, ToSchema)]
 #[diesel(table_name = iso_language)]
 pub struct IsoLanguage {
     #[diesel(sql_type = diesel::sql_types::Integer)]
@@ -307,7 +308,7 @@ impl IsoLanguageTable {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, ToSchema)]
 pub struct CountryAndSubdivisions {
     pub country: IsoCountry,
     // All subdivisions belonging to that country.
@@ -413,7 +414,7 @@ impl CountryAndSubdivisionsTable {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct TruncatedLanguage {
     pub language_alpha2: String,
     pub language_alpha3: String,

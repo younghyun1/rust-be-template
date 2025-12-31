@@ -1,6 +1,7 @@
 use crate::{
+    domain::country::IsoCountrySubdivision,
     dto::responses::response_data::http_resp,
-    errors::code_error::{CodeError, HandlerResponse},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse},
     init::state::ServerState,
     util::time::now::tokio_now,
 };
@@ -11,6 +12,17 @@ use axum::{
 };
 use std::sync::Arc;
 
+#[utoipa::path(
+    get,
+    path = "/api/dropdown/country/{country_id}/subdivision",
+    params(
+        ("country_id" = i32, Path, description = "ID of the country to retrieve subdivisions for")
+    ),
+    responses(
+        (status = 200, description = "List of subdivisions for the country", body = [IsoCountrySubdivision]),
+        (status = 404, description = "Country not found", body = CodeErrorResp)
+    )
+)]
 pub async fn get_subdivisions_for_country(
     State(state): State<Arc<ServerState>>,
     Path(country_id): Path<i32>,

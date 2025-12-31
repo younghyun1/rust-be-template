@@ -1,8 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde_derive::Serialize;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct SubmitPostResponse {
     pub post_id: Uuid,
     pub post_title: String,

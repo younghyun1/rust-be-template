@@ -16,7 +16,7 @@ use crate::{
     dto::{
         requests::blog::submit_comment::SubmitCommentRequest, responses::response_data::http_resp,
     },
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::{ServerState, Session},
     schema::{comments, user_profile_pictures, users},
     util::time::now::tokio_now,
@@ -32,6 +32,19 @@ struct NewComment<'a> {
     pub parent_comment_id: Option<&'a Uuid>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/blog/{post_id}/comment",
+    params(
+        ("post_id" = Uuid, Path, description = "ID of the post to comment on")
+    ),
+    request_body = SubmitCommentRequest,
+    responses(
+        (status = 200, description = "Comment submitted successfully", body = CommentResponse),
+        (status = 401, description = "Unauthorized", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn submit_comment(
     cookie_jar: CookieJar,
     State(state): State<Arc<ServerState>>,

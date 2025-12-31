@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::{
     domain::blog::blog::PostInfo,
     dto::responses::response_data::http_resp,
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     schema::{post_votes, posts},
     util::time::now::tokio_now,
@@ -26,6 +26,19 @@ struct VoteCounts {
     downvote_count: i64,
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/blog/{post_id}/vote",
+    params(
+        ("post_id" = Uuid, Path, description = "ID of the post to rescind vote for")
+    ),
+    responses(
+        (status = 200, description = "Vote rescinded successfully"),
+        (status = 401, description = "Unauthorized", body = CodeErrorResp),
+        (status = 404, description = "Post or vote not found", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn rescind_post_vote(
     Extension(user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,

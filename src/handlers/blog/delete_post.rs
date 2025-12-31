@@ -11,13 +11,27 @@ use uuid::Uuid;
 
 use crate::{
     dto::responses::{blog::delete_post_response::DeletePostResponse, response_data::http_resp},
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     routers::middleware::is_logged_in::AuthStatus,
     schema::posts,
     util::{auth::is_superuser::is_superuser, time::now::tokio_now},
 };
 
+#[utoipa::path(
+    delete,
+    path = "/api/blog/{post_id}",
+    params(
+        ("post_id" = Uuid, Path, description = "ID of the post to delete")
+    ),
+    responses(
+        (status = 200, description = "Post deleted successfully", body = DeletePostResponse),
+        (status = 401, description = "Unauthorized", body = CodeErrorResp),
+        (status = 403, description = "Forbidden", body = CodeErrorResp),
+        (status = 404, description = "Post not found", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn delete_post(
     Extension(is_logged_in): Extension<AuthStatus>,
     State(state): State<Arc<ServerState>>,

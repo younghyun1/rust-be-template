@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use diesel::{Queryable, QueryableByName, Selectable, prelude::Insertable};
 use diesel_async::{AsyncPgConnection, RunQueryDsl, pooled_connection::bb8::PooledConnection};
 use serde_derive::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
@@ -12,7 +13,7 @@ use crate::{
 };
 
 // TODO: update with new fields - country, subdivision, etc after filling out the data
-#[derive(Serialize, Deserialize, QueryableByName, Queryable)]
+#[derive(Serialize, Deserialize, QueryableByName, Queryable, ToSchema)]
 #[diesel(table_name = users)]
 pub struct User {
     #[diesel(sql_type = diesel::sql_types::Uuid)]
@@ -38,7 +39,7 @@ pub struct User {
 }
 
 // TODO: update with new fields - country, subdivision, etc after filling out the data
-#[derive(Serialize, Deserialize, Queryable, Selectable)]
+#[derive(Serialize, Deserialize, Queryable, Selectable, ToSchema)]
 #[diesel(table_name = users)]
 pub struct UserInfo {
     #[diesel(sql_type = diesel::sql_types::Uuid)]
@@ -191,7 +192,7 @@ impl<'a> NewPasswordResetToken<'a> {
     }
 }
 
-#[derive(Serialize, Deserialize, QueryableByName, Queryable)]
+#[derive(Serialize, Deserialize, QueryableByName, Queryable, ToSchema)]
 pub struct UserProfilePicture {
     #[diesel(sql_type = diesel::sql_types::Uuid)]
     pub user_profile_picture_id: uuid::Uuid,

@@ -5,6 +5,7 @@ use serde_derive::Serialize;
 use std::error::Error;
 use std::fmt::{self, Debug};
 use tracing::Level;
+use utoipa::ToSchema;
 
 pub type HandlerResponse<T> = Result<T, CodeErrorResp>;
 
@@ -346,7 +347,7 @@ pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {
     }
 }
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone, ToSchema)]
 pub struct CodeErrorResp {
     pub success: bool,
     pub error_code: u8,

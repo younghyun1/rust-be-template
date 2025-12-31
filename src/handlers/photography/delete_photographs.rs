@@ -10,13 +10,24 @@ use crate::{
         requests::photography::delete_photographs_request::DeletePhotographsRequest,
         responses::response_data::http_resp,
     },
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     routers::middleware::is_logged_in::AuthStatus,
     schema::photographs::dsl::*,
     util::{auth::is_superuser::is_superuser, time::now::tokio_now},
 };
 
+#[utoipa::path(
+    delete,
+    path = "/api/photographs/delete",
+    request_body = DeletePhotographsRequest,
+    responses(
+        (status = 200, description = "Photographs deleted successfully"),
+        (status = 401, description = "Unauthorized", body = CodeErrorResp),
+        (status = 403, description = "Forbidden (not superuser)", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn delete_photographs(
     Extension(is_logged_in): Extension<AuthStatus>,
     State(state): State<Arc<ServerState>>,
