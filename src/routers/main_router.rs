@@ -53,7 +53,8 @@ use crate::{
 };
 
 use super::middleware::{
-    auth::auth_middleware, is_logged_in::is_logged_in_middleware, logging::log_middleware,
+    auth::auth_middleware, is_logged_in::is_logged_in_middleware,
+    is_superuser::is_superuser_middleware, logging::log_middleware,
 };
 
 const MAX_REQUEST_SIZE: usize = 1024 * 1024 * 150; // 150MB
@@ -124,6 +125,7 @@ async fn static_asset_handler(uri: Uri) -> impl IntoResponse {
 
 pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let auth_middleware = from_fn_with_state(state.clone(), auth_middleware);
+    let is_superuser_middleware = from_fn_with_state(state.clone(), is_superuser_middleware);
     // let api_key_check_middleware = from_fn_with_state(state.clone(), api_key_check_middleware);
     let log_middleware = from_fn_with_state(state.clone(), log_middleware);
     let is_logged_in_middleware = from_fn_with_state(state.clone(), is_logged_in_middleware);
@@ -210,13 +212,24 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     // Final router: merge API routes and set the static asset handler as the fallback
     let mut router = Router::new().merge(api_router);
 
-    if !matches!(
+    // Swagger UI is always available, but in prod it is gated behind auth + superuser.
+    //
+    // NOTE: `SwaggerUi` itself doesn't expose `.layer(...)`, so we nest it under a router where we
+    // can apply middleware layers.
+    let swagger_ui = SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi());
+
+    let mut swagger_router = Router::new().merge(swagger_ui);
+
+    if matches!(
         state.get_deployment_environment(),
         DeploymentEnvironment::Prod
     ) {
-        router = router
-            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
+        swagger_router = swagger_router
+            .layer(is_superuser_middleware)
+            .layer(auth_middleware.clone());
     }
+
+    router = router.merge(swagger_router);
 
     router.fallback_service(get(static_asset_handler))
 }
