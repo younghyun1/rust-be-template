@@ -1,6 +1,7 @@
 use bitcode::Decode;
 use internment::Intern;
 use std::{collections::BTreeMap, fs::File, io::BufReader, net::IpAddr, path::Path};
+use utoipa::ToSchema;
 use zstd::stream::decode_all;
 
 use crate::util::time::now::std_now;
@@ -57,9 +58,10 @@ impl IpEntry {
 }
 
 /// unchanged public lookup result
-#[derive(serde::Serialize, Clone)]
+#[derive(serde::Serialize, Clone, ToSchema)]
 pub struct IpInfo {
-    pub ip: IpAddr,
+    /// IP address (string form; OpenAPI-compatible)
+    pub ip: String,
     pub country_code: String,
     pub country_name: String,
     pub state: String,
@@ -164,7 +166,7 @@ pub fn lookup_ip_location_from_map(geo: &GeoIpDatabases, ip: IpAddr) -> Option<I
     candidate
         .filter(|(_start_key, entry)| entry.contains_ip(ip))
         .map(|(_start_key, entry)| IpInfo {
-            ip,
+            ip: ip.to_string(),
             country_code: entry.country_code.to_string(),
             country_name: entry.country_name.to_string(),
             state: entry.state.to_string(),

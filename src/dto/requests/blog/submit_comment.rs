@@ -1,6 +1,7 @@
 use serde_derive::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct SubmitCommentRequest {
     pub is_guest: bool,
     pub guest_id: Option<String>,

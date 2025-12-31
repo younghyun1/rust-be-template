@@ -5,13 +5,21 @@ use chrono::Utc;
 
 use crate::{
     dto::responses::response_data::http_resp,
-    errors::code_error::{HandlerResponse, code_err},
+    errors::code_error::{CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     util::time::now::tokio_now,
 };
 
 const UPDATE_INTERVAL: chrono::Duration = chrono::Duration::minutes(1);
 
+#[utoipa::path(
+    get,
+    path = "/api/healthcheck/fastfetch",
+    responses(
+        (status = 200, description = "Host fastfetch information", body = String),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn get_host_fastfetch(
     State(state): State<Arc<ServerState>>,
 ) -> HandlerResponse<impl IntoResponse> {

@@ -6,12 +6,24 @@ use axum::{
 };
 
 use crate::{
+    domain::country::CountryAndSubdivisions,
     dto::responses::response_data::http_resp,
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     util::time::now::tokio_now,
 };
 
+#[utoipa::path(
+    get,
+    path = "/api/dropdown/country/{country_id}",
+    params(
+        ("country_id" = i32, Path, description = "ID of the country to retrieve")
+    ),
+    responses(
+        (status = 200, description = "Country and its subdivisions", body = CountryAndSubdivisions),
+        (status = 404, description = "Country not found", body = CodeErrorResp)
+    )
+)]
 pub async fn get_country(
     State(state): State<Arc<ServerState>>,
     Path(country_id): Path<i32>,

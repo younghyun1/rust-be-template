@@ -8,11 +8,22 @@ use tracing::error;
 
 use crate::{
     dto::responses::response_data::http_resp,
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     util::{geographic::ip_info_lookup::IpInfo, time::now::tokio_now},
 };
 
+#[utoipa::path(
+    get,
+    path = "/api/geo-ip-info/{ip_address}",
+    params(
+        ("ip_address" = String, Path, description = "IP address to lookup")
+    ),
+    responses(
+        (status = 200, description = "IP geo-information", body = IpInfo),
+        (status = 400, description = "Invalid IP address", body = CodeErrorResp)
+    )
+)]
 pub async fn lookup_ip_info(
     State(state): State<Arc<ServerState>>,
     Path(ip_addr_str): Path<String>,

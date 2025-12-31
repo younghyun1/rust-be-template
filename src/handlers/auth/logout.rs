@@ -12,11 +12,19 @@ use crate::{
     dto::responses::{
         auth::logout_response::LogoutResponse, response_data::http_resp_with_cookies,
     },
-    errors::code_error::HandlerResponse,
+    errors::code_error::{CodeErrorResp, HandlerResponse},
     init::state::ServerState,
     util::time::now::tokio_now,
 };
 
+#[utoipa::path(
+    post,
+    path = "/api/auth/logout",
+    responses(
+        (status = 200, description = "Logout successful", body = LogoutResponse),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn logout(
     cookie_jar: CookieJar,
     State(state): State<Arc<ServerState>>,

@@ -14,7 +14,7 @@ use crate::{
         requests::blog::upvote_comment_request::UpvoteCommentRequest,
         responses::{blog::vote_comment_response::VoteCommentResponse, response_data::http_resp},
     },
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     schema::comments,
     util::time::now::tokio_now,
@@ -27,6 +27,20 @@ pub struct CountRow {
     #[diesel(sql_type = diesel::sql_types::BigInt)]
     pub downvote_count: i64,
 }
+#[utoipa::path(
+    post,
+    path = "/api/blog/{post_id}/{comment_id}/vote",
+    params(
+        ("post_id" = Uuid, Path, description = "ID of the post"),
+        ("comment_id" = Uuid, Path, description = "ID of the comment to vote for")
+    ),
+    request_body = UpvoteCommentRequest,
+    responses(
+        (status = 200, description = "Vote recorded", body = VoteCommentResponse),
+        (status = 401, description = "Unauthorized", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn vote_comment(
     Extension(user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,

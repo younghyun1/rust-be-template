@@ -1,7 +1,8 @@
 use chrono::{DateTime, Utc};
 use serde_derive::Serialize;
+use utoipa::ToSchema;
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct ResponseMeta<T: serde::Serialize> {
     time_to_process: String,
     timestamp: DateTime<Utc>,

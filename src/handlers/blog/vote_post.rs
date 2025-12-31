@@ -15,7 +15,7 @@ use crate::{
         requests::blog::upvote_post_request::UpvotePostRequest,
         responses::{blog::vote_post_response::VotePostResponse, response_data::http_resp},
     },
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     schema::posts,
     util::time::now::tokio_now,
@@ -29,6 +29,20 @@ struct VoteCounts {
     downvote_count: i64,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/blog/{post_id}/vote",
+    params(
+        ("post_id" = Uuid, Path, description = "ID of the post to vote for")
+    ),
+    request_body = UpvotePostRequest,
+    responses(
+        (status = 200, description = "Vote recorded", body = VotePostResponse),
+        (status = 401, description = "Unauthorized", body = CodeErrorResp),
+        (status = 404, description = "Post not found", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn vote_post(
     Extension(user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,

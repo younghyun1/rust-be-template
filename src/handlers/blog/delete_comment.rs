@@ -13,13 +13,28 @@ use crate::{
     dto::responses::{
         blog::delete_comment_response::DeleteCommentResponse, response_data::http_resp,
     },
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     routers::middleware::is_logged_in::AuthStatus,
     schema::comments,
     util::{auth::is_superuser::is_superuser, time::now::tokio_now},
 };
 
+#[utoipa::path(
+    delete,
+    path = "/api/blog/{post_id}/{comment_id}",
+    params(
+        ("post_id" = Uuid, Path, description = "ID of the post"),
+        ("comment_id" = Uuid, Path, description = "ID of the comment to delete")
+    ),
+    responses(
+        (status = 200, description = "Comment deleted successfully", body = DeleteCommentResponse),
+        (status = 401, description = "Unauthorized", body = CodeErrorResp),
+        (status = 403, description = "Forbidden", body = CodeErrorResp),
+        (status = 404, description = "Comment not found", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn delete_comment(
     Extension(is_logged_in): Extension<AuthStatus>,
     State(state): State<Arc<ServerState>>,

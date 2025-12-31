@@ -6,7 +6,7 @@ use crate::{
         requests::blog::get_posts_request::GetPostsRequest,
         responses::{blog::get_posts::GetPostsResponse, response_data::http_resp},
     },
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     routers::middleware::is_logged_in::AuthStatus,
     schema::{post_votes, user_profile_pictures, users},
@@ -21,8 +21,18 @@ use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
-/// GET /blog/get-posts
-/// Get posts metadata for post list.
+#[utoipa::path(
+    get,
+    path = "/api/blog/posts",
+    params(
+        ("page" = Option<usize>, Query, description = "Page number"),
+        ("posts_per_page" = Option<usize>, Query, description = "Posts per page")
+    ),
+    responses(
+        (status = 200, description = "List of blog posts", body = GetPostsResponse),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn get_posts(
     Extension(is_logged_in): Extension<AuthStatus>,
     State(state): State<Arc<ServerState>>,

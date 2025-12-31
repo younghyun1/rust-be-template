@@ -8,7 +8,7 @@ use crate::{
             EmailValidateResponse, hydrate_email_validate_response_page,
         },
     },
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     schema::{email_verification_tokens, users},
     util::time::now::tokio_now,
@@ -22,6 +22,18 @@ use chrono::Utc;
 use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::{AsyncConnection, RunQueryDsl};
 
+#[utoipa::path(
+    get,
+    path = "/api/auth/verify-user-email",
+    params(
+        ("email_validation_token_id" = uuid::Uuid, Query, description = "Email validation token ID")
+    ),
+    responses(
+        (status = 200, description = "Email verified successfully", body = String, content_type = "text/html"),
+        (status = 400, description = "Invalid token or already verified", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn verify_user_email(
     State(state): State<Arc<ServerState>>,
     Query(token): Query<EmailValidationToken>,

@@ -3,10 +3,11 @@ use axum::http::header::SET_COOKIE;
 use axum::response::IntoResponse;
 use serde_derive::Serialize;
 use tracing::error;
+use utoipa::ToSchema;
 
 use super::response_meta::ResponseMeta;
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct Response<D: serde::Serialize, M: serde::Serialize> {
     success: bool,
     data: D,

@@ -10,13 +10,21 @@ use crate::{
     build_info::{BUILD_TIME_UTC, LIB_VERSION_MAP},
     domain::auth::user::{UserInfo, UserProfilePicture},
     dto::responses::{auth::me_response::MeResponse, response_data::http_resp},
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     routers::middleware::is_logged_in::AuthStatus,
     schema::{user_profile_pictures, users},
     util::time::now::tokio_now,
 };
 
+#[utoipa::path(
+    get,
+    path = "/api/auth/me",
+    responses(
+        (status = 200, description = "Current user information", body = MeResponse),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn me_handler(
     Extension(is_logged_in): Extension<AuthStatus>,
     State(state): State<Arc<ServerState>>,

@@ -1,6 +1,8 @@
+use utoipa::ToSchema;
+
 use crate::domain::blog::blog::{CommentResponse, Post, UserBadgeInfo, VoteState};
 
-#[derive(serde_derive::Serialize)]
+#[derive(serde_derive::Serialize, ToSchema)]
 pub struct ReadPostResponse {
     pub post: Post,
     pub comments: Vec<CommentResponse>,

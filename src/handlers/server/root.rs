@@ -5,15 +5,16 @@ use chrono::{DateTime, Utc};
 use diesel::{prelude::QueryableByName, sql_query};
 use diesel_async::RunQueryDsl;
 use serde_derive::Serialize;
+use utoipa::ToSchema;
 
 use crate::{
     dto::responses::response_data::http_resp,
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     util::{time::duration_formatter::format_duration, time::now::tokio_now},
 };
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct RootHandlerResponse {
     timestamp: DateTime<Utc>,
     server_uptime: String, // TODO: ISO-compliance
@@ -29,6 +30,14 @@ struct Version {
     version: String,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/healthcheck/state",
+    responses(
+        (status = 200, description = "Server state information", body = RootHandlerResponse),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn root_handler(
     State(state): State<Arc<ServerState>>,
 ) -> HandlerResponse<impl IntoResponse> {

@@ -11,12 +11,26 @@ use uuid::Uuid;
 
 use crate::{
     dto::responses::response_data::http_resp,
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     schema::comment_votes::dsl as cu,
     util::time::now::tokio_now,
 };
 
+#[utoipa::path(
+    delete,
+    path = "/api/blog/{post_id}/{comment_id}/vote",
+    params(
+        ("post_id" = Uuid, Path, description = "ID of the post"),
+        ("comment_id" = Uuid, Path, description = "ID of the comment to rescind vote for")
+    ),
+    responses(
+        (status = 200, description = "Vote rescinded successfully"),
+        (status = 401, description = "Unauthorized", body = CodeErrorResp),
+        (status = 404, description = "Vote does not exist", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn rescind_comment_vote(
     Extension(user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,

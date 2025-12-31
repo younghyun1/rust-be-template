@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::{
     domain::blog::blog::{Comment, CommentResponse, UserBadgeInfo, VoteState},
     dto::responses::{blog::read_post_response::ReadPostResponse, response_data::http_resp},
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     routers::middleware::is_logged_in::AuthStatus,
     schema::{comment_votes, comments, post_votes, posts, user_profile_pictures, users},
@@ -20,6 +20,18 @@ use crate::{
 };
 
 // TODO: Get comments too.
+#[utoipa::path(
+    get,
+    path = "/api/blog/posts/{post_id}",
+    params(
+        ("post_id" = Uuid, Path, description = "ID of the post to read")
+    ),
+    responses(
+        (status = 200, description = "Post details and comments", body = ReadPostResponse),
+        (status = 404, description = "Post not found", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn read_post(
     Extension(is_logged_in): Extension<AuthStatus>,
     State(state): State<Arc<ServerState>>,

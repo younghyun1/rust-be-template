@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use utoipa::ToSchema;
 
 use diesel::{
     Insertable, Selectable,
@@ -7,7 +8,7 @@ use diesel::{
 
 use crate::schema::{comment_votes, post_tags, post_votes, posts, tags};
 
-#[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
+#[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable, ToSchema)]
 #[diesel(table_name = posts)]
 pub struct Post {
     pub post_id: uuid::Uuid,
@@ -35,6 +36,7 @@ pub struct Post {
     Queryable,
     QueryableByName,
     Selectable,
+    ToSchema,
 )]
 #[diesel(table_name = posts)]
 pub struct PostInfo {
@@ -52,13 +54,13 @@ pub struct PostInfo {
     pub total_downvotes: i64,
 }
 
-#[derive(serde_derive::Serialize)]
+#[derive(serde_derive::Serialize, ToSchema)]
 pub struct UserBadgeInfo {
     pub user_name: String,
     pub user_profile_picture_url: String,
 }
 
-#[derive(serde_derive::Serialize)]
+#[derive(serde_derive::Serialize, ToSchema)]
 pub struct PostInfoWithVote {
     pub post_id: uuid::Uuid,
     pub user_id: uuid::Uuid,
@@ -151,7 +153,7 @@ impl<'a> NewPost<'a> {
 
 use crate::schema::comments;
 
-#[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
+#[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable, ToSchema)]
 #[diesel(table_name = comments)]
 pub struct Comment {
     pub comment_id: uuid::Uuid,
@@ -164,7 +166,7 @@ pub struct Comment {
     pub total_upvotes: i64,
     pub total_downvotes: i64,
 }
-#[derive(Clone, serde_derive::Serialize)]
+#[derive(Clone, serde_derive::Serialize, ToSchema)]
 pub struct CommentResponse {
     pub comment_id: uuid::Uuid,
     pub post_id: uuid::Uuid,
@@ -202,7 +204,7 @@ impl CommentResponse {
     }
 }
 
-#[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
+#[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable, ToSchema)]
 #[diesel(table_name = comment_votes)]
 pub struct CommentVote {
     pub vote_id: uuid::Uuid,
@@ -230,7 +232,7 @@ impl<'a> NewCommentVote<'a> {
     }
 }
 
-#[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
+#[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable, ToSchema)]
 #[diesel(table_name = post_votes)]
 pub struct PostVote {
     pub vote_id: uuid::Uuid,
@@ -258,10 +260,10 @@ impl<'a> NewPostVote<'a> {
     }
 }
 
-#[derive(serde_derive::Deserialize, serde_derive::Serialize)]
+#[derive(serde_derive::Deserialize, serde_derive::Serialize, ToSchema)]
 pub struct PostMetadata {}
 
-#[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
+#[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable, ToSchema)]
 #[diesel(table_name = tags)]
 pub struct Tag {
     pub tag_id: i16,
@@ -280,7 +282,7 @@ impl<'a> NewTag<'a> {
     }
 }
 
-#[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable)]
+#[derive(Clone, serde_derive::Serialize, QueryableByName, Queryable, Selectable, ToSchema)]
 #[diesel(table_name = post_tags)]
 pub struct PostTag {
     pub post_id: uuid::Uuid,
@@ -301,7 +303,7 @@ impl<'a> NewPostTag<'a> {
 }
 
 #[repr(u8)]
-#[derive(Clone)]
+#[derive(Clone, ToSchema)]
 pub enum VoteState {
     Upvoted,
     Downvoted,

@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::{
     domain::auth::user::UserProfilePictureInsertable,
     dto::responses::response_data::http_resp,
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     schema::user_profile_pictures,
     util::{
@@ -50,6 +50,17 @@ const AWS_S3_BUCKET_NAME: &str = "cyhdev-img";
 
 // TODO: STREAM to file, don't keep the whole damn thing around
 // TODO: DELETE old S3 objects
+#[utoipa::path(
+    post,
+    path = "/api/user/upload-profile-picture",
+    request_body(content_type = "multipart/form-data"),
+    responses(
+        (status = 200, description = "Profile picture uploaded successfully"),
+        (status = 400, description = "Invalid upload payload", body = CodeErrorResp),
+        (status = 401, description = "Unauthorized", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn upload_profile_picture(
     Extension(user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,

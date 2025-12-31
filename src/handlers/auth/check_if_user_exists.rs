@@ -9,18 +9,28 @@ use crate::{
         requests::auth::check_if_user_exists_request::CheckIfUserExistsRequest,
         responses::response_data::http_resp,
     },
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     schema::users,
     util::time::now::tokio_now,
 };
 
 // TODO: Move
-#[derive(serde_derive::Serialize)]
+#[derive(serde_derive::Serialize, utoipa::ToSchema)]
 struct CheckIfUserExistsRespose {
     email_exists: bool,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/auth/check-if-user-exists",
+    request_body = CheckIfUserExistsRequest,
+    responses(
+        (status = 200, description = "Check if user exists", body = CheckIfUserExistsRespose),
+        (status = 400, description = "Invalid input", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn check_if_user_exists_handler(
     State(state): State<Arc<ServerState>>,
     Json(request): Json<CheckIfUserExistsRequest>,

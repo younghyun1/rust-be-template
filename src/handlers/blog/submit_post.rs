@@ -13,7 +13,7 @@ use crate::{
         requests::blog::submit_post_request::SubmitPostRequest,
         responses::{blog::submit_post_response::SubmitPostResponse, response_data::http_resp},
     },
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::{ServerState, Session},
     schema::posts,
     util::{
@@ -32,6 +32,18 @@ use crate::{
 // }
 // is_published true for immediate publication
 // is_published false for saving
+#[utoipa::path(
+    post,
+    path = "/api/blog/posts",
+    request_body = SubmitPostRequest,
+    responses(
+        (status = 200, description = "Post submitted or updated", body = SubmitPostResponse),
+        (status = 401, description = "Unauthorized access", body = CodeErrorResp),
+        (status = 403, description = "Forbidden access", body = CodeErrorResp),
+        (status = 404, description = "Post not found", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn submit_post(
     cookie_jar: CookieJar,
     State(state): State<Arc<ServerState>>,

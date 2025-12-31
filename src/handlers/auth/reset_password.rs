@@ -14,7 +14,7 @@ use crate::{
             auth::reset_password_response::ResetPasswordResponse, response_data::http_resp,
         },
     },
-    errors::code_error::{CodeError, HandlerResponse, code_err},
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     schema::users,
     util::{
@@ -30,6 +30,16 @@ struct UpdatePassword<'a> {
     user_password_hash: &'a str,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/auth/reset-password",
+    request_body = ResetPasswordProcessRequest,
+    responses(
+        (status = 200, description = "Password reset successful", body = ResetPasswordResponse),
+        (status = 400, description = "Invalid password or token", body = CodeErrorResp),
+        (status = 500, description = "Internal server error", body = CodeErrorResp)
+    )
+)]
 pub async fn reset_password(
     State(state): State<Arc<ServerState>>,
     Json(request): Json<ResetPasswordProcessRequest>,
