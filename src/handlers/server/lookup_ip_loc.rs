@@ -15,6 +15,7 @@ use crate::{
 #[utoipa::path(
     get,
     path = "/api/geolocate/{ip_address}",
+    tag = "server",
     params(
         ("ip_address" = String, Path, description = "IP address to lookup")
     ),

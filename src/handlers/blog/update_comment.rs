@@ -25,6 +25,7 @@ use crate::{
 #[utoipa::path(
     patch,
     path = "/api/blog/{post_id}/{comment_id}",
+    tag = "blog",
     params(
         ("post_id" = Uuid, Path, description = "ID of the post"),
         ("comment_id" = Uuid, Path, description = "ID of the comment to update")

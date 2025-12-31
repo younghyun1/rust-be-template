@@ -24,6 +24,7 @@ use uuid::Uuid;
 #[utoipa::path(
     get,
     path = "/api/blog/posts",
+    tag = "blog",
     params(
         ("page" = Option<usize>, Query, description = "Page number"),
         ("posts_per_page" = Option<usize>, Query, description = "Posts per page")

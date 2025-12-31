@@ -24,6 +24,7 @@ struct CheckIfUserExistsRespose {
 #[utoipa::path(
     post,
     path = "/api/auth/check-if-user-exists",
+    tag = "auth",
     request_body = CheckIfUserExistsRequest,
     responses(
         (status = 200, description = "Check if user exists", body = CheckIfUserExistsRespose),

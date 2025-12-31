@@ -3,6 +3,7 @@ use axum::{http::StatusCode, response::IntoResponse};
 #[utoipa::path(
     get,
     path = "/api/healthcheck/server",
+    tag = "server",
     responses(
         (status = 200, description = "Server is healthy")
     )

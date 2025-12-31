@@ -16,6 +16,7 @@ use crate::{
 #[utoipa::path(
     get,
     path = "/api/dropdown/language/{language_id}",
+    tag = "countries",
     params(
         ("language_id" = i32, Path, description = "ID of the language to retrieve")
     ),

@@ -33,6 +33,7 @@ struct Version {
 #[utoipa::path(
     get,
     path = "/api/healthcheck/state",
+    tag = "server",
     responses(
         (status = 200, description = "Server state information", body = RootHandlerResponse),
         (status = 500, description = "Internal server error", body = CodeErrorResp)

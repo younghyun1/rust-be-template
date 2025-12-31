@@ -35,6 +35,7 @@ use crate::{
 #[utoipa::path(
     post,
     path = "/api/blog/posts",
+    tag = "blog",
     request_body = SubmitPostRequest,
     responses(
         (status = 200, description = "Post submitted or updated", body = SubmitPostResponse),
