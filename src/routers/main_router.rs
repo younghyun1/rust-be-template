@@ -10,6 +10,7 @@ use axum::{
 };
 use mime_guess::from_path;
 use rust_embed::Embed;
+use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
 use tower_http::{compression::CompressionLayer, cors::CorsLayer};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -123,6 +124,9 @@ async fn static_asset_handler(uri: Uri) -> impl IntoResponse {
     (StatusCode::NOT_FOUND, "Not Found").into_response()
 }
 
+const RATE_LIMIT_PER_SECOND: u64 = 4;
+const RATE_LIMIT_BURST_SIZE: u32 = 200;
+
 pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let auth_middleware = from_fn_with_state(state.clone(), auth_middleware);
     let is_superuser_middleware = from_fn_with_state(state.clone(), is_superuser_middleware);
@@ -131,6 +135,17 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let is_logged_in_middleware = from_fn_with_state(state.clone(), is_logged_in_middleware);
     let compression_middleware = CompressionLayer::new().gzip(true);
     let cors_layer = CorsLayer::very_permissive();
+
+    let governor_conf = Arc::new(
+        match GovernorConfigBuilder::default()
+            .per_second(RATE_LIMIT_PER_SECOND)
+            .burst_size(RATE_LIMIT_BURST_SIZE)
+            .finish()
+        {
+            Some(conf) => conf,
+            None => panic!("Failed to build governor config"),
+        },
+    );
 
     // Publicly accessible API routes
     let public_router = Router::new()
@@ -205,6 +220,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         // .layer(api_key_check_middleware)
         .layer(log_middleware)
         .layer(DefaultBodyLimit::max(MAX_REQUEST_SIZE))
+        .layer(GovernorLayer::new(governor_conf))
         .layer(cors_layer)
         .with_state(state.clone());
 
