@@ -79,7 +79,7 @@ bitcode = "0.6.9"
 # types
 chrono = { version = "0.4.42", features = ["serde"] }
 chrono-tz = { version = "0.10.4", features = ["serde"] }
-scc = "3.4.8"
+scc = "3.4.10"
 uuid = { version = "1.19.0", features = [
     "v4",
     "v7",
@@ -120,7 +120,7 @@ bigdecimal = { version = "0.4.10", features = ["serde"] }
 
 # image processing
 image = "0.25.9"
-fast_image_resize = { version = "5.5.0", features = ["image"]}
+fast_image_resize = { version = "5.6.0", features = ["image"]}
 kamadak-exif = "0.6.1"
 
 # markdown
@@ -155,7 +155,7 @@ chrono = { version = "0.4.42" }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libc = { version = "0.2.179", features = [] }
+libc = { version = "0.2.180", features = [] }
 zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt", "pkg-config"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
