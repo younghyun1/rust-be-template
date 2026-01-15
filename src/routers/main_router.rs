@@ -124,8 +124,8 @@ async fn static_asset_handler(uri: Uri) -> impl IntoResponse {
     (StatusCode::NOT_FOUND, "Not Found").into_response()
 }
 
-const RATE_LIMIT_PER_SECOND: u64 = 4;
-const RATE_LIMIT_BURST_SIZE: u32 = 200;
+const RATE_LIMIT_PER_SECOND: u64 = 8;
+const RATE_LIMIT_BURST_SIZE: u32 = 256;
 
 pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let auth_middleware = from_fn_with_state(state.clone(), auth_middleware);
