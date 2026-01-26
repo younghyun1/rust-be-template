@@ -79,7 +79,7 @@ bitcode = "0.6.9"
 # types
 chrono = { version = "0.4.43", features = ["serde"] }
 chrono-tz = { version = "0.10.4", features = ["serde"] }
-scc = "3.4.15"
+scc = "3.4.14"
 uuid = { version = "1.20.0", features = [
     "v4",
     "v7",
