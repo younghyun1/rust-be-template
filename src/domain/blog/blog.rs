@@ -131,6 +131,7 @@ pub struct NewPost<'a> {
     pub post_slug: &'a str,
     pub post_content: &'a str,
     pub post_is_published: bool,
+    pub post_metadata: &'a serde_json::Value,
 }
 
 impl<'a> NewPost<'a> {
@@ -140,6 +141,7 @@ impl<'a> NewPost<'a> {
         post_slug: &'a str,
         post_content: &'a str,
         post_is_published: bool,
+        post_metadata: &'a serde_json::Value,
     ) -> Self {
         Self {
             user_id,
@@ -147,6 +149,7 @@ impl<'a> NewPost<'a> {
             post_slug,
             post_content,
             post_is_published,
+            post_metadata,
         }
     }
 }

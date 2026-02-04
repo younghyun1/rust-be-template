@@ -36,10 +36,11 @@ pub fn get_memory_usage() -> u64 {
                             found_total = true;
                         }
                     } else if line.starts_with("MemAvailable:")
-                        && let Some(val) = parse_meminfo_kb(&line) {
-                            available_mem = val * 1024; // KB to Bytes
-                            found_avail = true;
-                        }
+                        && let Some(val) = parse_meminfo_kb(&line)
+                    {
+                        available_mem = val * 1024; // KB to Bytes
+                        found_avail = true;
+                    }
                 }
                 if found_total && found_avail {
                     break;

@@ -90,6 +90,9 @@ pub async fn submit_post(
     let slug: String = generate_slug(&request.post_title);
     let rendered_markdown: String =
         comrak::markdown_to_html(&request.post_content, &comrak::Options::default());
+    let post_metadata = serde_json::json!({
+        "markdown_content": request.post_content
+    });
 
     let post: Post = match request.post_id {
         // CASE: Editing an existing post
@@ -116,9 +119,10 @@ pub async fn submit_post(
                 .set((
                     posts::post_title.eq(&request.post_title),
                     posts::post_slug.eq(&slug),
-                    posts::post_content.eq(&request.post_content),
+                    posts::post_content.eq(&rendered_markdown),
                     posts::post_is_published.eq(request.post_is_published),
                     posts::post_updated_at.eq(chrono::Utc::now()),
+                    posts::post_metadata.eq(&post_metadata),
                 ))
                 .returning(posts::all_columns)
                 .get_result(&mut conn)
@@ -133,6 +137,7 @@ pub async fn submit_post(
                 &slug,
                 &rendered_markdown,
                 request.post_is_published,
+                &post_metadata,
             );
 
             diesel::insert_into(posts::table)
