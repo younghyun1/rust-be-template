@@ -7,7 +7,7 @@ use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 
 use crate::{
-    build_info::{BUILD_TIME_UTC, LIB_VERSION_MAP},
+    build_info::{BUILD_TIME_UTC, LIB_VERSION_MAP, RUSTC_VERSION},
     domain::auth::user::{UserInfo, UserProfilePicture},
     dto::responses::{auth::me_response::MeResponse, response_data::http_resp},
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
@@ -74,6 +74,7 @@ pub async fn me_handler(
                 user_profile_picture,
                 build_time: BUILD_TIME_UTC,
                 axum_version,
+                rust_version: RUSTC_VERSION,
             },
             (),
             start,
@@ -91,6 +92,7 @@ pub async fn me_handler(
                 user_profile_picture: None,
                 build_time: BUILD_TIME_UTC,
                 axum_version,
+                rust_version: RUSTC_VERSION,
             },
             (),
             start,

@@ -8,4 +8,5 @@ pub struct MeResponse {
     pub user_profile_picture: Option<UserProfilePicture>,
     pub build_time: &'static str,
     pub axum_version: String,
+    pub rust_version: &'static str,
 }
