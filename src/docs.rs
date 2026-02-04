@@ -9,8 +9,8 @@ use utoipa::OpenApi;
 use crate::handlers::{
     admin::sync_i18n_cache,
     auth::{
-        check_if_user_exists, login, logout, me, reset_password, reset_password_request, signup,
-        verify_user_email,
+        check_if_user_exists, is_superuser, login, logout, me, reset_password,
+        reset_password_request, signup, verify_user_email,
     },
     blog::{
         delete_comment, delete_post, get_posts, read_post, rescind_comment_vote, rescind_post_vote,
@@ -57,8 +57,9 @@ use crate::dto::{
     responses::{
         admin::sync_i18n_cache_response::SyncI18nCacheResponse,
         auth::{
-            login_response::LoginResponse, logout_response::LogoutResponse,
-            me_response::MeResponse, reset_password_request_response::ResetPasswordRequestResponse,
+            is_superuser_response::IsSuperuserResponse, login_response::LoginResponse,
+            logout_response::LogoutResponse, me_response::MeResponse,
+            reset_password_request_response::ResetPasswordRequestResponse,
             reset_password_response::ResetPasswordResponse, signup_response::SignupResponse,
         },
         blog::{
@@ -99,6 +100,7 @@ use crate::util::geographic::ip_info_lookup::IpInfo;
 
         // --- auth ---
         signup::signup_handler,
+        is_superuser::is_superuser_handler,
         me::me_handler,
         check_if_user_exists::check_if_user_exists_handler,
         login::login,
@@ -148,6 +150,7 @@ use crate::util::geographic::ip_info_lookup::IpInfo;
             LoginResponse,
             LogoutResponse,
             MeResponse,
+            IsSuperuserResponse,
             ResetPasswordRequest,
             ResetPasswordRequestResponse,
             ResetPasswordProcessRequest,

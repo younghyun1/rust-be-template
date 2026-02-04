@@ -20,8 +20,8 @@ use crate::{
     handlers::{
         admin::{get_host_stats::ws_host_stats_handler, sync_i18n_cache::sync_i18n_cache},
         auth::{
-            check_if_user_exists::check_if_user_exists_handler, login::login, logout::logout,
-            me::me_handler, reset_password::reset_password,
+            check_if_user_exists::check_if_user_exists_handler, is_superuser::is_superuser_handler,
+            login::login, logout::logout, me::me_handler, reset_password::reset_password,
             reset_password_request::reset_password_request_process, signup::signup_handler,
             verify_user_email::verify_user_email,
         },
@@ -167,6 +167,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/api/geo-ip-info/{ip_address}", get(lookup_ip_info))
         .route("/api/auth/signup", post(signup_handler))
         .route("/api/auth/me", get(me_handler))
+        .route("/api/auth/is-superuser", get(is_superuser_handler))
         .route(
             "/api/auth/check-if-user-exists",
             post(check_if_user_exists_handler),

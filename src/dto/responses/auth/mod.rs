@@ -1,4 +1,5 @@
 pub mod email_validate_response;
+pub mod is_superuser_response;
 pub mod login_response;
 pub mod logout_response;
 pub mod me_response;
