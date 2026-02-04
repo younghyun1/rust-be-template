@@ -10,7 +10,7 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
-    domain::photography::photographs::{Photograph, PhotographInsertable},
+    domain::photography::photographs::{Photograph, PhotographContext, PhotographInsertable},
     dto::responses::response_data::http_resp,
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
@@ -78,6 +78,7 @@ pub async fn upload_photograph(
     let mut mime: Option<String> = None;
 
     let mut _extension: String = String::new();
+    let mut uploaded_file_name: Option<String> = None;
 
     // Additional metadata fields provided in the multipart body (all required)
 
@@ -86,6 +87,8 @@ pub async fn upload_photograph(
     let mut photograph_lat: Option<f64> = None;
 
     let mut photograph_lon: Option<f64> = None;
+
+    let mut photograph_context: PhotographContext = PhotographContext::Photography;
 
     let is_superuser = match is_superuser(state.clone(), user_id).await {
         Ok(is_superuser) => is_superuser,
@@ -115,8 +118,10 @@ pub async fn upload_photograph(
             Some("file") | None => {
                 // For the first file field, extract metadata (file name and MIME type)
                 if uploaded_file.is_empty() {
-                    _extension = field
-                        .file_name()
+                    let file_name = field.file_name().map(|name| name.to_string());
+                    uploaded_file_name = file_name.clone();
+                    _extension = file_name
+                        .as_deref()
                         .and_then(|name| name.rsplit('.').next().map(|ext| ext.to_string()))
                         .ok_or_else(|| {
                             error!(user_id = %user_id, "Missing file extension in uploaded filename");
@@ -211,6 +216,23 @@ pub async fn upload_photograph(
                 }
             }
 
+            Some("context") | Some("photograph_context") => {
+                let text = field.text().await.map_err(|e| {
+                    error!(error = ?e, user_id = %user_id, "Failed reading context field");
+                    code_err(CodeError::FILE_UPLOAD_ERROR, e)
+                })?;
+                match PhotographContext::from_str(&text) {
+                    Some(ctx) => photograph_context = ctx,
+                    None => {
+                        error!(user_id = %user_id, value = %text, "Invalid photograph context");
+                        return Err(code_err(
+                            CodeError::FILE_UPLOAD_ERROR,
+                            "Invalid photograph context",
+                        ));
+                    }
+                }
+            }
+
             // Unknown fields: log and ignore
             Some(other) => {
                 error!(user_id = %user_id, field = other, "Unexpected multipart field");
@@ -231,37 +253,52 @@ pub async fn upload_photograph(
         "Received uploaded photograph bytes"
     );
 
-    // Ensure required metadata fields are present
-    let photograph_comments = match photograph_comments {
-        Some(c) if !c.is_empty() => c,
-        _ => {
-            error!(user_id = %user_id, "Missing required comments field");
-            return Err(code_err(
-                CodeError::FILE_UPLOAD_ERROR,
-                "Missing required comments field",
-            ));
-        }
-    };
+    // Ensure required metadata fields are present for photography uploads
+    let (photograph_comments, photograph_lat, photograph_lon) = match photograph_context {
+        PhotographContext::Photography => {
+            let comments = match photograph_comments {
+                Some(c) if !c.is_empty() => c,
+                _ => {
+                    error!(user_id = %user_id, "Missing required comments field");
+                    return Err(code_err(
+                        CodeError::FILE_UPLOAD_ERROR,
+                        "Missing required comments field",
+                    ));
+                }
+            };
 
-    let photograph_lat = match photograph_lat {
-        Some(v) => v,
-        None => {
-            error!(user_id = %user_id, "Missing required lat field");
-            return Err(code_err(
-                CodeError::FILE_UPLOAD_ERROR,
-                "Missing required latitude field",
-            ));
-        }
-    };
+            let lat = match photograph_lat {
+                Some(v) => v,
+                None => {
+                    error!(user_id = %user_id, "Missing required lat field");
+                    return Err(code_err(
+                        CodeError::FILE_UPLOAD_ERROR,
+                        "Missing required latitude field",
+                    ));
+                }
+            };
 
-    let photograph_lon = match photograph_lon {
-        Some(v) => v,
-        None => {
-            error!(user_id = %user_id, "Missing required lon field");
-            return Err(code_err(
-                CodeError::FILE_UPLOAD_ERROR,
-                "Missing required longitude field",
-            ));
+            let lon = match photograph_lon {
+                Some(v) => v,
+                None => {
+                    error!(user_id = %user_id, "Missing required lon field");
+                    return Err(code_err(
+                        CodeError::FILE_UPLOAD_ERROR,
+                        "Missing required longitude field",
+                    ));
+                }
+            };
+
+            (comments, lat, lon)
+        }
+        PhotographContext::Post => {
+            let fallback_comment = uploaded_file_name
+                .clone()
+                .unwrap_or_else(|| "post image".to_string());
+            let comments = photograph_comments.unwrap_or(fallback_comment);
+            let lat = photograph_lat.unwrap_or(0.0);
+            let lon = photograph_lon.unwrap_or(0.0);
+            (comments, lat, lon)
         }
     };
 
@@ -407,6 +444,7 @@ pub async fn upload_photograph(
                 user_id,
                 photograph_shot_at,
                 photograph_image_type: image_type_db_id,
+                photograph_context,
                 photograph_is_on_cloud: true,
                 photograph_link: object_url.clone(),
                 photograph_comments,

@@ -10,7 +10,7 @@ use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
 
 use crate::{
-    domain::photography::photographs::Photograph,
+    domain::photography::photographs::{Photograph, PhotographContext},
     dto::responses::photography::get_photograph_response::{
         GetPhotographsResponse, PaginationMeta, PhotographItem,
     },
@@ -63,13 +63,15 @@ pub async fn get_photographs(
 
     // Get total count for pagination metadata
     let total_items: i64 = photographs
+        .filter(photograph_context.eq(PhotographContext::Photography))
         .count()
-        .get_result(&mut conn)
+        .get_result::<i64>(&mut conn)
         .await
         .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
 
     // Fetch a single page of photographs ordered by most recently shot
     let results: Result<Vec<Photograph>, diesel::result::Error> = photographs
+        .filter(photograph_context.eq(PhotographContext::Photography))
         .order(photograph_shot_at.desc())
         .offset(offset_val)
         .limit(page_size)

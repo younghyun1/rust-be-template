@@ -1,5 +1,11 @@
 // @generated automatically by Diesel CLI.
 
+pub mod sql_types {
+    #[derive(diesel::sql_types::SqlType, diesel::query_builder::QueryId)]
+    #[diesel(postgres_type(name = "photograph_context"))]
+    pub struct PhotographContext;
+}
+
 diesel::table! {
     comment_votes (vote_id) {
         vote_id -> Uuid,
@@ -131,6 +137,7 @@ diesel::table! {
         photograph_created_at -> Timestamptz,
         photograph_updated_at -> Timestamptz,
         photograph_image_type -> Int4,
+        photograph_context -> crate::schema::sql_types::PhotographContext,
         photograph_is_on_cloud -> Bool,
         photograph_link -> Varchar,
         photograph_comments -> Varchar,
