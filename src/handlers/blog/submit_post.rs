@@ -182,8 +182,22 @@ pub async fn submit_post(
     // TODO: Add tags to DB
 
     // Update cache
-    let post_info: PostInfo = post.clone().into();
-    state.insert_post_to_cache(&post_info).await;
+    if state
+        .blog_posts_cache
+        .update_async(&post.post_id, |_, cached| {
+            cached.post_title = post.post_title.clone();
+            cached.post_slug = post.post_slug.clone();
+            cached.post_summary = post.post_summary.clone();
+            cached.post_updated_at = post.post_updated_at;
+            cached.post_published_at = post.post_published_at;
+            cached.post_is_published = post.post_is_published;
+        })
+        .await
+        .is_none()
+    {
+        let post_info: PostInfo = post.clone().into();
+        state.insert_post_to_cache(&post_info).await;
+    }
 
     Ok(http_resp(
         SubmitPostResponse {

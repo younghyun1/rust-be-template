@@ -101,8 +101,21 @@ pub async fn read_post(
 
     let (post_result, comments_result) = tokio::join!(post_handle, comments_handle);
 
-    let post: crate::domain::blog::blog::Post =
+    let mut post: crate::domain::blog::blog::Post =
         post_result.map_err(|e| code_err(CodeError::JOIN_ERROR, e))??;
+
+    if let Some(markdown) = post
+        .post_metadata
+        .get("markdown_content")
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        post.post_content = comrak::markdown_to_html(markdown, &comrak::Options::default());
+    } else if !post.post_content.contains('<') {
+        post.post_content =
+            comrak::markdown_to_html(&post.post_content, &comrak::Options::default());
+    }
 
     let comments: Vec<Comment> =
         comments_result.map_err(|e| code_err(CodeError::JOIN_ERROR, e))??;
