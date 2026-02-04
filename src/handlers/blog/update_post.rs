@@ -85,12 +85,26 @@ pub async fn update_post(
 
     // Generate slug from title
     let slug: String = generate_slug(&request.post_title);
+    let now = chrono::Utc::now();
     let rendered_markdown: String =
         comrak::markdown_to_html(&request.post_content, &comrak::Options::default());
 
     let post_metadata = serde_json::json!({
         "markdown_content": request.post_content
     });
+
+    let existing_published_at: Option<chrono::DateTime<chrono::Utc>> = posts::table
+        .filter(posts::post_id.eq(post_id))
+        .select(posts::post_published_at)
+        .first::<Option<chrono::DateTime<chrono::Utc>>>(&mut conn)
+        .await
+        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+
+    let new_published_at = if request.post_is_published {
+        existing_published_at.or(Some(now))
+    } else {
+        None
+    };
 
     // Update the existing post
     let post: Post = diesel::update(posts::table.filter(posts::post_id.eq(post_id)))
@@ -99,7 +113,8 @@ pub async fn update_post(
             posts::post_slug.eq(&slug),
             posts::post_content.eq(&rendered_markdown),
             posts::post_is_published.eq(request.post_is_published),
-            posts::post_updated_at.eq(chrono::Utc::now()),
+            posts::post_published_at.eq(new_published_at),
+            posts::post_updated_at.eq(now),
             posts::post_metadata.eq(&post_metadata),
         ))
         .returning(posts::all_columns)
@@ -120,6 +135,7 @@ pub async fn update_post(
             cached.post_summary = post.post_summary.clone();
             cached.post_updated_at = post.post_updated_at;
             cached.post_published_at = post.post_published_at;
+            cached.post_is_published = post.post_is_published;
         })
         .await
         .is_none()

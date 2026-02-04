@@ -88,6 +88,7 @@ pub async fn submit_post(
 
     // Generate slug (only for new posts or if title changed)
     let slug: String = generate_slug(&request.post_title);
+    let now = chrono::Utc::now();
     let rendered_markdown: String =
         comrak::markdown_to_html(&request.post_content, &comrak::Options::default());
     let post_metadata = serde_json::json!({
@@ -114,6 +115,20 @@ pub async fn submit_post(
                 )
             })?;
 
+            let existing_published_at: Option<chrono::DateTime<chrono::Utc>> = posts::table
+                .filter(posts::post_id.eq(post_id))
+                .filter(posts::user_id.eq(user_id))
+                .select(posts::post_published_at)
+                .first::<Option<chrono::DateTime<chrono::Utc>>>(&mut conn)
+                .await
+                .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+
+            let new_published_at = if request.post_is_published {
+                existing_published_at.or(Some(now))
+            } else {
+                None
+            };
+
             // Update the existing post
             diesel::update(posts::table.filter(posts::post_id.eq(post_id)))
                 .set((
@@ -121,6 +136,7 @@ pub async fn submit_post(
                     posts::post_slug.eq(&slug),
                     posts::post_content.eq(&rendered_markdown),
                     posts::post_is_published.eq(request.post_is_published),
+                    posts::post_published_at.eq(new_published_at),
                     posts::post_updated_at.eq(chrono::Utc::now()),
                     posts::post_metadata.eq(&post_metadata),
                 ))
@@ -131,11 +147,17 @@ pub async fn submit_post(
         }
         // CASE: Creating a new post
         None => {
+            let new_published_at = if request.post_is_published {
+                Some(now)
+            } else {
+                None
+            };
             let new_post = NewPost::new(
                 &user_id,
                 &request.post_title,
                 &slug,
                 &rendered_markdown,
+                new_published_at,
                 request.post_is_published,
                 &post_metadata,
             );

@@ -16,6 +16,7 @@ use crate::{
     init::state::ServerState,
     routers::middleware::is_logged_in::AuthStatus,
     schema::{comment_votes, comments, post_votes, posts, user_profile_pictures, users},
+    util::auth::is_superuser::is_superuser,
     util::time::now::tokio_now,
 };
 
@@ -40,21 +41,45 @@ pub async fn read_post(
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
+    let include_unpublished = match is_logged_in.clone() {
+        AuthStatus::LoggedIn(user_id) => match is_superuser(state.clone(), user_id).await {
+            Ok(is_superuser) => is_superuser,
+            Err(e) => return Err(code_err(CodeError::DB_QUERY_ERROR, e)),
+        },
+        AuthStatus::LoggedOut => false,
+    };
+
     let post_handle = {
         let state = Arc::clone(&state);
+        let include_unpublished = include_unpublished;
         tokio::spawn(async move {
             let mut conn = state
                 .get_conn()
                 .await
                 .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-            diesel::update(posts::table)
-                .filter(posts::post_id.eq(post_id))
+            let update_result = if include_unpublished {
+                diesel::update(posts::table.filter(posts::post_id.eq(post_id)))
+                    .set(posts::post_view_count.eq(posts::post_view_count + 1))
+                    .returning(posts::all_columns)
+                    .get_result(&mut conn)
+                    .await
+            } else {
+                diesel::update(
+                    posts::table
+                        .filter(posts::post_id.eq(post_id))
+                        .filter(posts::post_is_published.eq(true)),
+                )
                 .set(posts::post_view_count.eq(posts::post_view_count + 1))
                 .returning(posts::all_columns)
                 .get_result(&mut conn)
                 .await
-                .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))
+            };
+
+            update_result.map_err(|e| match e {
+                diesel::result::Error::NotFound => code_err(CodeError::POST_NOT_FOUND, e),
+                _ => code_err(CodeError::DB_QUERY_ERROR, e),
+            })
         })
     };
 

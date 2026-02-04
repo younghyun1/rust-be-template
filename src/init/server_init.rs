@@ -10,7 +10,6 @@ use axum::{
     http::{StatusCode, Uri, uri::Authority},
     response::Redirect,
 };
-use axum_extra::extract::Host;
 use axum_server::tls_rustls::RustlsConfig;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_async::pooled_connection::bb8::Pool;
@@ -19,7 +18,7 @@ use tracing::info;
 
 use crate::{
     init::config::EmailConfig, jobs::job_funcs::init_scheduler::task_init,
-    routers::main_router::build_router,
+    routers::main_router::build_router, util::extract::Host,
 };
 
 use super::{config::DbConfig, state::ServerState};

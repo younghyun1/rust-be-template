@@ -10,6 +10,7 @@ use crate::{
     init::state::ServerState,
     routers::middleware::is_logged_in::AuthStatus,
     schema::{post_votes, user_profile_pictures, users},
+    util::auth::is_superuser::is_superuser,
     util::time::now::tokio_now,
 };
 use axum::{
@@ -41,8 +42,16 @@ pub async fn get_posts(
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
+    let include_unpublished = match is_logged_in.clone() {
+        AuthStatus::LoggedIn(user_id) => match is_superuser(state.clone(), user_id).await {
+            Ok(is_superuser) => is_superuser,
+            Err(e) => return Err(code_err(CodeError::DB_QUERY_ERROR, e)),
+        },
+        AuthStatus::LoggedOut => false,
+    };
+
     let (post_infos, available_pages): (Vec<PostInfo>, usize) = state
-        .get_posts_from_cache(request.page, request.posts_per_page)
+        .get_posts_from_cache(request.page, request.posts_per_page, include_unpublished)
         .await;
 
     let post_ids: Vec<Uuid> = post_infos

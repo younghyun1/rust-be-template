@@ -210,25 +210,29 @@ impl ServerState {
         &self,
         page: usize,
         page_size: usize,
+        include_unpublished: bool,
     ) -> (Vec<PostInfo>, usize) {
+        let page_size = page_size.max(1);
         let start_index = (page.saturating_sub(1)) * page_size;
         let _end_index = start_index + page_size;
 
-        let total_posts = self.blog_posts_cache.len();
+        let mut all_posts: Vec<PostInfo> = Vec::with_capacity(self.blog_posts_cache.len());
+
+        self.blog_posts_cache
+            .iter_async(|_, post_info| {
+                if include_unpublished || post_info.post_is_published {
+                    all_posts.push(post_info.clone());
+                }
+                true
+            })
+            .await;
+
+        let total_posts = all_posts.len();
         let total_pages = total_posts.div_ceil(page_size); // Calculate total number of pages
 
         if start_index >= total_posts {
             return (vec![], total_pages);
         }
-
-        let mut all_posts: Vec<PostInfo> = Vec::with_capacity(total_posts);
-
-        self.blog_posts_cache
-            .iter_async(|_, post_info| {
-                all_posts.push(post_info.clone());
-                true
-            })
-            .await;
 
         all_posts.sort_by_key(|p| p.post_created_at);
         all_posts.reverse();
