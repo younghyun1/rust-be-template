@@ -79,7 +79,7 @@ bitcode = "0.6.9"
 # types
 chrono = { version = "0.4.43", features = ["serde"] }
 chrono-tz = { version = "0.10.4", features = ["serde"] }
-scc = "3.4.14"
+scc = "3.5.5"
 uuid = { version = "1.20.0", features = [
     "v4",
     "v7",
@@ -138,8 +138,8 @@ mime_guess = "2.0.5"
 internment = "0.8.6"
 
 # aws
-aws-sdk-s3 = { version = "1.120.0", features = ["behavior-version-latest"] }
-aws-config = { version = "1.8.12", features = [
+aws-sdk-s3 = { version = "1.122.0", features = ["behavior-version-latest"] }
+aws-config = { version = "1.8.13", features = [
     "rustls",
     "behavior-version-latest",
 ] }

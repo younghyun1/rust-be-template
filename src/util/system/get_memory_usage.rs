@@ -35,12 +35,11 @@ pub fn get_memory_usage() -> u64 {
                             total_mem = val * 1024; // KB to Bytes
                             found_total = true;
                         }
-                    } else if line.starts_with("MemAvailable:") {
-                        if let Some(val) = parse_meminfo_kb(&line) {
+                    } else if line.starts_with("MemAvailable:")
+                        && let Some(val) = parse_meminfo_kb(&line) {
                             available_mem = val * 1024; // KB to Bytes
                             found_avail = true;
                         }
-                    }
                 }
                 if found_total && found_avail {
                     break;
@@ -60,8 +59,8 @@ pub fn get_memory_usage() -> u64 {
             let mut info = MaybeUninit::<sysinfo>::uninit();
             if sysinfo_fn(info.as_mut_ptr()) == 0 {
                 let info = info.assume_init();
-                let total = info.totalram as u64 * info.mem_unit as u64;
-                let free = info.freeram as u64 * info.mem_unit as u64;
+                let total = info.totalram * info.mem_unit as u64;
+                let free = info.freeram * info.mem_unit as u64;
                 // Note: This fallback does not account for cache/buffers, so it reports higher usage.
                 total.saturating_sub(free)
             } else {
