@@ -68,15 +68,20 @@ pub async fn get_posts(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    // Fetch user names
-    let authors: Vec<(Uuid, String)> = users::table
+    // Fetch user names and country codes
+    let authors: Vec<(Uuid, String, i32)> = users::table
         .filter(users::user_id.eq_any(&user_ids))
-        .select((users::user_id, users::user_name))
+        .select((users::user_id, users::user_name, users::user_country))
         .load(&mut conn)
         .await
         .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
 
-    let author_map: HashMap<Uuid, String> = authors.into_iter().collect();
+    let mut author_map: HashMap<Uuid, String> = HashMap::new();
+    let mut author_country_map: HashMap<Uuid, i32> = HashMap::new();
+    for (uid, name, country) in authors {
+        author_map.insert(uid, name);
+        author_country_map.insert(uid, country);
+    }
 
     // Fetch profile pictures
     let author_pics: Vec<(Uuid, Option<String>)> = user_profile_pictures::table
@@ -125,6 +130,9 @@ pub async fn get_posts(
 
     drop(conn);
 
+    // Get country flag lookup from cache
+    let country_map = state.country_map.read().await;
+
     let posts: Vec<PostInfoWithVote> = post_infos
         .into_iter()
         .map(|post| {
@@ -141,6 +149,9 @@ pub async fn get_posts(
                 .get(&post.user_id)
                 .cloned()
                 .unwrap_or_default();
+            let user_country_flag = author_country_map
+                .get(&post.user_id)
+                .and_then(|&code| country_map.get_flag_by_code(code));
 
             PostInfoWithVote::from_info_with_vote(
                 post,
@@ -148,10 +159,13 @@ pub async fn get_posts(
                 UserBadgeInfo {
                     user_name,
                     user_profile_picture_url,
+                    user_country_flag,
                 },
             )
         })
         .collect();
+
+    drop(country_map);
 
     Ok(http_resp(
         GetPostsResponse {

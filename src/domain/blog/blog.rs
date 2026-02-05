@@ -59,6 +59,7 @@ pub struct PostInfo {
 pub struct UserBadgeInfo {
     pub user_name: String,
     pub user_profile_picture_url: String,
+    pub user_country_flag: Option<String>,
 }
 
 #[derive(serde_derive::Serialize, ToSchema)]
@@ -67,6 +68,7 @@ pub struct PostInfoWithVote {
     pub user_id: uuid::Uuid,
     pub user_name: String,
     pub user_profile_picture_url: String,
+    pub user_country_flag: Option<String>,
     pub post_title: String,
     pub post_slug: String,
     pub post_summary: Option<String>,
@@ -92,6 +94,7 @@ impl PostInfoWithVote {
             user_id: post_info.user_id,
             user_name: user_badge_info.user_name,
             user_profile_picture_url: user_badge_info.user_profile_picture_url,
+            user_country_flag: user_badge_info.user_country_flag,
             post_title: post_info.post_title,
             post_slug: post_info.post_slug,
             post_summary: post_info.post_summary,
@@ -190,6 +193,7 @@ pub struct CommentResponse {
     pub vote_state: VoteState,
     pub user_name: String,
     pub user_profile_picture_url: String,
+    pub user_country_flag: Option<String>,
 }
 impl CommentResponse {
     pub fn from_comment_votestate_and_badge_info(
@@ -210,6 +214,7 @@ impl CommentResponse {
             vote_state,
             user_name: user_badge_info.user_name,
             user_profile_picture_url: user_badge_info.user_profile_picture_url,
+            user_country_flag: user_badge_info.user_country_flag,
         }
     }
 }

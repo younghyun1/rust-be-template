@@ -150,15 +150,20 @@ pub async fn read_post(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    // Fetch user names
-    let users_info: Vec<(Uuid, String)> = users::table
+    // Fetch user names and country codes
+    let users_info: Vec<(Uuid, String, i32)> = users::table
         .filter(users::user_id.eq_any(&relevant_user_ids))
-        .select((users::user_id, users::user_name))
+        .select((users::user_id, users::user_name, users::user_country))
         .load(&mut conn)
         .await
         .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
 
-    let user_name_map: HashMap<Uuid, String> = users_info.into_iter().collect();
+    let mut user_name_map: HashMap<Uuid, String> = HashMap::new();
+    let mut user_country_map: HashMap<Uuid, i32> = HashMap::new();
+    for (uid, name, country) in users_info {
+        user_name_map.insert(uid, name);
+        user_country_map.insert(uid, country);
+    }
 
     // Fetch profile pictures
     let user_pics: Vec<(Uuid, Option<String>)> = user_profile_pictures::table
@@ -214,6 +219,9 @@ pub async fn read_post(
         HashMap::new()
     };
 
+    // Get country flag lookup from cache
+    let country_map = state.country_map.read().await;
+
     // Transform comments into CommentResponse
     let mut comment_responses: Vec<CommentResponse> = comments
         .into_iter()
@@ -231,6 +239,9 @@ pub async fn read_post(
                 .get(&comment.user_id)
                 .cloned()
                 .unwrap_or_default();
+            let user_country_flag = user_country_map
+                .get(&comment.user_id)
+                .and_then(|&code| country_map.get_flag_by_code(code));
 
             CommentResponse::from_comment_votestate_and_badge_info(
                 comment,
@@ -238,6 +249,7 @@ pub async fn read_post(
                 UserBadgeInfo {
                     user_name,
                     user_profile_picture_url,
+                    user_country_flag,
                 },
             )
         })
@@ -250,6 +262,11 @@ pub async fn read_post(
         .cloned()
         .unwrap_or_else(|| "Unknown".to_string());
     let post_author_pic = user_pic_map.get(&post.user_id).cloned().unwrap_or_default();
+    let post_author_country_flag = user_country_map
+        .get(&post.user_id)
+        .and_then(|&code| country_map.get_flag_by_code(code));
+
+    drop(country_map);
 
     let post_vote_state = if let AuthStatus::LoggedIn(user_id) = is_logged_in {
         let mut conn = state
@@ -281,6 +298,7 @@ pub async fn read_post(
             user_badge_info: UserBadgeInfo {
                 user_name: post_author_name,
                 user_profile_picture_url: post_author_pic,
+                user_country_flag: post_author_country_flag,
             },
         },
         (),

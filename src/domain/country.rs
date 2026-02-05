@@ -412,6 +412,14 @@ impl CountryAndSubdivisionsTable {
     pub fn as_dispatch_json(&self) -> serde_json::Value {
         serde_json::json!({ "countries": self.rows })
     }
+
+    /// Lookup country flag emoji by country code (integer).
+    pub fn get_flag_by_code(&self, code: i32) -> Option<String> {
+        self.by_id
+            .get(&code)
+            .and_then(|&idx| self.rows.get(idx))
+            .map(|c| c.country.country_flag.clone())
+    }
 }
 
 #[derive(Serialize, ToSchema)]

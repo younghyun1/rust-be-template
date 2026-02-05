@@ -102,9 +102,9 @@ pub async fn update_comment(
             .map_err(|e| code_err(CodeError::DB_UPDATE_ERROR, e))?;
 
     // Get user info for response
-    let user_name: String = users::table
+    let (user_name, user_country): (String, i32) = users::table
         .filter(users::user_id.eq(author_id))
-        .select(users::user_name)
+        .select((users::user_name, users::user_country))
         .first(&mut conn)
         .await
         .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
@@ -121,6 +121,11 @@ pub async fn update_comment(
 
     drop(conn);
 
+    // Look up country flag from cache
+    let country_map = state.country_map.read().await;
+    let user_country_flag = country_map.get_flag_by_code(user_country);
+    drop(country_map);
+
     Ok(http_resp(
         CommentResponse::from_comment_votestate_and_badge_info(
             updated_comment,
@@ -128,6 +133,7 @@ pub async fn update_comment(
             UserBadgeInfo {
                 user_name,
                 user_profile_picture_url: user_profile_picture_url.unwrap_or_default(),
+                user_country_flag,
             },
         ),
         (),

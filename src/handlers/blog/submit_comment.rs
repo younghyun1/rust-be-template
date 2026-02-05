@@ -59,27 +59,27 @@ pub async fn submit_comment(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    let user_id: Uuid = if request.is_guest {
+    if request.is_guest {
         return Err(CodeError::UNAUTHORIZED_ACCESS.into());
-    } else {
-        // Get user id from session (same as submit_post)
-        let session_id: Uuid = match cookie_jar.get("session_id") {
-            Some(session_id) => match session_id.value().parse::<Uuid>() {
-                Ok(session_id) => session_id,
-                Err(_) => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
-            },
-            None => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
-        };
+    }
 
-        let session: Session = state
-            .get_session(&session_id)
-            .await
-            .map_err(|e| code_err(CodeError::UNAUTHORIZED_ACCESS, e))?;
-
-        let uid: Uuid = session.get_user_id();
-        drop(session);
-        uid
+    // Get user id from session (same as submit_post)
+    let session_id: Uuid = match cookie_jar.get("session_id") {
+        Some(session_id) => match session_id.value().parse::<Uuid>() {
+            Ok(session_id) => session_id,
+            Err(_) => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
+        },
+        None => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
     };
+
+    let session: Session = state
+        .get_session(&session_id)
+        .await
+        .map_err(|e| code_err(CodeError::UNAUTHORIZED_ACCESS, e))?;
+
+    let user_id = session.get_user_id();
+    let user_country = session.get_user_country();
+    drop(session);
 
     let new_comment = NewComment {
         post_id: &post_id,
@@ -114,12 +114,18 @@ pub async fn submit_comment(
 
     drop(conn);
 
+    // Look up country flag from cache
+    let country_map = state.country_map.read().await;
+    let user_country_flag = country_map.get_flag_by_code(user_country);
+    drop(country_map);
+
     let response = CommentResponse::from_comment_votestate_and_badge_info(
         inserted_comment,
         VoteState::DidNotVote,
         UserBadgeInfo {
             user_name,
             user_profile_picture_url: user_profile_picture_url.unwrap_or_default(),
+            user_country_flag,
         },
     );
 

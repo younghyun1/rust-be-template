@@ -124,8 +124,8 @@ async fn static_asset_handler(uri: Uri) -> impl IntoResponse {
     (StatusCode::NOT_FOUND, "Not Found").into_response()
 }
 
-const RATE_LIMIT_PER_SECOND: u64 = 8;
-const RATE_LIMIT_BURST_SIZE: u32 = 256;
+const REPLENISHED_EVERY_MILLISECONDS: u64 = 63;
+const RATE_LIMIT_BURST_SIZE: u32 = 1024;
 
 pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let auth_middleware = from_fn_with_state(state.clone(), auth_middleware);
@@ -138,7 +138,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
 
     let governor_conf = Arc::new(
         match GovernorConfigBuilder::default()
-            .per_second(RATE_LIMIT_PER_SECOND)
+            .per_millisecond(REPLENISHED_EVERY_MILLISECONDS)
             .burst_size(RATE_LIMIT_BURST_SIZE)
             .finish()
         {
