@@ -16,7 +16,16 @@ use crate::{
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     schema::wasm_module,
-    util::{auth::is_superuser::is_superuser, time::now::tokio_now},
+    util::{
+        auth::is_superuser::is_superuser,
+        image::{
+            map_image_format_to_db_enum::map_image_format_to_str,
+            process_uploaded_images::{
+                CyhdevImageType, IMAGE_ENCODING_FORMAT, process_uploaded_image,
+            },
+        },
+        time::now::tokio_now,
+    },
 };
 
 const MAX_BUNDLE_SIZE: usize = 1024 * 1024 * 50; // 50MB
@@ -69,7 +78,6 @@ pub async fn upload_wasm_module(
     let mut bundle_is_gzipped = false;
     let mut bundle_is_html = false;
     let mut thumbnail_bytes: Option<Vec<u8>> = None;
-    let mut thumbnail_mime: Option<String> = None;
     let mut title: Option<String> = None;
     let mut description: Option<String> = None;
 
@@ -179,7 +187,6 @@ pub async fn upload_wasm_module(
             }
 
             Some("thumbnail") | Some("thumbnail_file") => {
-                thumbnail_mime = field.content_type().map(|s| s.to_string());
                 let bytes = field.bytes().await.map_err(|e| {
                     error!(error = ?e, "Failed to read thumbnail bytes");
                     code_err(CodeError::FILE_UPLOAD_ERROR, e)
@@ -275,15 +282,28 @@ pub async fn upload_wasm_module(
     );
 
     // Upload thumbnail to S3
-    let thumbnail_path = format!("wasm-thumbnails/{}.webp", wasm_module_id);
+    let processed_thumbnail = process_uploaded_image(
+        thumbnail_bytes,
+        None,
+        CyhdevImageType::Thumbnail,
+    )
+    .await
+    .map_err(|e| {
+        error!(error = ?e, "Failed to process WASM thumbnail image");
+        let _ = std::fs::remove_file(&bundle_path);
+        code_err(CodeError::COULD_NOT_PROCESS_IMAGE, e)
+    })?;
+
+    let (thumb_ext, _) = map_image_format_to_str(IMAGE_ENCODING_FORMAT);
+    let thumbnail_path = format!("wasm-thumbnails/{}.{}", wasm_module_id, thumb_ext);
     let s3_client = aws_sdk_s3::Client::new(&state.aws_profile_picture_config);
 
     s3_client
         .put_object()
         .bucket(AWS_S3_BUCKET_NAME)
         .key(&thumbnail_path)
-        .content_type(thumbnail_mime.as_deref().unwrap_or("image/webp"))
-        .body(aws_sdk_s3::primitives::ByteStream::from(thumbnail_bytes))
+        .content_type("image/avif")
+        .body(aws_sdk_s3::primitives::ByteStream::from(processed_thumbnail))
         .send()
         .await
         .map_err(|e| {
