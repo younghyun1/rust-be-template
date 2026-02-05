@@ -219,6 +219,7 @@ pub fn next_scheduled_yearly_delay(
 /// Schedules a task to run once per year at the specific
 /// month+day+hour+minute+second offset (e.g., March 5th 02:15:30 UTC each year).
 /// Day is clamped to last day of month if out of range.
+#[allow(clippy::too_many_arguments)]
 pub async fn schedule_task_every_year_at<F, Fut>(
     state: Arc<ServerState>,
     task: F,

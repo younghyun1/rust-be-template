@@ -334,6 +334,13 @@ impl CodeError {
         message: "Post cache insertion failed!",
         log_level: Level::ERROR,
     };
+    pub const INVALID_REQUEST: CodeError = CodeError {
+        success: false,
+        error_code: 45,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Invalid request!",
+        log_level: Level::INFO,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {

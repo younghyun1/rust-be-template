@@ -11,7 +11,7 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::domain::auth::user::User;
-use crate::domain::blog::blog::PostInfo;
+use crate::domain::blog::blog::CachedPostInfo;
 use crate::domain::country::{
     CountryAndSubdivisionsTable, IsoCountry, IsoCountrySubdivision, IsoCurrency, IsoCurrencyTable,
     IsoLanguage, IsoLanguageTable,
@@ -21,6 +21,7 @@ use crate::domain::i18n::i18n_cache::I18nCache;
 use crate::init::load_cache::fastfetch_cache::FastFetchCache;
 use crate::init::load_cache::post_info::load_post_info;
 use crate::init::load_cache::system_info::SystemInfoState;
+use crate::init::search::PostSearchIndex;
 use crate::schema::{iso_country, iso_country_subdivision, iso_currency, iso_language};
 use crate::util::geographic::ip_info_lookup::{
     GeoIpDatabases, IpInfo, lookup_ip_location_from_map,
@@ -39,7 +40,8 @@ pub struct ServerState {
     pub(crate) email_client: lettre::AsyncSmtpTransport<Tokio1Executor>,
     // regexes: [regex::Regex; 1],
     pub(crate) session_map: scc::HashMap<uuid::Uuid, Session>, // read/write
-    pub(crate) blog_posts_cache: scc::HashMap<uuid::Uuid, PostInfo>, // read/write
+    pub(crate) blog_posts_cache: scc::HashMap<uuid::Uuid, CachedPostInfo>, // read/write
+    pub(crate) search_index: PostSearchIndex,                  // in-memory full-text search
     pub(crate) geo_ip_db: GeoIpDatabases,                      // read-only, full v4+v6
     pub visitor_board_map: scc::HashMap<([u8; 8], [u8; 8]), u64>, // read/write
     pub(crate) api_keys_set: HashSet<Uuid>,                    // read-only
@@ -189,10 +191,10 @@ impl ServerState {
             }
         };
 
-        for post_info in post_info_vec {
+        for post_info in &post_info_vec {
             match self
                 .blog_posts_cache
-                .insert_async(post_info.post_id, post_info)
+                .insert_async(post_info.post_id, post_info.clone())
                 .await
             {
                 Ok(_) => (),
@@ -200,6 +202,42 @@ impl ServerState {
                     panic!("Could not insert posts into in-RAM cache");
                 }
             };
+        }
+
+        // Sync search index with cached posts (only published)
+        // This checks coherence and only adds/removes what's needed
+        let posts_for_index = post_info_vec
+            .iter()
+            .filter(|p| p.post_is_published)
+            .map(|p| (p.post_id, p.post_title.as_str(), p.post_tags.as_slice()));
+
+        match self.search_index.sync_with_posts(posts_for_index) {
+            Ok((added, removed)) => {
+                if added > 0 || removed > 0 {
+                    info!(
+                        added = added,
+                        removed = removed,
+                        total_indexed = self.search_index.num_docs(),
+                        "Search index synchronized with cache"
+                    );
+                } else {
+                    info!(
+                        total_indexed = self.search_index.num_docs(),
+                        "Search index already coherent"
+                    );
+                }
+            }
+            Err(e) => {
+                error!("Failed to sync search index: {:?}", e);
+                // Fall back to full rebuild
+                let posts_for_rebuild = post_info_vec
+                    .iter()
+                    .filter(|p| p.post_is_published)
+                    .map(|p| (p.post_id, p.post_title.as_str(), p.post_tags.as_slice()));
+                if let Err(e) = self.search_index.rebuild_index(posts_for_rebuild) {
+                    error!("Failed to rebuild search index: {:?}", e);
+                }
+            }
         }
 
         let elapsed = start.elapsed();
@@ -211,12 +249,12 @@ impl ServerState {
         page: usize,
         page_size: usize,
         include_unpublished: bool,
-    ) -> (Vec<PostInfo>, usize) {
+    ) -> (Vec<CachedPostInfo>, usize) {
         let page_size = page_size.max(1);
         let start_index = (page.saturating_sub(1)) * page_size;
         let _end_index = start_index + page_size;
 
-        let mut all_posts: Vec<PostInfo> = Vec::with_capacity(self.blog_posts_cache.len());
+        let mut all_posts: Vec<CachedPostInfo> = Vec::with_capacity(self.blog_posts_cache.len());
 
         self.blog_posts_cache
             .iter_async(|_, post_info| {
@@ -237,7 +275,7 @@ impl ServerState {
         all_posts.sort_by_key(|p| p.post_created_at);
         all_posts.reverse();
 
-        let posts: Vec<PostInfo> = all_posts
+        let posts: Vec<CachedPostInfo> = all_posts
             .into_iter()
             .skip(start_index)
             .take(page_size)
@@ -248,13 +286,80 @@ impl ServerState {
 
     pub async fn delete_post_from_cache(&self, post_id: Uuid) {
         let _ = self.blog_posts_cache.remove_async(&post_id).await;
+        // Also remove from search index and persist to disk
+        if let Err(e) = self.search_index.remove_post_and_commit(post_id) {
+            error!("Failed to remove post from search index: {:?}", e);
+        }
     }
 
-    pub async fn insert_post_to_cache(&self, post: &PostInfo) {
+    pub async fn insert_post_to_cache(&self, post: &CachedPostInfo) {
         let _ = self
             .blog_posts_cache
             .insert_async(post.post_id, post.to_owned())
             .await;
+        // Also update search index if post is published and persist to disk
+        if post.post_is_published {
+            if let Err(e) =
+                self.search_index
+                    .update_post(post.post_id, &post.post_title, &post.post_tags)
+            {
+                error!("Failed to update search index: {:?}", e);
+            }
+        } else {
+            // If unpublished, remove from search index (shouldn't be searchable)
+            if let Err(e) = self.search_index.remove_post_and_commit(post.post_id) {
+                // Ignore "not found" errors - post may not have been indexed
+                error!(
+                    "Failed to remove unpublished post from search index: {:?}",
+                    e
+                );
+            }
+        }
+    }
+
+    /// Get a single post from cache by ID.
+    pub async fn get_post_from_cache(&self, post_id: &Uuid) -> Option<CachedPostInfo> {
+        self.blog_posts_cache
+            .read_async(post_id, |_, v| v.clone())
+            .await
+    }
+
+    /// Search posts by title. Returns matching posts from cache.
+    pub async fn search_posts_by_title(&self, query: &str, limit: usize) -> Vec<CachedPostInfo> {
+        let post_ids = match self.search_index.search_by_title(query, limit) {
+            Ok(ids) => ids,
+            Err(e) => {
+                error!("Search by title failed: {:?}", e);
+                return vec![];
+            }
+        };
+
+        let mut results = Vec::with_capacity(post_ids.len());
+        for post_id in post_ids {
+            if let Some(post) = self.get_post_from_cache(&post_id).await {
+                results.push(post);
+            }
+        }
+        results
+    }
+
+    /// Search posts by tag. Returns matching posts from cache.
+    pub async fn search_posts_by_tag(&self, tag: &str, limit: usize) -> Vec<CachedPostInfo> {
+        let post_ids = match self.search_index.search_by_tag(tag, limit) {
+            Ok(ids) => ids,
+            Err(e) => {
+                error!("Search by tag failed: {:?}", e);
+                return vec![];
+            }
+        };
+
+        let mut results = Vec::with_capacity(post_ids.len());
+        for post_id in post_ids {
+            if let Some(post) = self.get_post_from_cache(&post_id).await {
+                results.push(post);
+            }
+        }
+        results
     }
 
     /// full v4+v6 support

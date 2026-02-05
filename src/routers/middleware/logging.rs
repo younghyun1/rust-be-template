@@ -173,15 +173,12 @@ async fn log_visitors(state: Arc<ServerState>, inp_ip: Option<IpAddr>) {
     let start = tokio_now();
     use diesel_async::RunQueryDsl;
 
-    let ip: IpAddr;
-    match inp_ip {
-        Some(inp_ip) => {
-            ip = inp_ip;
-        }
+    let ip = match inp_ip {
+        Some(inp_ip) => inp_ip,
         None => {
             return;
         }
-    }
+    };
     let ip_info: IpInfo = match state.lookup_ip_location(ip) {
         Some(info) => info,
         None => {

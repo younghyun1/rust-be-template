@@ -51,14 +51,12 @@ pub async fn compress_old_logs(_state: Arc<ServerState>) {
                 continue;
             }
 
-            let compressed_path = match path.with_extension(
+            let compressed_path = path.with_extension(
                 path.extension()
                     .and_then(|e| e.to_str())
                     .map(|e| format!("{e}.zst"))
                     .unwrap_or_else(|| "zst".to_string()),
-            ) {
-                p => p,
-            };
+            );
 
             if let Err(err) = (|| -> Result<(), Box<dyn std::error::Error>> {
                 let input = File::open(path)?;

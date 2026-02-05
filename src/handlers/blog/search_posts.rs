@@ -1,18 +1,5 @@
 use std::{collections::HashMap, sync::Arc};
 
-use crate::{
-    domain::blog::blog::{CachedPostInfo, PostInfoWithVote, UserBadgeInfo, VoteState},
-    dto::{
-        requests::blog::get_posts_request::GetPostsRequest,
-        responses::{blog::get_posts::GetPostsResponse, response_data::http_resp},
-    },
-    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
-    init::state::ServerState,
-    routers::middleware::is_logged_in::AuthStatus,
-    schema::{post_votes, user_profile_pictures, users},
-    util::auth::is_superuser::is_superuser,
-    util::time::now::tokio_now,
-};
 use axum::{
     Extension,
     extract::{Query, State},
@@ -20,48 +7,106 @@ use axum::{
 };
 use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
+use serde_derive::Deserialize;
+use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
+
+use crate::{
+    domain::blog::blog::{CachedPostInfo, PostInfoWithVote, UserBadgeInfo, VoteState},
+    dto::responses::response_data::http_resp,
+    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
+    init::state::ServerState,
+    routers::middleware::is_logged_in::AuthStatus,
+    schema::{post_votes, user_profile_pictures, users},
+    util::time::now::tokio_now,
+};
+
+#[derive(Deserialize, IntoParams)]
+pub struct SearchPostsRequest {
+    /// The search query string
+    pub q: String,
+    /// Search type: "title" for title search, "tag" for tag search
+    #[serde(default = "default_search_type")]
+    pub search_type: String,
+    /// Maximum number of results (default 20, max 100)
+    #[serde(default = "default_limit")]
+    pub limit: usize,
+}
+
+fn default_search_type() -> String {
+    "title".to_string()
+}
+
+fn default_limit() -> usize {
+    20
+}
+
+#[derive(serde_derive::Serialize, ToSchema)]
+pub struct SearchPostsResponse {
+    pub posts: Vec<PostInfoWithVote>,
+    pub query: String,
+    pub search_type: String,
+}
 
 #[utoipa::path(
     get,
-    path = "/api/blog/posts",
+    path = "/api/blog/search",
     tag = "blog",
-    params(
-        ("page" = Option<usize>, Query, description = "Page number"),
-        ("posts_per_page" = Option<usize>, Query, description = "Posts per page")
-    ),
+    params(SearchPostsRequest),
     responses(
-        (status = 200, description = "List of blog posts", body = GetPostsResponse),
+        (status = 200, description = "Search results", body = SearchPostsResponse),
+        (status = 400, description = "Invalid search parameters", body = CodeErrorResp),
         (status = 500, description = "Internal server error", body = CodeErrorResp)
     )
 )]
-pub async fn get_posts(
+pub async fn search_posts(
     Extension(is_logged_in): Extension<AuthStatus>,
     State(state): State<Arc<ServerState>>,
-    Query(request): Query<GetPostsRequest>,
+    Query(request): Query<SearchPostsRequest>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
-    let include_unpublished = match is_logged_in.clone() {
-        AuthStatus::LoggedIn(user_id) => match is_superuser(state.clone(), user_id).await {
-            Ok(is_superuser) => is_superuser,
-            Err(e) => return Err(code_err(CodeError::DB_QUERY_ERROR, e)),
-        },
-        AuthStatus::LoggedOut => false,
+    let query = request.q.trim();
+    if query.is_empty() {
+        return Err(code_err(
+            CodeError::INVALID_REQUEST,
+            "Search query cannot be empty",
+        ));
+    }
+
+    let limit = request.limit.clamp(1, 100);
+    let search_type = request.search_type.to_lowercase();
+
+    // Perform search based on type
+    let matching_posts: Vec<CachedPostInfo> = match search_type.as_str() {
+        "title" => state.search_posts_by_title(query, limit).await,
+        "tag" => state.search_posts_by_tag(query, limit).await,
+        _ => {
+            return Err(code_err(
+                CodeError::INVALID_REQUEST,
+                "Invalid search_type. Use 'title' or 'tag'",
+            ));
+        }
     };
 
-    let (post_infos, available_pages): (Vec<CachedPostInfo>, usize) = state
-        .get_posts_from_cache(request.page, request.posts_per_page, include_unpublished)
-        .await;
+    if matching_posts.is_empty() {
+        return Ok(http_resp(
+            SearchPostsResponse {
+                posts: vec![],
+                query: query.to_string(),
+                search_type,
+            },
+            (),
+            start,
+        ));
+    }
 
-    let post_ids: Vec<Uuid> = post_infos
-        .iter()
-        .map(|post| post.post_id)
-        .collect::<Vec<Uuid>>();
-
-    let mut user_ids: Vec<Uuid> = post_infos.iter().map(|post| post.user_id).collect();
+    // Gather user IDs for author info
+    let mut user_ids: Vec<Uuid> = matching_posts.iter().map(|p| p.user_id).collect();
     user_ids.sort();
     user_ids.dedup();
+
+    let post_ids: Vec<Uuid> = matching_posts.iter().map(|p| p.post_id).collect();
 
     let mut conn = state
         .get_conn()
@@ -104,6 +149,7 @@ pub async fn get_posts(
         }
     }
 
+    // Fetch vote states if logged in
     let vote_map = if let AuthStatus::LoggedIn(user_id) = is_logged_in {
         let user_votes: Vec<(Uuid, bool)> = post_votes::table
             .filter(post_votes::post_id.eq_any(&post_ids))
@@ -133,7 +179,7 @@ pub async fn get_posts(
     // Get country flag lookup from cache
     let country_map = state.country_map.read().await;
 
-    let posts: Vec<PostInfoWithVote> = post_infos
+    let posts: Vec<PostInfoWithVote> = matching_posts
         .into_iter()
         .map(|post| {
             let vote_state = vote_map
@@ -168,9 +214,10 @@ pub async fn get_posts(
     drop(country_map);
 
     Ok(http_resp(
-        GetPostsResponse {
+        SearchPostsResponse {
             posts,
-            available_pages,
+            query: query.to_string(),
+            search_type,
         },
         (),
         start,

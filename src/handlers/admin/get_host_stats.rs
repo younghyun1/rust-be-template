@@ -20,7 +20,7 @@ pub struct HostStats {
 }
 
 impl HostStats {
-    fn into_bits(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::with_capacity(24);
         buf.extend_from_slice(&self.cpu_usage.to_be_bytes());
         buf.extend_from_slice(&self.mem_total.to_be_bytes());
@@ -58,7 +58,7 @@ async fn handle_host_stats_socket(mut socket: WebSocket, state: Arc<ServerState>
 
         // Fix: Bytes::from for Message::Binary
         if let Err(e) = socket
-            .send(Message::Binary(Bytes::from(host_stats.into_bits())))
+            .send(Message::Binary(Bytes::from(host_stats.to_bytes())))
             .await
         {
             info!(error = ?e, "WebSocket disconnected");

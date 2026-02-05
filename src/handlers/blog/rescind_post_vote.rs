@@ -10,7 +10,7 @@ use diesel_async::{AsyncConnection, RunQueryDsl};
 use uuid::Uuid;
 
 use crate::{
-    domain::blog::blog::PostInfo,
+    domain::blog::blog::CachedPostInfo,
     dto::responses::response_data::http_resp,
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
@@ -52,7 +52,7 @@ pub async fn rescind_post_vote(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    let mut post_info: PostInfo = match state.blog_posts_cache.get_async(&post_id).await {
+    let mut post_info: CachedPostInfo = match state.blog_posts_cache.get_async(&post_id).await {
         Some(post_info) => post_info.clone(),
         None => {
             return Err(code_err(

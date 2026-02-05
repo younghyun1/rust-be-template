@@ -11,7 +11,7 @@ use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
 use crate::{
-    domain::blog::blog::{Post, PostInfo},
+    domain::blog::blog::{CachedPostInfo, Post, PostInfo},
     dto::{
         requests::blog::update_post_request::UpdatePostRequest,
         responses::{blog::submit_post_response::SubmitPostResponse, response_data::http_resp},
@@ -142,9 +142,10 @@ pub async fn update_post(
         .await
         .is_none()
     {
-        state
-            .insert_post_to_cache(&PostInfo::from(post.clone()))
-            .await;
+        let post_info = PostInfo::from(post.clone());
+        // Use empty tags since update_post doesn't handle tags
+        let cached_post = CachedPostInfo::from_post_info_with_tags(post_info, vec![]);
+        state.insert_post_to_cache(&cached_post).await;
     }
 
     Ok(http_resp(

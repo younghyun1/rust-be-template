@@ -11,6 +11,7 @@ use crate::domain::country::{CountryAndSubdivisionsTable, IsoCurrencyTable, IsoL
 use crate::domain::i18n::i18n_cache::I18nCache;
 use crate::init::load_cache::fastfetch_cache::FastFetchCache;
 use crate::init::load_cache::system_info::SystemInfoState;
+use crate::init::search::PostSearchIndex;
 use crate::util::geographic::ip_info_lookup::decompress_and_deserialize;
 
 use super::deployment_environment::DeploymentEnvironment;
@@ -89,6 +90,14 @@ impl ServerStateBuilder {
             // regexes: [get_email_regex()],
             session_map: scc::HashMap::new(),
             blog_posts_cache: scc::HashMap::new(),
+            search_index: {
+                // Use disk-persisted index, configurable via env var
+                let index_path = std::env::var("SEARCH_INDEX_PATH")
+                    .unwrap_or_else(|_| "./data/search_index".to_string());
+                let index = PostSearchIndex::open_or_create(&index_path)?;
+                info!(path = %index_path, "Search index initialized");
+                index
+            },
             geo_ip_db: {
                 let (dbs, dur) = decompress_and_deserialize()?;
                 info!(elapsed=%format!("{dur:?}"), "Geo-IP database loaded and interned.");

@@ -127,6 +127,9 @@ kamadak-exif = "0.6.1"
 comrak = { version = "0.50.0", features = ["emojis", "shortcodes"] }
 ansi-to-html = "0.2.2"
 
+# full-text search
+tantivy = "0.25"
+
 # request to external
 reqwest = { version = "0.13.1", features = ["gzip", "query"] }
 

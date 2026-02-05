@@ -10,12 +10,16 @@ use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
 use crate::{
-    domain::blog::blog::{Comment, CommentResponse, PostInfo, UserBadgeInfo, VoteState},
+    domain::blog::blog::{
+        CachedPostInfo, Comment, CommentResponse, PostInfo, UserBadgeInfo, VoteState,
+    },
     dto::responses::{blog::read_post_response::ReadPostResponse, response_data::http_resp},
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     routers::middleware::is_logged_in::AuthStatus,
-    schema::{comment_votes, comments, post_votes, posts, user_profile_pictures, users},
+    schema::{
+        comment_votes, comments, post_tags, post_votes, posts, tags, user_profile_pictures, users,
+    },
     util::auth::is_superuser::is_superuser,
     util::time::now::tokio_now,
 };
@@ -51,7 +55,6 @@ pub async fn read_post(
 
     let post_handle = {
         let state = Arc::clone(&state);
-        let include_unpublished = include_unpublished;
         tokio::spawn(async move {
             let mut conn = state
                 .get_conn()
@@ -117,6 +120,29 @@ pub async fn read_post(
             comrak::markdown_to_html(&post.post_content, &comrak::Options::default());
     }
 
+    // Get tags from cache or DB
+    let post_tags_list: Vec<String> =
+        if let Some(cached) = state.get_post_from_cache(&post.post_id).await {
+            cached.post_tags
+        } else {
+            // Fetch from DB if not in cache
+            let mut conn = state
+                .get_conn()
+                .await
+                .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
+
+            let tag_names: Vec<String> = post_tags::table
+                .inner_join(tags::table)
+                .filter(post_tags::post_id.eq(post.post_id))
+                .select(tags::tag_name)
+                .load(&mut conn)
+                .await
+                .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+
+            drop(conn);
+            tag_names
+        };
+
     if state
         .blog_posts_cache
         .update_async(&post.post_id, |_, cached| {
@@ -132,9 +158,10 @@ pub async fn read_post(
         .await
         .is_none()
     {
-        state
-            .insert_post_to_cache(&PostInfo::from(post.clone()))
-            .await;
+        let post_info = PostInfo::from(post.clone());
+        let cached_post =
+            CachedPostInfo::from_post_info_with_tags(post_info, post_tags_list.clone());
+        state.insert_post_to_cache(&cached_post).await;
     }
 
     let comments: Vec<Comment> =
@@ -293,6 +320,7 @@ pub async fn read_post(
     Ok(http_resp(
         ReadPostResponse {
             post,
+            post_tags: post_tags_list,
             comments: comment_responses,
             vote_state: post_vote_state,
             user_badge_info: UserBadgeInfo {

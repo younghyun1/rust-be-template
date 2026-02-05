@@ -74,7 +74,7 @@ impl IsoCountryTable {
             .map(|&idx| self.rows[idx].clone())
     }
 
-    pub async fn load_from_db<'conn>(
+    pub async fn load_from_db(
         mut conn: &mut PooledConnection<'_, AsyncPgConnection>,
     ) -> anyhow::Result<Self> {
         let countries: Vec<IsoCountry> = iso_country::table.load(&mut conn).await?;

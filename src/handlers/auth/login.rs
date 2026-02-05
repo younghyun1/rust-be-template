@@ -110,30 +110,26 @@ pub async fn login(
         .map_err(|e| code_err(CodeError::SESSION_ID_ALREADY_EXISTS, e))?;
 
     // for prod
-    let cookie: Cookie;
-
-    match state.get_deployment_environment() {
+    let cookie: Cookie = match state.get_deployment_environment() {
         DeploymentEnvironment::Local
         | DeploymentEnvironment::Dev
         | DeploymentEnvironment::Staging => {
-            cookie = Cookie::build(("session_id", session_id.to_string()))
+            Cookie::build(("session_id", session_id.to_string()))
                 .path("/")
                 .http_only(true)
                 .domain("localhost")
                 .same_site(axum_extra::extract::cookie::SameSite::Strict) // TODO: review
                 .secure(true)
-                .build();
+                .build()
         }
-        DeploymentEnvironment::Prod => {
-            cookie = Cookie::build(("session_id", session_id.to_string()))
-                .path("/")
-                .http_only(true)
-                .domain(DOMAIN_NAME)
-                .same_site(axum_extra::extract::cookie::SameSite::Strict)
-                .secure(true)
-                .build();
-        }
-    }
+        DeploymentEnvironment::Prod => Cookie::build(("session_id", session_id.to_string()))
+            .path("/")
+            .http_only(true)
+            .domain(DOMAIN_NAME)
+            .same_site(axum_extra::extract::cookie::SameSite::Strict)
+            .secure(true)
+            .build(),
+    };
 
     drop(conn);
 

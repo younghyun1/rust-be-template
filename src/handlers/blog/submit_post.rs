@@ -7,15 +7,17 @@ use uuid::Uuid;
 
 use diesel_async::RunQueryDsl;
 
+use diesel::SelectableHelper;
+
 use crate::{
-    domain::blog::blog::{NewPost, Post, PostInfo},
+    domain::blog::blog::{CachedPostInfo, NewPost, NewPostTag, NewTag, Post, PostInfo, Tag},
     dto::{
         requests::blog::submit_post_request::SubmitPostRequest,
         responses::{blog::submit_post_response::SubmitPostResponse, response_data::http_resp},
     },
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::{ServerState, Session},
-    schema::posts,
+    schema::{post_tags, posts, tags},
     util::{
         auth::is_superuser::is_superuser, string::generate_slug::generate_slug,
         time::now::tokio_now,
@@ -177,9 +179,81 @@ pub async fn submit_post(
         }
     };
 
-    drop(conn);
+    drop(conn); // Release connection before tag operations
 
-    // TODO: Add tags to DB
+    // Persist tags to DB
+    let final_tags: Vec<String> = if !request.post_tags.is_empty() {
+        let mut conn = state
+            .get_conn()
+            .await
+            .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
+
+        // 1. Insert tags (ON CONFLICT DO NOTHING) and get all tag IDs
+        let mut tag_ids: Vec<i16> = Vec::with_capacity(request.post_tags.len());
+        for tag_name in &request.post_tags {
+            let tag_name_lower = tag_name.to_lowercase().trim().to_string();
+            if tag_name_lower.is_empty() {
+                continue;
+            }
+
+            // Insert or get existing tag
+            let tag: Tag = diesel::insert_into(tags::table)
+                .values(NewTag::new(&tag_name_lower))
+                .on_conflict(tags::tag_name)
+                .do_update()
+                .set(tags::tag_name.eq(&tag_name_lower)) // no-op update to return the row
+                .returning(Tag::as_returning())
+                .get_result(&mut conn)
+                .await
+                .map_err(|e| code_err(CodeError::DB_INSERTION_ERROR, e))?;
+
+            tag_ids.push(tag.tag_id);
+        }
+
+        // 2. Delete existing post_tags for this post
+        diesel::delete(post_tags::table.filter(post_tags::post_id.eq(post.post_id)))
+            .execute(&mut conn)
+            .await
+            .map_err(|e| code_err(CodeError::DB_DELETION_ERROR, e))?;
+
+        // 3. Insert new post_tags
+        let new_post_tags: Vec<NewPostTag> = tag_ids
+            .iter()
+            .map(|tag_id| NewPostTag::new(&post.post_id, tag_id))
+            .collect();
+
+        if !new_post_tags.is_empty() {
+            diesel::insert_into(post_tags::table)
+                .values(&new_post_tags)
+                .execute(&mut conn)
+                .await
+                .map_err(|e| code_err(CodeError::DB_INSERTION_ERROR, e))?;
+        }
+
+        drop(conn);
+
+        // Return the normalized tag names for cache
+        request
+            .post_tags
+            .iter()
+            .map(|t| t.to_lowercase().trim().to_string())
+            .filter(|t| !t.is_empty())
+            .collect()
+    } else {
+        // No tags provided - clear existing tags
+        let mut conn = state
+            .get_conn()
+            .await
+            .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
+
+        diesel::delete(post_tags::table.filter(post_tags::post_id.eq(post.post_id)))
+            .execute(&mut conn)
+            .await
+            .map_err(|e| code_err(CodeError::DB_DELETION_ERROR, e))?;
+
+        drop(conn);
+        vec![]
+    };
 
     // Update cache
     if state
@@ -193,12 +267,14 @@ pub async fn submit_post(
             cached.post_is_published = post.post_is_published;
             cached.post_view_count = post.post_view_count;
             cached.post_share_count = post.post_share_count;
+            cached.post_tags = final_tags.clone();
         })
         .await
         .is_none()
     {
         let post_info: PostInfo = post.clone().into();
-        state.insert_post_to_cache(&post_info).await;
+        let cached_post = CachedPostInfo::from_post_info_with_tags(post_info, final_tags.clone());
+        state.insert_post_to_cache(&cached_post).await;
     }
 
     Ok(http_resp(

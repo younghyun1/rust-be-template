@@ -80,32 +80,34 @@ pub struct PostInfoWithVote {
     pub post_share_count: i64,
     pub total_upvotes: i64,
     pub total_downvotes: i64,
+    pub post_tags: Vec<String>,
     pub vote_state: VoteState,
 }
 
 impl PostInfoWithVote {
-    pub fn from_info_with_vote(
-        post_info: PostInfo,
+    pub fn from_cached_info_with_vote(
+        cached: CachedPostInfo,
         vote_state: VoteState,
         user_badge_info: UserBadgeInfo,
     ) -> Self {
         Self {
-            post_id: post_info.post_id,
-            user_id: post_info.user_id,
+            post_id: cached.post_id,
+            user_id: cached.user_id,
             user_name: user_badge_info.user_name,
             user_profile_picture_url: user_badge_info.user_profile_picture_url,
             user_country_flag: user_badge_info.user_country_flag,
-            post_title: post_info.post_title,
-            post_slug: post_info.post_slug,
-            post_summary: post_info.post_summary,
-            post_created_at: post_info.post_created_at,
-            post_updated_at: post_info.post_updated_at,
-            post_published_at: post_info.post_published_at,
-            post_is_published: post_info.post_is_published,
-            post_view_count: post_info.post_view_count,
-            post_share_count: post_info.post_share_count,
-            total_upvotes: post_info.total_upvotes,
-            total_downvotes: post_info.total_downvotes,
+            post_title: cached.post_title,
+            post_slug: cached.post_slug,
+            post_summary: cached.post_summary,
+            post_created_at: cached.post_created_at,
+            post_updated_at: cached.post_updated_at,
+            post_published_at: cached.post_published_at,
+            post_is_published: cached.post_is_published,
+            post_view_count: cached.post_view_count,
+            post_share_count: cached.post_share_count,
+            total_upvotes: cached.total_upvotes,
+            total_downvotes: cached.total_downvotes,
+            post_tags: cached.post_tags,
             vote_state,
         }
     }
@@ -127,6 +129,46 @@ impl From<Post> for PostInfo {
             post_share_count: post.post_share_count,
             total_upvotes: post.total_upvotes,
             total_downvotes: post.total_downvotes,
+        }
+    }
+}
+
+/// Cached post info with tags - used for in-memory cache and responses
+#[derive(Clone, serde_derive::Serialize, serde_derive::Deserialize, ToSchema)]
+pub struct CachedPostInfo {
+    pub post_id: uuid::Uuid,
+    pub user_id: uuid::Uuid,
+    pub post_title: String,
+    pub post_slug: String,
+    pub post_summary: Option<String>,
+    pub post_created_at: DateTime<Utc>,
+    pub post_updated_at: DateTime<Utc>,
+    pub post_published_at: Option<DateTime<Utc>>,
+    pub post_is_published: bool,
+    pub post_view_count: i64,
+    pub post_share_count: i64,
+    pub total_upvotes: i64,
+    pub total_downvotes: i64,
+    pub post_tags: Vec<String>,
+}
+
+impl CachedPostInfo {
+    pub fn from_post_info_with_tags(post_info: PostInfo, tags: Vec<String>) -> Self {
+        Self {
+            post_id: post_info.post_id,
+            user_id: post_info.user_id,
+            post_title: post_info.post_title,
+            post_slug: post_info.post_slug,
+            post_summary: post_info.post_summary,
+            post_created_at: post_info.post_created_at,
+            post_updated_at: post_info.post_updated_at,
+            post_published_at: post_info.post_published_at,
+            post_is_published: post_info.post_is_published,
+            post_view_count: post_info.post_view_count,
+            post_share_count: post_info.post_share_count,
+            total_upvotes: post_info.total_upvotes,
+            total_downvotes: post_info.total_downvotes,
+            post_tags: tags,
         }
     }
 }

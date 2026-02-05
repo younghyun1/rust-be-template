@@ -43,18 +43,15 @@ pub async fn lookup_ip_info(
         }
     };
 
-    let ip: IpAddr;
-    match inp_ip {
-        Some(inp_ip) => {
-            ip = inp_ip;
-        }
+    let ip = match inp_ip {
+        Some(inp_ip) => inp_ip,
         None => {
             return Err(code_err(
                 CodeError::INVALID_IP_ADDRESS,
                 "Invalid IP address string! Input IPv4 or IPv6 string, please.",
             ));
         }
-    }
+    };
 
     let ip_info: IpInfo = match state.lookup_ip_location(ip) {
         Some(info) => info,

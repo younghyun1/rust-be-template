@@ -63,8 +63,8 @@ pub struct UserInfo {
 // lmao
 
 impl User {
-    pub async fn insert_one<'a, 'conn>(
-        conn: &'conn mut PooledConnection<'_, AsyncPgConnection>,
+    pub async fn insert_one(
+        conn: &mut PooledConnection<'_, AsyncPgConnection>,
         request: &SignupRequest,
     ) -> Result<Uuid, CodeErrorResp> {
         let new_user = UserInsertable::from(request)

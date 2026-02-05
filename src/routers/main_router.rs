@@ -28,9 +28,10 @@ use crate::{
         blog::{
             delete_comment::delete_comment, delete_post::delete_post, get_posts::get_posts,
             read_post::read_post, rescind_comment_vote::rescind_comment_vote,
-            rescind_post_vote::rescind_post_vote, submit_comment::submit_comment,
-            submit_post::submit_post, update_comment::update_comment, update_post::update_post,
-            vote_comment::vote_comment, vote_post::vote_post,
+            rescind_post_vote::rescind_post_vote, search_posts::search_posts,
+            submit_comment::submit_comment, submit_post::submit_post,
+            update_comment::update_comment, update_post::update_post, vote_comment::vote_comment,
+            vote_post::vote_post,
         },
         countries::{
             get_countries::get_countries, get_country::get_country, get_language::get_language,
@@ -182,6 +183,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/api/blog/posts", get(get_posts))
         .route("/api/blog/posts/{post_id}", get(read_post))
         .route("/api/blog/posts", post(submit_post))
+        .route("/api/blog/search", get(search_posts))
         .route(
             "/api/i18n/country-language-bundle",
             get(get_country_language_bundle),
