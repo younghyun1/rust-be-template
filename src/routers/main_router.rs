@@ -52,7 +52,7 @@ use crate::{
         user::upload_profile_picture::upload_profile_picture,
         wasm_module::{
             delete_wasm_module, get_wasm_modules, serve_wasm, update_wasm_module,
-            upload_wasm_module,
+            update_wasm_module_assets, upload_wasm_module,
         },
     },
     init::state::{DeploymentEnvironment, ServerState},
@@ -227,6 +227,10 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route(
             "/api/wasm-modules/{wasm_module_id}",
             patch(update_wasm_module),
+        )
+        .route(
+            "/api/wasm-modules/{wasm_module_id}/assets",
+            post(update_wasm_module_assets),
         )
         .route(
             "/api/wasm-modules/{wasm_module_id}",
