@@ -282,17 +282,14 @@ pub async fn upload_wasm_module(
     );
 
     // Upload thumbnail to S3
-    let processed_thumbnail = process_uploaded_image(
-        thumbnail_bytes,
-        None,
-        CyhdevImageType::Thumbnail,
-    )
-    .await
-    .map_err(|e| {
-        error!(error = ?e, "Failed to process WASM thumbnail image");
-        let _ = std::fs::remove_file(&bundle_path);
-        code_err(CodeError::COULD_NOT_PROCESS_IMAGE, e)
-    })?;
+    let processed_thumbnail =
+        process_uploaded_image(thumbnail_bytes, None, CyhdevImageType::DemoThumbnail)
+            .await
+            .map_err(|e| {
+                error!(error = ?e, "Failed to process WASM thumbnail image");
+                let _ = std::fs::remove_file(&bundle_path);
+                code_err(CodeError::COULD_NOT_PROCESS_IMAGE, e)
+            })?;
 
     let (thumb_ext, _) = map_image_format_to_str(IMAGE_ENCODING_FORMAT);
     let thumbnail_path = format!("wasm-thumbnails/{}.{}", wasm_module_id, thumb_ext);
@@ -303,7 +300,9 @@ pub async fn upload_wasm_module(
         .bucket(AWS_S3_BUCKET_NAME)
         .key(&thumbnail_path)
         .content_type("image/avif")
-        .body(aws_sdk_s3::primitives::ByteStream::from(processed_thumbnail))
+        .body(aws_sdk_s3::primitives::ByteStream::from(
+            processed_thumbnail,
+        ))
         .send()
         .await
         .map_err(|e| {

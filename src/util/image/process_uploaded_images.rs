@@ -13,6 +13,7 @@ pub enum CyhdevImageType {
     ProfilePicture,
     Photograph,
     Thumbnail,
+    DemoThumbnail,
 }
 
 impl CyhdevImageType {
@@ -21,6 +22,7 @@ impl CyhdevImageType {
             CyhdevImageType::ProfilePicture => 400,
             CyhdevImageType::Photograph => 6000,
             CyhdevImageType::Thumbnail => 800,
+            CyhdevImageType::DemoThumbnail => 512,
         }
     }
 
@@ -29,6 +31,7 @@ impl CyhdevImageType {
             CyhdevImageType::ProfilePicture => "profile_picture",
             CyhdevImageType::Photograph => "photograph",
             CyhdevImageType::Thumbnail => "thumbnail",
+            CyhdevImageType::DemoThumbnail => "demo_thumbnail",
         }
     }
 }
