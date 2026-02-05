@@ -2,7 +2,7 @@ use std::net::IpAddr;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 
-use diesel::QueryDsl;
+use diesel::{ExpressionMethods, OptionalExtension, QueryDsl};
 use diesel_async::pooled_connection::bb8::{Pool, PooledConnection};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use lettre::{AsyncSmtpTransport, Tokio1Executor};
@@ -23,11 +23,14 @@ use crate::init::load_cache::fastfetch_cache::FastFetchCache;
 use crate::init::load_cache::post_info::load_post_info;
 use crate::init::load_cache::system_info::SystemInfoState;
 use crate::init::search::PostSearchIndex;
-use crate::schema::{iso_country, iso_country_subdivision, iso_currency, iso_language};
+use crate::schema::{
+    iso_country, iso_country_subdivision, iso_currency, iso_language, wasm_module,
+};
 use crate::util::geographic::ip_info_lookup::{
     GeoIpDatabases, IpInfo, lookup_ip_location_from_map,
 };
 use crate::util::time::now::tokio_now;
+use crate::util::wasm_bundle::sniff_content_type_from_gzip_bytes;
 
 use super::builder::ServerStateBuilder;
 use super::deployment_environment::DeploymentEnvironment;
@@ -55,7 +58,7 @@ pub struct ServerState {
     pub system_info_state: SystemInfoState,
     pub aws_profile_picture_config: aws_config::SdkConfig,
     pub fastfetch: FastFetchCache,
-    /// In-memory cache for WASM modules (UUID -> (Arc<bytes>, is_gzipped, content_type))
+    /// In-memory cache for WASM modules (UUID -> (Arc<gz_bytes>, is_gzipped, content_type))
     pub wasm_module_cache: scc::HashMap<Uuid, (Arc<Vec<u8>>, bool, &'static str)>,
 }
 
@@ -554,8 +557,98 @@ impl ServerState {
         &self.request_client
     }
 
-    /// Get WASM module bytes from cache, or load from filesystem if not cached.
-    /// Returns (bytes, is_gzipped, content_type) - prefers HTML bundles, then gzipped content.
+    pub async fn sync_wasm_module_cache(&self) -> anyhow::Result<usize> {
+        let start = tokio_now();
+        let mut conn = self.get_conn().await?;
+
+        let rows: Vec<(Uuid, Vec<u8>)> = wasm_module::table
+            .select((
+                wasm_module::wasm_module_id,
+                wasm_module::wasm_module_bundle_gz,
+            ))
+            .load(&mut conn)
+            .await?;
+
+        drop(conn);
+
+        let mut cached = 0usize;
+        for (wasm_module_id, gz_bytes) in rows {
+            if self
+                .cache_wasm_module_from_gzip(wasm_module_id, gz_bytes)
+                .await
+                .is_some()
+            {
+                cached += 1;
+            }
+        }
+
+        info!(
+            elapsed = ?start.elapsed(),
+            rows_synchronized = %cached,
+            "Synchronized WASM module cache."
+        );
+
+        Ok(cached)
+    }
+
+    pub async fn upsert_wasm_module_cache(
+        &self,
+        wasm_module_id: Uuid,
+        gz_bytes: Vec<u8>,
+        content_type: &'static str,
+    ) {
+        let bytes = Arc::new(gz_bytes);
+        let entry = (bytes, true, content_type);
+        let _ = self
+            .wasm_module_cache
+            .insert_async(wasm_module_id, entry)
+            .await;
+    }
+
+    async fn cache_wasm_module_from_gzip(
+        &self,
+        wasm_module_id: Uuid,
+        gz_bytes: Vec<u8>,
+    ) -> Option<(Arc<Vec<u8>>, bool, &'static str)> {
+        let sniff_result = tokio::task::spawn_blocking(move || {
+            let content_type = sniff_content_type_from_gzip_bytes(&gz_bytes)?;
+            Ok::<(&'static str, Vec<u8>), anyhow::Error>((content_type, gz_bytes))
+        })
+        .await;
+
+        let (content_type, gz_bytes) = match sniff_result {
+            Ok(Ok(result)) => result,
+            Ok(Err(e)) => {
+                error!(error = ?e, wasm_module_id = %wasm_module_id, "Failed to sniff WASM bundle content type");
+                return None;
+            }
+            Err(e) => {
+                error!(error = ?e, wasm_module_id = %wasm_module_id, "Failed to join WASM bundle sniff task");
+                return None;
+            }
+        };
+
+        let bytes = Arc::new(gz_bytes);
+        let entry = (bytes.clone(), true, content_type);
+
+        let _ = self
+            .wasm_module_cache
+            .insert_async(wasm_module_id, entry.clone())
+            .await;
+
+        info!(
+            wasm_module_id = %wasm_module_id,
+            size_bytes = bytes.len(),
+            is_gzipped = true,
+            content_type = content_type,
+            "Loaded WASM module bundle into cache"
+        );
+
+        Some(entry)
+    }
+
+    /// Get WASM module bytes from cache, or load from Postgres if not cached.
+    /// Returns (bytes, is_gzipped, content_type).
     pub async fn get_wasm_module(
         &self,
         wasm_module_id: Uuid,
@@ -569,43 +662,32 @@ impl ServerState {
             return Some(entry);
         }
 
-        // Try gzipped file first, then fall back to uncompressed
-        let html_gz_path = format!("./wasm/{}.html.gz", wasm_module_id);
-        let html_path = format!("./wasm/{}.html", wasm_module_id);
-        let wasm_gz_path = format!("./wasm/{}.wasm.gz", wasm_module_id);
-        let wasm_path = format!("./wasm/{}.wasm", wasm_module_id);
-
-        let (bytes, is_gzipped, content_type) = if let Ok(bytes) =
-            tokio::fs::read(&html_gz_path).await
-        {
-            (bytes, true, "text/html; charset=utf-8")
-        } else if let Ok(bytes) = tokio::fs::read(&html_path).await {
-            (bytes, false, "text/html; charset=utf-8")
-        } else if let Ok(bytes) = tokio::fs::read(&wasm_gz_path).await {
-            (bytes, true, "application/wasm")
-        } else if let Ok(bytes) = tokio::fs::read(&wasm_path).await {
-            (bytes, false, "application/wasm")
-        } else {
-            error!(wasm_module_id = %wasm_module_id, "Failed to load WASM module from filesystem");
-            return None;
+        let mut conn = match self.get_conn().await {
+            Ok(conn) => conn,
+            Err(e) => {
+                error!(error = ?e, "Failed to get DB connection for WASM bundle");
+                return None;
+            }
         };
 
-        let bytes = Arc::new(bytes);
-        let entry = (bytes.clone(), is_gzipped, content_type);
+        let row: Option<(Uuid, Vec<u8>)> = wasm_module::table
+            .select((wasm_module::wasm_module_id, wasm_module::wasm_module_bundle_gz))
+            .filter(wasm_module::wasm_module_id.eq(wasm_module_id))
+            .first(&mut conn)
+            .await
+            .optional()
+            .map_err(|e| {
+                error!(error = ?e, wasm_module_id = %wasm_module_id, "Failed to load WASM module from DB");
+                e
+            })
+            .ok()?;
 
-        // Cache it
-        let _ = self
-            .wasm_module_cache
-            .insert_async(wasm_module_id, entry.clone())
-            .await;
+        drop(conn);
 
-        info!(
-            wasm_module_id = %wasm_module_id,
-            size_bytes = bytes.len(),
-            is_gzipped = is_gzipped,
-            content_type = content_type,
-            "Loaded WASM module bundle into cache"
-        );
+        let (_, gz_bytes) = row?;
+        let entry = self
+            .cache_wasm_module_from_gzip(wasm_module_id, gz_bytes)
+            .await?;
 
         Some(entry)
     }

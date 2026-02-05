@@ -8,7 +8,7 @@ use axum::{
 use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
 use serde_derive::Serialize;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -26,7 +26,7 @@ pub struct DeleteWasmModuleResponse {
 }
 
 /// DELETE /api/wasm-modules/{wasm_module_id}
-/// Superuser only - deletes a WASM module (DB record, filesystem, and cache)
+/// Superuser only - deletes a WASM module (DB record and cache)
 #[utoipa::path(
     delete,
     path = "/api/wasm-modules/{wasm_module_id}",
@@ -87,25 +87,6 @@ pub async fn delete_wasm_module(
 
     // Remove from cache
     state.invalidate_wasm_module(wasm_module_id).await;
-
-    // Delete from filesystem
-    let candidate_paths = [
-        format!("./wasm/{}.html.gz", wasm_module_id),
-        format!("./wasm/{}.html", wasm_module_id),
-        format!("./wasm/{}.wasm.gz", wasm_module_id),
-        format!("./wasm/{}.wasm", wasm_module_id),
-    ];
-
-    for path in candidate_paths {
-        if let Err(e) = tokio::fs::remove_file(&path).await {
-            // Log but don't fail - file might already be gone
-            warn!(
-                error = ?e,
-                path = %path,
-                "Failed to delete WASM bundle file from filesystem (may already be deleted)"
-            );
-        }
-    }
 
     info!(
         wasm_module_id = %wasm_module_id,

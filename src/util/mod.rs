@@ -8,3 +8,4 @@ pub mod init_logger;
 pub mod string;
 pub mod system;
 pub mod time;
+pub mod wasm_bundle;

@@ -26,6 +26,7 @@ use crate::{
             },
         },
         time::now::tokio_now,
+        wasm_bundle::{looks_like_html, normalize_bundle_bytes},
     },
 };
 
@@ -39,6 +40,7 @@ struct WasmModuleAssetsChangeset {
     wasm_module_title: Option<String>,
     wasm_module_description: Option<String>,
     wasm_module_thumbnail_link: Option<String>,
+    wasm_module_bundle_gz: Option<Vec<u8>>,
     wasm_module_updated_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
@@ -126,18 +128,6 @@ pub async fn update_wasm_module_assets(
                         .map(|ct| ct.contains("gzip"))
                         .unwrap_or(false);
 
-                let looks_like_html = |data: &[u8]| {
-                    let mut idx = 0;
-                    while idx < data.len() && data[idx].is_ascii_whitespace() {
-                        idx += 1;
-                    }
-                    let head = &data[idx..];
-                    head.starts_with(b"<!DOCTYPE")
-                        || head.starts_with(b"<html")
-                        || head.starts_with(b"<HTML")
-                        || head.starts_with(b"<")
-                };
-
                 let file_is_html = content_type
                     .as_deref()
                     .map(|ct| ct.starts_with("text/html"))
@@ -181,13 +171,15 @@ pub async fn update_wasm_module_assets(
                     ));
                 }
 
-                if !bundle_is_html && !bundle_is_gzipped
-                    && (bytes.len() < 4 || &bytes[0..4] != b"\x00asm") {
-                        return Err(code_err(
-                            CodeError::FILE_UPLOAD_ERROR,
-                            "Invalid WASM file (missing magic number)",
-                        ));
-                    }
+                if !bundle_is_html
+                    && !bundle_is_gzipped
+                    && (bytes.len() < 4 || &bytes[0..4] != b"\x00asm")
+                {
+                    return Err(code_err(
+                        CodeError::FILE_UPLOAD_ERROR,
+                        "Invalid WASM file (missing magic number)",
+                    ));
+                }
 
                 bundle_bytes = Some(bytes.to_vec());
             }
@@ -250,53 +242,38 @@ pub async fn update_wasm_module_assets(
         ));
     }
 
+    let mut bundle_gz_for_db: Option<Vec<u8>> = None;
+    let mut bundle_cache_entry: Option<(Vec<u8>, &'static str)> = None;
+
     if let Some(bundle_bytes) = bundle_bytes {
-        let wasm_dir = std::path::Path::new("./wasm");
-        if !wasm_dir.exists() {
-            tokio::fs::create_dir_all(wasm_dir).await.map_err(|e| {
-                error!(error = ?e, "Failed to create wasm directory");
-                code_err(CodeError::FILE_UPLOAD_ERROR, e)
-            })?;
-        }
-
-        let existing_paths = [
-            format!("./wasm/{}.html.gz", wasm_module_id),
-            format!("./wasm/{}.html", wasm_module_id),
-            format!("./wasm/{}.wasm.gz", wasm_module_id),
-            format!("./wasm/{}.wasm", wasm_module_id),
-        ];
-        for path in &existing_paths {
-            let _ = tokio::fs::remove_file(path).await;
-        }
-
-        let bundle_path = if bundle_is_html {
-            if bundle_is_gzipped {
-                format!("./wasm/{}.html.gz", wasm_module_id)
-            } else {
-                format!("./wasm/{}.html", wasm_module_id)
-            }
-        } else if bundle_is_gzipped {
-            format!("./wasm/{}.wasm.gz", wasm_module_id)
-        } else {
-            format!("./wasm/{}.wasm", wasm_module_id)
-        };
-
-        tokio::fs::write(&bundle_path, &bundle_bytes)
-            .await
-            .map_err(|e| {
-                error!(error = ?e, path = %bundle_path, "Failed to write bundle file");
-                code_err(CodeError::FILE_UPLOAD_ERROR, e)
-            })?;
-
-        state.invalidate_wasm_module(wasm_module_id).await;
+        let normalized_bundle = tokio::task::spawn_blocking(move || {
+            normalize_bundle_bytes(
+                &bundle_bytes,
+                bundle_is_gzipped,
+                bundle_is_html,
+                MAX_BUNDLE_SIZE,
+            )
+        })
+        .await
+        .map_err(|e| {
+            error!(error = ?e, "Failed to compress WASM bundle");
+            code_err(CodeError::FILE_UPLOAD_ERROR, e)
+        })?
+        .map_err(|e| {
+            error!(error = ?e, "Failed to normalize WASM bundle bytes");
+            code_err(CodeError::FILE_UPLOAD_ERROR, e)
+        })?;
 
         info!(
             wasm_module_id = %wasm_module_id,
-            size_bytes = bundle_bytes.len(),
+            size_bytes = normalized_bundle.gz_bytes.len(),
             is_html = bundle_is_html,
-            is_gzipped = bundle_is_gzipped,
-            "Updated WASM bundle on filesystem"
+            is_gzipped = true,
+            "Prepared updated WASM bundle for database storage"
         );
+
+        bundle_gz_for_db = Some(normalized_bundle.gz_bytes.clone());
+        bundle_cache_entry = Some((normalized_bundle.gz_bytes, normalized_bundle.content_type));
     }
 
     let mut thumbnail_url: Option<String> = None;
@@ -349,6 +326,7 @@ pub async fn update_wasm_module_assets(
         wasm_module_title: title,
         wasm_module_description: description,
         wasm_module_thumbnail_link: thumbnail_url,
+        wasm_module_bundle_gz: bundle_gz_for_db,
         wasm_module_updated_at: Some(Utc::now()),
     };
 
@@ -369,6 +347,12 @@ pub async fn update_wasm_module_assets(
     })?;
 
     drop(conn);
+
+    if let Some((gz_bytes, content_type)) = bundle_cache_entry {
+        state
+            .upsert_wasm_module_cache(wasm_module_id, gz_bytes, content_type)
+            .await;
+    }
 
     Ok(http_resp(WasmModuleItem::from(updated), (), start))
 }

@@ -274,6 +274,7 @@ diesel::table! {
         wasm_module_updated_at -> Timestamptz,
         wasm_module_thumbnail_link -> Text,
         wasm_module_title -> Text,
+        wasm_module_bundle_gz -> Bytea,
     }
 }
 

@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use axum::{extract::State, response::IntoResponse};
-use diesel::{ExpressionMethods, QueryDsl};
+use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use tracing::error;
 
 use crate::{
-    domain::wasm_module::wasm_module::WasmModule,
+    domain::wasm_module::wasm_module::WasmModuleMetadata,
     dto::responses::{
         response_data::http_resp,
         wasm_module::{GetWasmModulesResponse, WasmModuleItem},
@@ -38,7 +38,8 @@ pub async fn get_wasm_modules(
         code_err(CodeError::POOL_ERROR, e)
     })?;
 
-    let modules: Vec<WasmModule> = wasm_module::table
+    let modules: Vec<WasmModuleMetadata> = wasm_module::table
+        .select(WasmModuleMetadata::as_select())
         .order(wasm_module::wasm_module_created_at.desc())
         .load(&mut conn)
         .await

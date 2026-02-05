@@ -17,11 +17,26 @@ pub struct WasmModule {
     pub wasm_module_updated_at: DateTime<Utc>,
     pub wasm_module_thumbnail_link: String,
     pub wasm_module_title: String,
+    pub wasm_module_bundle_gz: Vec<u8>,
 }
 
 #[derive(Insertable)]
 #[diesel(table_name = wasm_module)]
 pub struct WasmModuleInsertable {
+    pub wasm_module_id: Uuid,
+    pub user_id: Uuid,
+    pub wasm_module_link: String,
+    pub wasm_module_description: String,
+    pub wasm_module_created_at: DateTime<Utc>,
+    pub wasm_module_updated_at: DateTime<Utc>,
+    pub wasm_module_thumbnail_link: String,
+    pub wasm_module_title: String,
+    pub wasm_module_bundle_gz: Vec<u8>,
+}
+
+#[derive(Clone, Serialize, Deserialize, Queryable, Selectable)]
+#[diesel(table_name = wasm_module)]
+pub struct WasmModuleMetadata {
     pub wasm_module_id: Uuid,
     pub user_id: Uuid,
     pub wasm_module_link: String,

@@ -25,6 +25,7 @@ use crate::{
             },
         },
         time::now::tokio_now,
+        wasm_bundle::{looks_like_html, normalize_bundle_bytes},
     },
 };
 
@@ -117,18 +118,6 @@ pub async fn upload_wasm_module(
                         .as_deref()
                         .map(|ct| ct.contains("gzip"))
                         .unwrap_or(false);
-
-                let looks_like_html = |data: &[u8]| {
-                    let mut idx = 0;
-                    while idx < data.len() && data[idx].is_ascii_whitespace() {
-                        idx += 1;
-                    }
-                    let head = &data[idx..];
-                    head.starts_with(b"<!DOCTYPE")
-                        || head.starts_with(b"<html")
-                        || head.starts_with(b"<HTML")
-                        || head.starts_with(b"<")
-                };
 
                 let file_is_html = content_type
                     .as_deref()
@@ -245,40 +234,30 @@ pub async fn upload_wasm_module(
     // Generate UUID for the module
     let wasm_module_id = Uuid::new_v4();
 
-    // Save bundle to filesystem
-    let wasm_dir = std::path::Path::new("./wasm");
-    if !wasm_dir.exists() {
-        tokio::fs::create_dir_all(wasm_dir).await.map_err(|e| {
-            error!(error = ?e, "Failed to create wasm directory");
-            code_err(CodeError::FILE_UPLOAD_ERROR, e)
-        })?;
-    }
-
-    let bundle_path = if bundle_is_html {
-        if bundle_is_gzipped {
-            format!("./wasm/{}.html.gz", wasm_module_id)
-        } else {
-            format!("./wasm/{}.html", wasm_module_id)
-        }
-    } else if bundle_is_gzipped {
-        format!("./wasm/{}.wasm.gz", wasm_module_id)
-    } else {
-        format!("./wasm/{}.wasm", wasm_module_id)
-    };
-
-    tokio::fs::write(&bundle_path, &bundle_bytes)
-        .await
-        .map_err(|e| {
-            error!(error = ?e, path = %bundle_path, "Failed to write bundle file");
-            code_err(CodeError::FILE_UPLOAD_ERROR, e)
-        })?;
+    let normalized_bundle = tokio::task::spawn_blocking(move || {
+        normalize_bundle_bytes(
+            &bundle_bytes,
+            bundle_is_gzipped,
+            bundle_is_html,
+            MAX_BUNDLE_SIZE,
+        )
+    })
+    .await
+    .map_err(|e| {
+        error!(error = ?e, "Failed to compress WASM bundle");
+        code_err(CodeError::FILE_UPLOAD_ERROR, e)
+    })?
+    .map_err(|e| {
+        error!(error = ?e, "Failed to normalize WASM bundle bytes");
+        code_err(CodeError::FILE_UPLOAD_ERROR, e)
+    })?;
 
     info!(
         wasm_module_id = %wasm_module_id,
-        size_bytes = bundle_bytes.len(),
+        size_bytes = normalized_bundle.gz_bytes.len(),
         is_html = bundle_is_html,
-        is_gzipped = bundle_is_gzipped,
-        "Saved WASM bundle to filesystem"
+        is_gzipped = true,
+        "Prepared WASM bundle for database storage"
     );
 
     // Upload thumbnail to S3
@@ -287,7 +266,6 @@ pub async fn upload_wasm_module(
             .await
             .map_err(|e| {
                 error!(error = ?e, "Failed to process WASM thumbnail image");
-                let _ = std::fs::remove_file(&bundle_path);
                 code_err(CodeError::COULD_NOT_PROCESS_IMAGE, e)
             })?;
 
@@ -307,8 +285,6 @@ pub async fn upload_wasm_module(
         .await
         .map_err(|e| {
             error!(error = ?e, "Failed to upload thumbnail to S3");
-            // Clean up the WASM file on failure
-            let _ = std::fs::remove_file(&bundle_path);
             code_err(CodeError::FILE_UPLOAD_ERROR, e)
         })?;
 
@@ -331,7 +307,6 @@ pub async fn upload_wasm_module(
     // Insert into database
     let mut conn = state.get_conn().await.map_err(|e| {
         error!(error = ?e, "Failed to get DB connection");
-        let _ = std::fs::remove_file(&bundle_path);
         code_err(CodeError::POOL_ERROR, e)
     })?;
 
@@ -345,16 +320,24 @@ pub async fn upload_wasm_module(
             wasm_module_updated_at: now,
             wasm_module_thumbnail_link: thumbnail_url,
             wasm_module_title: title,
+            wasm_module_bundle_gz: normalized_bundle.gz_bytes.clone(),
         })
         .get_result(&mut conn)
         .await
         .map_err(|e| {
             error!(error = ?e, "Failed to insert WASM module into DB");
-            let _ = std::fs::remove_file(&bundle_path);
             code_err(CodeError::DB_INSERTION_ERROR, e)
         })?;
 
     drop(conn);
+
+    state
+        .upsert_wasm_module_cache(
+            wasm_module_id,
+            normalized_bundle.gz_bytes,
+            normalized_bundle.content_type,
+        )
+        .await;
 
     info!(
         wasm_module_id = %wasm_module_id,

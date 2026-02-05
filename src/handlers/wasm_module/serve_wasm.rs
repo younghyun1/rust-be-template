@@ -12,8 +12,8 @@ use uuid::Uuid;
 use crate::init::state::ServerState;
 
 /// GET /api/wasm-modules/{wasm_module_id}/wasm
-/// Public endpoint - serves the WASM bundle with caching
-/// Prefers HTML bundles, and pre-compressed .gz files for smaller transfer size
+/// Public endpoint - serves the WASM bundle from the in-memory cache (DB-backed)
+/// Bundles are stored and served as pre-compressed .gz for smaller transfer size
 #[utoipa::path(
     get,
     path = "/api/wasm-modules/{wasm_module_id}/wasm",
