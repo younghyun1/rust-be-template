@@ -191,6 +191,8 @@ pub async fn submit_post(
             cached.post_updated_at = post.post_updated_at;
             cached.post_published_at = post.post_published_at;
             cached.post_is_published = post.post_is_published;
+            cached.post_view_count = post.post_view_count;
+            cached.post_share_count = post.post_share_count;
         })
         .await
         .is_none()

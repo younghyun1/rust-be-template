@@ -10,7 +10,7 @@ use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
 use crate::{
-    domain::blog::blog::{Comment, CommentResponse, UserBadgeInfo, VoteState},
+    domain::blog::blog::{Comment, CommentResponse, PostInfo, UserBadgeInfo, VoteState},
     dto::responses::{blog::read_post_response::ReadPostResponse, response_data::http_resp},
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
@@ -115,6 +115,26 @@ pub async fn read_post(
     } else if !post.post_content.contains('<') {
         post.post_content =
             comrak::markdown_to_html(&post.post_content, &comrak::Options::default());
+    }
+
+    if state
+        .blog_posts_cache
+        .update_async(&post.post_id, |_, cached| {
+            cached.post_title = post.post_title.clone();
+            cached.post_slug = post.post_slug.clone();
+            cached.post_summary = post.post_summary.clone();
+            cached.post_updated_at = post.post_updated_at;
+            cached.post_published_at = post.post_published_at;
+            cached.post_is_published = post.post_is_published;
+            cached.post_view_count = post.post_view_count;
+            cached.post_share_count = post.post_share_count;
+        })
+        .await
+        .is_none()
+    {
+        state
+            .insert_post_to_cache(&PostInfo::from(post.clone()))
+            .await;
     }
 
     let comments: Vec<Comment> =
