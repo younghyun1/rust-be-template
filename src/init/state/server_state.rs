@@ -324,16 +324,7 @@ impl ServerState {
             .await
     }
 
-    /// Search posts by title. Returns matching posts from cache.
-    pub async fn search_posts_by_title(&self, query: &str, limit: usize) -> Vec<CachedPostInfo> {
-        let post_ids = match self.search_index.search_by_title(query, limit) {
-            Ok(ids) => ids,
-            Err(e) => {
-                error!("Search by title failed: {:?}", e);
-                return vec![];
-            }
-        };
-
+    async fn posts_from_ids(&self, post_ids: Vec<Uuid>) -> Vec<CachedPostInfo> {
         let mut results = Vec::with_capacity(post_ids.len());
         for post_id in post_ids {
             if let Some(post) = self.get_post_from_cache(&post_id).await {
@@ -343,23 +334,85 @@ impl ServerState {
         results
     }
 
-    /// Search posts by tag. Returns matching posts from cache.
-    pub async fn search_posts_by_tag(&self, tag: &str, limit: usize) -> Vec<CachedPostInfo> {
-        let post_ids = match self.search_index.search_by_tag(tag, limit) {
-            Ok(ids) => ids,
+    /// Search posts by title with pagination. Returns (posts, total_matches).
+    pub async fn search_posts_by_title(
+        &self,
+        query: &str,
+        offset: usize,
+        limit: usize,
+    ) -> (Vec<CachedPostInfo>, usize) {
+        let (post_ids, total_matches) = match self
+            .search_index
+            .search_by_title_paged(query, offset, limit)
+        {
+            Ok(result) => result,
             Err(e) => {
-                error!("Search by tag failed: {:?}", e);
-                return vec![];
+                error!("Search by title failed: {:?}", e);
+                return (vec![], 0);
             }
         };
 
-        let mut results = Vec::with_capacity(post_ids.len());
-        for post_id in post_ids {
-            if let Some(post) = self.get_post_from_cache(&post_id).await {
-                results.push(post);
+        (self.posts_from_ids(post_ids).await, total_matches)
+    }
+
+    /// Search posts by title and tags with pagination. Returns (posts, total_matches).
+    pub async fn search_posts_by_title_and_tags(
+        &self,
+        query: &str,
+        tags: &[String],
+        offset: usize,
+        limit: usize,
+    ) -> (Vec<CachedPostInfo>, usize) {
+        let (post_ids, total_matches) = match self
+            .search_index
+            .search_by_title_and_tags_paged(query, tags, offset, limit)
+        {
+            Ok(result) => result,
+            Err(e) => {
+                error!("Search by title+tags failed: {:?}", e);
+                return (vec![], 0);
             }
-        }
-        results
+        };
+
+        (self.posts_from_ids(post_ids).await, total_matches)
+    }
+
+    /// Search posts by tags with pagination. Returns (posts, total_matches).
+    pub async fn search_posts_by_tags(
+        &self,
+        tags: &[String],
+        offset: usize,
+        limit: usize,
+    ) -> (Vec<CachedPostInfo>, usize) {
+        let (post_ids, total_matches) =
+            match self.search_index.search_by_tags_paged(tags, offset, limit) {
+                Ok(result) => result,
+                Err(e) => {
+                    error!("Search by tags failed: {:?}", e);
+                    return (vec![], 0);
+                }
+            };
+
+        (self.posts_from_ids(post_ids).await, total_matches)
+    }
+
+    /// Search posts by tag with pagination. Returns (posts, total_matches).
+    pub async fn search_posts_by_tag(
+        &self,
+        tag: &str,
+        offset: usize,
+        limit: usize,
+    ) -> (Vec<CachedPostInfo>, usize) {
+        let (post_ids, total_matches) =
+            match self.search_index.search_by_tag_paged(tag, offset, limit) {
+                Ok(result) => result,
+                Err(e) => {
+                    error!("Search by tag failed: {:?}", e);
+                    return (vec![], 0);
+                }
+            };
+
+        (self.posts_from_ids(post_ids).await, total_matches)
     }
 
     /// full v4+v6 support

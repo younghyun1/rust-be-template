@@ -31,6 +31,11 @@ pub struct SearchPostsRequest {
     /// Maximum number of results (default 20, max 100)
     #[serde(default = "default_limit")]
     pub limit: usize,
+    /// Page number (1-based)
+    #[serde(default = "default_page")]
+    pub page: usize,
+    /// Optional comma-separated tags to filter by
+    pub tags: Option<String>,
 }
 
 fn default_search_type() -> String {
@@ -41,11 +46,17 @@ fn default_limit() -> usize {
     20
 }
 
+fn default_page() -> usize {
+    1
+}
+
 #[derive(serde_derive::Serialize, ToSchema)]
 pub struct SearchPostsResponse {
     pub posts: Vec<PostInfoWithVote>,
     pub query: String,
     pub search_type: String,
+    pub available_pages: usize,
+    pub page: usize,
 }
 
 #[utoipa::path(
@@ -67,7 +78,17 @@ pub async fn search_posts(
     let start = tokio_now();
 
     let query = request.q.trim();
-    if query.is_empty() {
+    let tags = request
+        .tags
+        .as_deref()
+        .unwrap_or("")
+        .split(',')
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+        .map(|t| t.to_lowercase())
+        .collect::<Vec<_>>();
+
+    if query.is_empty() && tags.is_empty() {
         return Err(code_err(
             CodeError::INVALID_REQUEST,
             "Search query cannot be empty",
@@ -75,12 +96,33 @@ pub async fn search_posts(
     }
 
     let limit = request.limit.clamp(1, 100);
+    let page = request.page.max(1);
+    let offset = (page - 1).saturating_mul(limit);
     let search_type = request.search_type.to_lowercase();
 
     // Perform search based on type
-    let matching_posts: Vec<CachedPostInfo> = match search_type.as_str() {
-        "title" => state.search_posts_by_title(query, limit).await,
-        "tag" => state.search_posts_by_tag(query, limit).await,
+    let (matching_posts, total_matches): (Vec<CachedPostInfo>, usize) = match search_type.as_str() {
+        "title" => {
+            if !query.is_empty() && !tags.is_empty() {
+                state
+                    .search_posts_by_title_and_tags(query, &tags, offset, limit)
+                    .await
+            } else if !query.is_empty() {
+                state.search_posts_by_title(query, offset, limit).await
+            } else {
+                state.search_posts_by_tags(&tags, offset, limit).await
+            }
+        }
+        "tag" => {
+            let mut all_tags = tags;
+            if !query.is_empty() {
+                let normalized = query.to_lowercase();
+                if !all_tags.contains(&normalized) {
+                    all_tags.push(normalized);
+                }
+            }
+            state.search_posts_by_tags(&all_tags, offset, limit).await
+        }
         _ => {
             return Err(code_err(
                 CodeError::INVALID_REQUEST,
@@ -88,6 +130,7 @@ pub async fn search_posts(
             ));
         }
     };
+    let available_pages = total_matches.div_ceil(limit);
 
     if matching_posts.is_empty() {
         return Ok(http_resp(
@@ -95,6 +138,8 @@ pub async fn search_posts(
                 posts: vec![],
                 query: query.to_string(),
                 search_type,
+                available_pages,
+                page,
             },
             (),
             start,
@@ -218,6 +263,8 @@ pub async fn search_posts(
             posts,
             query: query.to_string(),
             search_type,
+            available_pages,
+            page,
         },
         (),
         start,
