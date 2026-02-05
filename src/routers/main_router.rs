@@ -50,6 +50,10 @@ use crate::{
             visitor_board::get_visitor_board_entries,
         },
         user::upload_profile_picture::upload_profile_picture,
+        wasm_module::{
+            delete_wasm_module, get_wasm_modules, serve_wasm, update_wasm_module,
+            upload_wasm_module,
+        },
     },
     init::state::{DeploymentEnvironment, ServerState},
 };
@@ -192,7 +196,10 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
             "/api/admin/sync-country-language-bundle",
             get(sync_i18n_cache),
         )
-        .route("/api/photographs/get", get(get_photographs));
+        .route("/api/photographs/get", get(get_photographs))
+        // WASM modules - public read endpoints
+        .route("/api/wasm-modules", get(get_wasm_modules))
+        .route("/api/wasm-modules/{wasm_module_id}/wasm", get(serve_wasm));
 
     // API routes requiring authentication
     let protected_router = Router::new()
@@ -215,6 +222,16 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         )
         .route("/api/photographs/upload", post(upload_photograph))
         .route("/api/photographs/delete", delete(delete_photographs))
+        // WASM modules - protected CUD endpoints
+        .route("/api/wasm-modules", post(upload_wasm_module))
+        .route(
+            "/api/wasm-modules/{wasm_module_id}",
+            patch(update_wasm_module),
+        )
+        .route(
+            "/api/wasm-modules/{wasm_module_id}",
+            delete(delete_wasm_module),
+        )
         .layer(auth_middleware.clone());
 
     // Combine all API routes and apply shared middleware

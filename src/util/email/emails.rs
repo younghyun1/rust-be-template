@@ -27,7 +27,7 @@ impl PasswordResetEmail {
 
     pub fn to_message(self, user_email: &str) -> lettre::Message {
         lettre::Message::builder()
-            .from("Cyhdev Forums <donotreply@cyhdev.com>".parse().unwrap())
+            .from("cyhdev.com <donotreply@cyhdev.com>".parse().unwrap())
             .to(user_email.parse().unwrap())
             .subject("Reset Your Password")
             .header(lettre::message::header::ContentType::TEXT_HTML)
@@ -73,7 +73,7 @@ impl ValidateEmailEmail {
     pub fn to_message(self, user_email: &str) -> lettre::Message {
         lettre::Message::builder()
             .from(
-                format!("Cyhdev Forums <donotreply@{DOMAIN_NAME}>")
+                format!("cyhdev.com <donotreply@{DOMAIN_NAME}>")
                     .parse()
                     .unwrap(),
             )

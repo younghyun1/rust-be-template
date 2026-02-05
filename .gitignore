@@ -81,6 +81,7 @@ deploy_new_fe.sh
 # deployment
 /images
 /fe
+/wasm
 
 # build_info.rs
 /src/build_info.rs

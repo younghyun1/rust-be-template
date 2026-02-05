@@ -4,6 +4,7 @@ use diesel::deserialize::{FromSql, Result as DeserializeResult};
 use diesel::expression::AsExpression;
 use diesel::pg::{Pg, PgValue};
 use diesel::prelude::{Insertable, Queryable, QueryableByName};
+use diesel::query_builder::QueryId;
 use diesel::serialize::{IsNull, Output, ToSql};
 use serde_derive::{Deserialize, Serialize};
 use std::io::Write;
@@ -12,6 +13,11 @@ use uuid::Uuid;
 
 use crate::schema::photographs;
 use crate::schema::sql_types::PhotographContext as PhotographContextSql;
+
+impl QueryId for PhotographContextSql {
+    type QueryId = PhotographContextSql;
+    const HAS_STATIC_QUERY_ID: bool = true;
+}
 
 #[derive(
     Debug, Clone, Copy, Serialize, Deserialize, ToSchema, PartialEq, Eq, AsExpression, FromSqlRow,
@@ -63,13 +69,13 @@ pub struct Photograph {
     pub photograph_created_at: DateTime<Utc>,
     pub photograph_updated_at: DateTime<Utc>,
     pub photograph_image_type: i32,
-    pub photograph_context: PhotographContext,
     pub photograph_is_on_cloud: bool,
     pub photograph_link: String,
     pub photograph_comments: String,
     pub photograph_lat: f64,
     pub photograph_lon: f64,
     pub photograph_thumbnail_link: String,
+    pub photograph_context: PhotographContext,
 }
 
 #[derive(Insertable)]

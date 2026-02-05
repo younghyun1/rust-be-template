@@ -130,6 +130,7 @@ impl ServerStateBuilder {
             system_info_state: SystemInfoState::new(),
             aws_profile_picture_config,
             fastfetch: fastfetch_cache,
+            wasm_module_cache: scc::HashMap::new(),
         })
     }
 }

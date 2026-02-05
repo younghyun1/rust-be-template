@@ -4,3 +4,4 @@ pub mod blog;
 pub mod photography;
 pub mod response_data;
 pub mod response_meta;
+pub mod wasm_module;

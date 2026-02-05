@@ -1,7 +1,7 @@
 // @generated automatically by Diesel CLI.
 
 pub mod sql_types {
-    #[derive(diesel::sql_types::SqlType, diesel::query_builder::QueryId)]
+    #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "photograph_context"))]
     pub struct PhotographContext;
 }
@@ -130,6 +130,9 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::PhotographContext;
+
     photographs (photograph_id) {
         photograph_id -> Uuid,
         user_id -> Uuid,
@@ -137,13 +140,13 @@ diesel::table! {
         photograph_created_at -> Timestamptz,
         photograph_updated_at -> Timestamptz,
         photograph_image_type -> Int4,
-        photograph_context -> crate::schema::sql_types::PhotographContext,
         photograph_is_on_cloud -> Bool,
         photograph_link -> Varchar,
         photograph_comments -> Varchar,
         photograph_lat -> Float8,
         photograph_lon -> Float8,
         photograph_thumbnail_link -> Varchar,
+        photograph_context -> PhotographContext,
     }
 }
 
@@ -261,6 +264,19 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    wasm_module (wasm_module_id) {
+        wasm_module_id -> Uuid,
+        user_id -> Uuid,
+        wasm_module_link -> Text,
+        wasm_module_description -> Text,
+        wasm_module_created_at -> Timestamptz,
+        wasm_module_updated_at -> Timestamptz,
+        wasm_module_thumbnail_link -> Text,
+        wasm_module_title -> Text,
+    }
+}
+
 diesel::joinable!(comment_votes -> comments (comment_id));
 diesel::joinable!(comment_votes -> users (user_id));
 diesel::joinable!(comments -> posts (post_id));
@@ -288,6 +304,7 @@ diesel::joinable!(user_roles -> users (user_id));
 diesel::joinable!(users -> iso_country (user_country));
 diesel::joinable!(users -> iso_country_subdivision (user_subdivision));
 diesel::joinable!(users -> iso_language (user_language));
+diesel::joinable!(wasm_module -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     comment_votes,
@@ -312,4 +329,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     user_roles,
     users,
     visitation_data,
+    wasm_module,
 );

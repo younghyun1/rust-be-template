@@ -337,7 +337,7 @@ impl PostSearchIndex {
         let count_handle = collectors.add_collector(Count);
         let mut multi_fruit = searcher.search(query, &collectors)?;
 
-        let total_matches = count_handle.extract(&mut multi_fruit) as usize;
+        let total_matches = count_handle.extract(&mut multi_fruit);
         let top_docs = top_docs_handle.extract(&mut multi_fruit);
 
         let mut results = Vec::with_capacity(limit.min(top_docs.len()));

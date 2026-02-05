@@ -7,3 +7,4 @@ pub mod i18n;
 pub mod photography;
 pub mod server;
 pub mod user;
+pub mod wasm_module;
