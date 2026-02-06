@@ -20,7 +20,10 @@ use crate::{
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     schema::wasm_module,
-    util::{auth::is_superuser::is_superuser, time::now::tokio_now},
+    util::{
+        auth::is_superuser::is_superuser, time::now::tokio_now,
+        wasm_bundle::sniff_content_type_from_gzip_bytes,
+    },
 };
 
 /// PATCH /api/wasm-modules/{wasm_module_id}
@@ -92,6 +95,23 @@ pub async fn update_wasm_module(
     })?;
 
     drop(conn);
+
+    let content_type = sniff_content_type_from_gzip_bytes(&updated.wasm_module_bundle_gz)
+        .map_err(|e| {
+            error!(
+                error = ?e,
+                wasm_module_id = %wasm_module_id,
+                "Failed to detect bundle content type while refreshing WASM cache"
+            );
+            code_err(CodeError::DB_UPDATE_ERROR, e)
+        })?;
+    state
+        .upsert_wasm_module_cache(
+            wasm_module_id,
+            updated.wasm_module_bundle_gz.clone(),
+            content_type,
+        )
+        .await;
 
     info!(
         wasm_module_id = %wasm_module_id,

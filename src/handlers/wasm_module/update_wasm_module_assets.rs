@@ -231,17 +231,6 @@ pub async fn update_wasm_module_assets(
         }
     }
 
-    if bundle_bytes.is_none()
-        && thumbnail_bytes.is_none()
-        && title.is_none()
-        && description.is_none()
-    {
-        return Err(code_err(
-            CodeError::FILE_UPLOAD_ERROR,
-            "No updates provided",
-        ));
-    }
-
     let mut bundle_gz_for_db: Option<Vec<u8>> = None;
     let mut bundle_cache_entry: Option<(Vec<u8>, &'static str)> = None;
 
@@ -348,11 +337,26 @@ pub async fn update_wasm_module_assets(
 
     drop(conn);
 
-    if let Some((gz_bytes, content_type)) = bundle_cache_entry {
-        state
-            .upsert_wasm_module_cache(wasm_module_id, gz_bytes, content_type)
-            .await;
-    }
+    let (cache_bytes, content_type) = match bundle_cache_entry {
+        Some((gz_bytes, content_type)) => (gz_bytes, content_type),
+        None => {
+            let content_type = crate::util::wasm_bundle::sniff_content_type_from_gzip_bytes(
+                &updated.wasm_module_bundle_gz,
+            )
+            .map_err(|e| {
+                error!(
+                    error = ?e,
+                    wasm_module_id = %wasm_module_id,
+                    "Failed to detect bundle content type while refreshing WASM cache"
+                );
+                code_err(CodeError::DB_UPDATE_ERROR, e)
+            })?;
+            (updated.wasm_module_bundle_gz.clone(), content_type)
+        }
+    };
+    state
+        .upsert_wasm_module_cache(wasm_module_id, cache_bytes, content_type)
+        .await;
 
     Ok(http_resp(WasmModuleItem::from(updated), (), start))
 }
