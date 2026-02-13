@@ -96,8 +96,8 @@ pub async fn update_wasm_module(
 
     drop(conn);
 
-    let content_type = sniff_content_type_from_gzip_bytes(&updated.wasm_module_bundle_gz)
-        .map_err(|e| {
+    let content_type =
+        sniff_content_type_from_gzip_bytes(&updated.wasm_module_bundle_gz).map_err(|e| {
             error!(
                 error = ?e,
                 wasm_module_id = %wasm_module_id,

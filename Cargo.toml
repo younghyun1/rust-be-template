@@ -96,7 +96,7 @@ email_address = "0.2.9"
 
 # crypto/rand
 argon2 = "0.5.3"
-rand = "0.9"
+rand = "0.10"
 rand_08 = { package = "rand", version = "0.8.5" }
 rustls = { version = "0.23.36", features = [] }
 zeroize = { version = "1.8.2", features = ["derive"] }
@@ -132,7 +132,7 @@ ansi-to-html = "0.2.2"
 tantivy = "0.25"
 
 # request to external
-reqwest = { version = "0.13.1", features = ["gzip", "query"] }
+reqwest = { version = "0.13.2", features = ["gzip", "query"] }
 
 # embed assets into binary
 rust-embed = "8.11.0"
@@ -142,12 +142,12 @@ mime_guess = "2.0.5"
 internment = "0.8.6"
 
 # aws
-aws-sdk-s3 = { version = "1.122.0", features = ["behavior-version-latest"] }
-aws-config = { version = "1.8.13", features = [
+aws-sdk-s3 = { version = "1.123.0", features = ["behavior-version-latest"] }
+aws-config = { version = "1.8.14", features = [
     "rustls",
     "behavior-version-latest",
 ] }
-aws-types = "1.3.11"
+aws-types = "1.3.12"
 tower_governor = { version = "0.8.0", features = ["tracing"] }
 
 # enable for dockerization?
@@ -159,7 +159,7 @@ chrono = { version = "0.4.43" }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libc = { version = "0.2.180", features = [] }
+libc = { version = "0.2.181", features = [] }
 zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt", "pkg-config"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
