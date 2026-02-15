@@ -3,3 +3,7 @@ rustflags = ["-Ctarget-cpu=znver3"]
 
 [unstable]
 build-std = ["std", "core", "alloc"]
+
+[target.x86_64-unknown-linux-gnu]
+linker = "/usr/bin/clang"
+rustflags = ["-C", "link-arg=--ld-path=/usr/local/bin/mold"]
