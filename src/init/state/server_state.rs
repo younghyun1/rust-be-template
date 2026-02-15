@@ -129,14 +129,14 @@ impl ServerState {
 
         self.session_map
             .iter_mut_async(|entry| {
-                if entry.1.expires_at < now {
+                // scc >= 3.6.0: `ConsumableEntry` no longer yields `(K, V)`; it derefs to `V`.
+                if entry.expires_at < now {
                     pruned += 1;
                     let _ = entry.consume();
-                    false // continue iterating with mutation
                 } else {
                     remaining += 1;
-                    true // keep going
                 }
+                true
             })
             .await;
 

@@ -209,6 +209,10 @@ async fn log_visitors(state: Arc<ServerState>, inp_ip: Option<IpAddr>) {
         }
     }
 
+    if city_lat == 0.0 && city_lon == 0.0 {
+        return;
+    }
+
     // now persist to DB
     let mut conn = match state.get_conn().await {
         Ok(conn) => conn,
