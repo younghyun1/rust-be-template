@@ -214,29 +214,9 @@ pub async fn update_post(
     } else {
         cached_tags.unwrap_or_else(|| requested_tags.clone())
     };
-    let final_tags_for_cache = final_tags.clone();
-
-    // Update cache
-    if state
-        .blog_posts_cache
-        .update_async(&post.post_id, |_, cached| {
-            cached.post_title = post.post_title.clone();
-            cached.post_slug = post.post_slug.clone();
-            cached.post_summary = post.post_summary.clone();
-            cached.post_updated_at = post.post_updated_at;
-            cached.post_published_at = post.post_published_at;
-            cached.post_is_published = post.post_is_published;
-            cached.post_view_count = post.post_view_count;
-            cached.post_share_count = post.post_share_count;
-            cached.post_tags = final_tags_for_cache.clone();
-        })
-        .await
-        .is_none()
-    {
-        let post_info = PostInfo::from(post.clone());
-        let cached_post = CachedPostInfo::from_post_info_with_tags(post_info, final_tags);
-        state.insert_post_to_cache(&cached_post).await;
-    }
+    let post_info = PostInfo::from(post.clone());
+    let cached_post = CachedPostInfo::from_post_info_with_tags(post_info, final_tags);
+    state.insert_post_to_cache(&cached_post).await;
 
     Ok(http_resp(
         SubmitPostResponse {

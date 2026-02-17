@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use axum::{Json, extract::State, response::IntoResponse};
 use axum_extra::extract::CookieJar;
@@ -7,10 +10,8 @@ use uuid::Uuid;
 
 use diesel_async::RunQueryDsl;
 
-use diesel::SelectableHelper;
-
 use crate::{
-    domain::blog::blog::{CachedPostInfo, NewPost, NewPostTag, NewTag, Post, PostInfo, Tag},
+    domain::blog::blog::{CachedPostInfo, NewPost, NewPostTag, NewTag, Post, PostInfo},
     dto::{
         requests::blog::submit_post_request::SubmitPostRequest,
         responses::{blog::submit_post_response::SubmitPostResponse, response_data::http_resp},
@@ -54,6 +55,39 @@ pub async fn submit_post(
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
+    // Normalize + deduplicate requested tags once and reuse across compare/persist/cache.
+    let mut seen_tags: HashSet<String> = HashSet::new();
+    let requested_tags: Vec<String> = request
+        .post_tags
+        .iter()
+        .map(|tag| tag.trim().to_lowercase())
+        .filter(|tag| !tag.is_empty())
+        .filter(|tag| seen_tags.insert(tag.clone()))
+        .collect();
+
+    let cached_tags: Option<Vec<String>> = if let Some(post_id) = request.post_id {
+        state
+            .get_post_from_cache(&post_id)
+            .await
+            .map(|cached| cached.post_tags)
+    } else {
+        None
+    };
+
+    let tags_changed: bool = match (request.post_id, &cached_tags) {
+        (None, _) => true,
+        (Some(_), Some(current_tags)) => {
+            let current_tag_set: HashSet<String> = current_tags
+                .iter()
+                .map(|tag| tag.trim().to_lowercase())
+                .filter(|tag| !tag.is_empty())
+                .collect();
+            let requested_tag_set: HashSet<String> = requested_tags.iter().cloned().collect();
+            current_tag_set != requested_tag_set
+        }
+        (Some(_), None) => true,
+    };
+
     let mut conn = state
         .get_conn()
         .await
@@ -84,7 +118,7 @@ pub async fn submit_post(
     if !is_superuser {
         return Err(code_err(
             CodeError::UNAUTHORIZED_ACCESS,
-            "User is not Younghyun",
+            "User is not authorized to submit posts",
         ));
     }
 
@@ -179,103 +213,71 @@ pub async fn submit_post(
         }
     };
 
-    drop(conn); // Release connection before tag operations
-
-    // Persist tags to DB
-    let final_tags: Vec<String> = if !request.post_tags.is_empty() {
-        let mut conn = state
-            .get_conn()
-            .await
-            .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
-
-        // 1. Insert tags (ON CONFLICT DO NOTHING) and get all tag IDs
-        let mut tag_ids: Vec<i16> = Vec::with_capacity(request.post_tags.len());
-        for tag_name in &request.post_tags {
-            let tag_name_lower = tag_name.to_lowercase().trim().to_string();
-            if tag_name_lower.is_empty() {
-                continue;
-            }
-
-            // Insert or get existing tag
-            let tag: Tag = diesel::insert_into(tags::table)
-                .values(NewTag::new(&tag_name_lower))
-                .on_conflict(tags::tag_name)
-                .do_update()
-                .set(tags::tag_name.eq(&tag_name_lower)) // no-op update to return the row
-                .returning(Tag::as_returning())
-                .get_result(&mut conn)
-                .await
-                .map_err(|e| code_err(CodeError::DB_INSERTION_ERROR, e))?;
-
-            tag_ids.push(tag.tag_id);
-        }
-
-        // 2. Delete existing post_tags for this post
+    if tags_changed {
+        // Replace post<->tag relations only when effective tags changed.
         diesel::delete(post_tags::table.filter(post_tags::post_id.eq(post.post_id)))
             .execute(&mut conn)
             .await
             .map_err(|e| code_err(CodeError::DB_DELETION_ERROR, e))?;
 
-        // 3. Insert new post_tags
-        let new_post_tags: Vec<NewPostTag> = tag_ids
-            .iter()
-            .map(|tag_id| NewPostTag::new(&post.post_id, tag_id))
-            .collect();
+        if !requested_tags.is_empty() {
+            let new_tags: Vec<NewTag<'_>> =
+                requested_tags.iter().map(|tag| NewTag::new(tag)).collect();
 
-        if !new_post_tags.is_empty() {
+            diesel::insert_into(tags::table)
+                .values(&new_tags)
+                .on_conflict(tags::tag_name)
+                .do_nothing()
+                .execute(&mut conn)
+                .await
+                .map_err(|e| code_err(CodeError::DB_INSERTION_ERROR, e))?;
+
+            let tag_rows: Vec<(i16, String)> = tags::table
+                .filter(tags::tag_name.eq_any(&requested_tags))
+                .select((tags::tag_id, tags::tag_name))
+                .load(&mut conn)
+                .await
+                .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+
+            let tag_id_by_name: HashMap<String, i16> =
+                tag_rows.into_iter().map(|(id, name)| (name, id)).collect();
+
+            let tag_ids: Vec<i16> = requested_tags
+                .iter()
+                .map(|tag| {
+                    tag_id_by_name.get(tag).copied().ok_or_else(|| {
+                        code_err(
+                            CodeError::DB_QUERY_ERROR,
+                            format!("Tag ID not found after upsert for tag '{tag}'"),
+                        )
+                    })
+                })
+                .collect::<Result<Vec<i16>, CodeErrorResp>>()?;
+
+            let new_post_tags: Vec<NewPostTag> = tag_ids
+                .iter()
+                .map(|tag_id| NewPostTag::new(&post.post_id, tag_id))
+                .collect();
+
             diesel::insert_into(post_tags::table)
                 .values(&new_post_tags)
                 .execute(&mut conn)
                 .await
                 .map_err(|e| code_err(CodeError::DB_INSERTION_ERROR, e))?;
         }
+    }
 
-        drop(conn);
+    drop(conn);
 
-        // Return the normalized tag names for cache
-        request
-            .post_tags
-            .iter()
-            .map(|t| t.to_lowercase().trim().to_string())
-            .filter(|t| !t.is_empty())
-            .collect()
+    let final_tags: Vec<String> = if tags_changed {
+        requested_tags.clone()
     } else {
-        // No tags provided - clear existing tags
-        let mut conn = state
-            .get_conn()
-            .await
-            .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
-
-        diesel::delete(post_tags::table.filter(post_tags::post_id.eq(post.post_id)))
-            .execute(&mut conn)
-            .await
-            .map_err(|e| code_err(CodeError::DB_DELETION_ERROR, e))?;
-
-        drop(conn);
-        vec![]
+        cached_tags.unwrap_or_else(|| requested_tags.clone())
     };
 
-    // Update cache
-    if state
-        .blog_posts_cache
-        .update_async(&post.post_id, |_, cached| {
-            cached.post_title = post.post_title.clone();
-            cached.post_slug = post.post_slug.clone();
-            cached.post_summary = post.post_summary.clone();
-            cached.post_updated_at = post.post_updated_at;
-            cached.post_published_at = post.post_published_at;
-            cached.post_is_published = post.post_is_published;
-            cached.post_view_count = post.post_view_count;
-            cached.post_share_count = post.post_share_count;
-            cached.post_tags = final_tags.clone();
-        })
-        .await
-        .is_none()
-    {
-        let post_info: PostInfo = post.clone().into();
-        let cached_post = CachedPostInfo::from_post_info_with_tags(post_info, final_tags.clone());
-        state.insert_post_to_cache(&cached_post).await;
-    }
+    let post_info: PostInfo = post.clone().into();
+    let cached_post = CachedPostInfo::from_post_info_with_tags(post_info, final_tags.clone());
+    state.insert_post_to_cache(&cached_post).await;
 
     Ok(http_resp(
         SubmitPostResponse {

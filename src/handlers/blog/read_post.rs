@@ -7,6 +7,7 @@ use axum::{
 };
 use diesel::{ExpressionMethods, OptionalExtension, QueryDsl};
 use diesel_async::RunQueryDsl;
+use serde::{Deserialize, Deserializer, de::Error as DeError};
 use uuid::Uuid;
 
 use crate::{
@@ -24,13 +25,37 @@ use crate::{
     util::time::now::tokio_now,
 };
 
+#[derive(Clone, Debug)]
+pub enum PostLookupKey {
+    Id(Uuid),
+    Slug(String),
+}
+
+impl<'de> Deserialize<'de> for PostLookupKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw = String::deserialize(deserializer)?;
+        if let Ok(post_id) = Uuid::parse_str(&raw) {
+            return Ok(Self::Id(post_id));
+        }
+
+        let slug = raw.trim().to_lowercase();
+        if slug.is_empty() {
+            return Err(D::Error::custom("post identifier cannot be empty"));
+        }
+        Ok(Self::Slug(slug))
+    }
+}
+
 // TODO: Get comments too.
 #[utoipa::path(
     get,
     path = "/api/blog/posts/{post_id}",
     tag = "blog",
     params(
-        ("post_id" = Uuid, Path, description = "ID of the post to read")
+        ("post_id" = String, Path, description = "Post UUID or slug")
     ),
     responses(
         (status = 200, description = "Post details and comments", body = ReadPostResponse),
@@ -41,9 +66,39 @@ use crate::{
 pub async fn read_post(
     Extension(is_logged_in): Extension<AuthStatus>,
     State(state): State<Arc<ServerState>>,
-    Path(post_id): Path<Uuid>,
+    Path(post_lookup_key): Path<PostLookupKey>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
+
+    let post_id: Uuid = match post_lookup_key {
+        PostLookupKey::Id(post_id) => post_id,
+        PostLookupKey::Slug(post_slug) => {
+            match state.get_post_id_by_slug_from_cache(&post_slug).await {
+                Some(post_id) => post_id,
+                None => {
+                    let mut conn = state
+                        .get_conn()
+                        .await
+                        .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
+
+                    let post_id_opt: Option<Uuid> = posts::table
+                        .filter(posts::post_slug.eq(&post_slug))
+                        .select(posts::post_id)
+                        .first(&mut conn)
+                        .await
+                        .optional()
+                        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+
+                    drop(conn);
+
+                    let post_id = post_id_opt
+                        .ok_or_else(|| code_err(CodeError::POST_NOT_FOUND, "Post not found"))?;
+                    state.cache_post_slug_mapping(&post_slug, post_id).await;
+                    post_id
+                }
+            }
+        }
+    };
 
     let include_unpublished = match is_logged_in.clone() {
         AuthStatus::LoggedIn(user_id) => match is_superuser(state.clone(), user_id).await {
@@ -143,26 +198,11 @@ pub async fn read_post(
             tag_names
         };
 
-    if state
-        .blog_posts_cache
-        .update_async(&post.post_id, |_, cached| {
-            cached.post_title = post.post_title.clone();
-            cached.post_slug = post.post_slug.clone();
-            cached.post_summary = post.post_summary.clone();
-            cached.post_updated_at = post.post_updated_at;
-            cached.post_published_at = post.post_published_at;
-            cached.post_is_published = post.post_is_published;
-            cached.post_view_count = post.post_view_count;
-            cached.post_share_count = post.post_share_count;
-        })
-        .await
-        .is_none()
-    {
-        let post_info = PostInfo::from(post.clone());
-        let cached_post =
-            CachedPostInfo::from_post_info_with_tags(post_info, post_tags_list.clone());
-        state.insert_post_to_cache(&cached_post).await;
-    }
+    let post_info = PostInfo::from(post.clone());
+    let cached_post = CachedPostInfo::from_post_info_with_tags(post_info, post_tags_list.clone());
+    state
+        .insert_post_to_cache_without_search_sync(&cached_post)
+        .await;
 
     let comments: Vec<Comment> =
         comments_result.map_err(|e| code_err(CodeError::JOIN_ERROR, e))??;

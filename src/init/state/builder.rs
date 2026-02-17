@@ -90,6 +90,7 @@ impl ServerStateBuilder {
             // regexes: [get_email_regex()],
             session_map: scc::HashMap::new(),
             blog_posts_cache: scc::HashMap::new(),
+            blog_post_slug_cache: scc::HashMap::new(),
             search_index: {
                 // Use disk-persisted index, configurable via env var
                 let index_path = std::env::var("SEARCH_INDEX_PATH")

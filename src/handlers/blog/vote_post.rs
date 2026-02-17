@@ -57,8 +57,8 @@ pub async fn vote_post(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    let mut post_info: CachedPostInfo = match state.blog_posts_cache.get_async(&post_id).await {
-        Some(post_info) => post_info.clone(),
+    let mut post_info: CachedPostInfo = match state.get_post_from_cache(&post_id).await {
+        Some(post_info) => post_info,
         None => {
             return Err(code_err(
                 CodeError::POST_NOT_FOUND_IN_CACHE,
@@ -124,21 +124,9 @@ pub async fn vote_post(
     post_info.total_upvotes = upvote_count;
     post_info.total_downvotes = downvote_count;
 
-    match state
-        .blog_posts_cache
-        .update_async(&post_id, |_, cached_post_info| {
-            *cached_post_info = post_info.clone();
-        })
-        .await
-    {
-        Some(_) => (),
-        None => {
-            return Err(code_err(
-                CodeError::POST_CACHE_INSERTION_ERROR,
-                format!("Could not insert post with ID {}", post_id),
-            ));
-        }
-    };
+    state
+        .insert_post_to_cache_without_search_sync(&post_info)
+        .await;
 
     Ok(http_resp(
         VotePostResponse {
