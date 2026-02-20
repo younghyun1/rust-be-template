@@ -117,12 +117,12 @@ impl ServerState {
                 })
                 .await
                 .is_none()
-            {
-                let _ = self
-                    .blog_post_slug_cache
-                    .insert_async(new_slug, post.post_id)
-                    .await;
-            }
+        {
+            let _ = self
+                .blog_post_slug_cache
+                .insert_async(new_slug, post.post_id)
+                .await;
+        }
 
         if !sync_search_index {
             return;
