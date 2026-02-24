@@ -28,7 +28,7 @@ axum = { version = "0.8.8", features = [
 axum-extra = { version = "0.12.5", features = ["cookie", "attachment", "form"] }
 axum-server = { version = "0.8.0", features = ["tls-rustls", "tokio-rustls"] }
 tower-http = { version = "0.6.8", features = [
-    "compression-gzip",
+    "compression-zstd",
     "trace",
     "cors",
     "fs",
@@ -78,9 +78,9 @@ bitcode = "0.6.9"
 flate2 = "1.1.9"
 
 # types
-chrono = { version = "0.4.43", features = ["serde"] }
+chrono = { version = "0.4.44", features = ["serde"] }
 chrono-tz = { version = "0.10.4", features = ["serde"] }
-scc = "3.6.4"
+scc = "3.6.5"
 uuid = { version = "1.21.0", features = [
     "v4",
     "v7",
@@ -155,7 +155,7 @@ tower_governor = { version = "0.8.0", features = ["tracing"] }
 # openssl = { version = "0.10.74", features = ["vendored"] }
 
 [build-dependencies]
-chrono = { version = "0.4.43" }
+chrono = { version = "0.4.44" }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]

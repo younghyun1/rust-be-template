@@ -1,3 +1,11 @@
+#!/bin/sh
+set -eu
+
+if ! command -v zstd >/dev/null 2>&1; then
+  echo "zstd is required for frontend asset compression but was not found in PATH" >&2
+  exit 1
+fi
+
 git reset --hard && git pull
 cd ../solid-csr-spa-template/
 git reset --hard && git pull
