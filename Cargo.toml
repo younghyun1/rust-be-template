@@ -81,7 +81,7 @@ flate2 = "1.1.9"
 # types
 chrono = { version = "0.4.44", features = ["serde"] }
 chrono-tz = { version = "0.10.4", features = ["serde"] }
-scc = "3.6.5"
+scc = "3.6.6"
 uuid = { version = "1.21.0", features = [
     "v4",
     "v7",
@@ -99,7 +99,7 @@ email_address = "0.2.9"
 argon2 = "0.5.3"
 rand = "0.10"
 rand_08 = { package = "rand", version = "0.8.5" }
-rustls = { version = "0.23.36", features = [] }
+rustls = { version = "0.23.37", features = [] }
 zeroize = { version = "1.8.2", features = ["derive"] }
 
 # memory allocator
