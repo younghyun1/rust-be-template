@@ -19,6 +19,7 @@ npm install
 ./deploy_to_be.sh
 cd ../rust-be-template/
 rustup update
+rustup target add x86_64-unknown-linux-musl
 cargo upgrade --incompatible
 cargo update
-cargo +nightly build -Z build-std=std,core,alloc,panic_unwind --release
+cargo +nightly build -Z build-std=std,core,alloc,panic_unwind --target x86_64-unknown-linux-musl --release
