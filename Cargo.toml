@@ -81,7 +81,7 @@ flate2 = "1.1.9"
 # types
 chrono = { version = "0.4.44", features = ["serde"] }
 chrono-tz = { version = "0.10.4", features = ["serde"] }
-scc = "3.6.7"
+scc = "3.6.8"
 uuid = { version = "1.21.0", features = [
     "v4",
     "v7",
