@@ -161,7 +161,12 @@ serde_json = { version = "1.0.149", features = ["preserve_order"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = { version = "0.2.182", features = [] }
+
+[target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]
 zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt", "pkg-config"] }
+
+[target.'cfg(all(target_os = "linux", target_env = "musl"))'.dependencies]
+zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62.2", features = ["Win32_System_SystemInformation", "Win32_System_Threading"] }
