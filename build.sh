@@ -70,4 +70,5 @@ rustup target add --toolchain nightly x86_64-unknown-linux-musl
 cargo upgrade --incompatible
 cargo update
 CC_x86_64_unknown_linux_musl="$MUSL_CC" \
+CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-C link-arg=-lgcc_eh" \
 cargo +nightly build -Z build-std=std,core,alloc,panic_unwind --target x86_64-unknown-linux-musl --release

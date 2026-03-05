@@ -166,7 +166,7 @@ libc = { version = "0.2.182", features = [] }
 zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt", "pkg-config"] }
 
 [target.'cfg(all(target_os = "linux", target_env = "musl"))'.dependencies]
-zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt"] }
+zstd = { version = "0.13.3", features = ["zstdmt"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62.2", features = ["Win32_System_SystemInformation", "Win32_System_Threading"] }
