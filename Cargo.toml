@@ -50,7 +50,7 @@ diesel = { version = "2.3.7", features = [
     "uuid",
     "ipnet-address",
 ] }
-diesel-async = { version = "0.7.4", features = ["bb8", "postgres"] }
+diesel-async = { version = "0.8.0", features = ["bb8", "postgres"] }
 
 # .env loading
 dotenvy = "0.15.7"
@@ -81,8 +81,8 @@ flate2 = "1.1.9"
 # types
 chrono = { version = "0.4.44", features = ["serde"] }
 chrono-tz = { version = "0.10.4", features = ["serde"] }
-scc = "3.6.11"
-uuid = { version = "1.22.0", features = [
+scc = "3.6.12"
+uuid = { version = "1.23.0", features = [
     "v4",
     "v7",
     "serde",
@@ -106,7 +106,7 @@ zeroize = { version = "1.8.2", features = ["derive"] }
 mimalloc = { version = "0.1.48", features = ["v3"] }
 
 # email
-lettre = { version = "0.11.19", default-features = false, features = [
+lettre = { version = "0.11.20", default-features = false, features = [
     "builder",
     "hostname",
     "pool",
