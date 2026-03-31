@@ -4,7 +4,7 @@ use std::sync::RwLock;
 
 use tantivy::{
     Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument,
-    collector::{Count, MultiCollector, TopDocs},
+    collector::{Count, TopDocs},
     directory::MmapDirectory,
     query::{BooleanQuery, Occur, PhrasePrefixQuery, Query, QueryParser, TermQuery},
     schema::{
@@ -331,17 +331,23 @@ impl PostSearchIndex {
         limit: usize,
     ) -> anyhow::Result<(Vec<Uuid>, usize)> {
         let searcher = self.reader.searcher();
-        let fetch_limit = limit.saturating_add(offset);
-        let mut collectors = MultiCollector::new();
-        let top_docs_handle = collectors.add_collector(TopDocs::with_limit(fetch_limit));
-        let count_handle = collectors.add_collector(Count);
-        let mut multi_fruit = searcher.search(query, &collectors)?;
+        if limit == 0 {
+            let total_matches = searcher.search(query, &Count)?;
+            return Ok((Vec::new(), total_matches));
+        }
 
-        let total_matches = count_handle.extract(&mut multi_fruit);
-        let top_docs = top_docs_handle.extract(&mut multi_fruit);
+        let (top_docs, total_matches): (Vec<(f32, tantivy::DocAddress)>, usize) = searcher.search(
+            query,
+            &(
+                TopDocs::with_limit(limit)
+                    .and_offset(offset)
+                    .order_by_score(),
+                Count,
+            ),
+        )?;
 
         let mut results = Vec::with_capacity(limit.min(top_docs.len()));
-        for (_score, doc_address) in top_docs.into_iter().skip(offset).take(limit) {
+        for (_score, doc_address) in top_docs {
             let retrieved_doc: TantivyDocument = searcher.doc(doc_address)?;
             if let Some(post_id_value) = retrieved_doc.get_first(self.post_id_field)
                 && let Some(post_id_str) = post_id_value.as_str()
