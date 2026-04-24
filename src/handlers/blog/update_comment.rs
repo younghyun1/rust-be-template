@@ -1,25 +1,25 @@
 use std::sync::Arc;
 
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, State},
     response::IntoResponse,
 };
-use axum_extra::extract::CookieJar;
 use diesel::{ExpressionMethods, OptionalExtension, QueryDsl};
 use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
 use crate::{
+    domain::auth::role::RoleType,
     domain::blog::blog::{Comment as DbComment, CommentResponse, UserBadgeInfo, VoteState},
     dto::{
         requests::blog::update_comment_request::UpdateCommentRequest,
         responses::response_data::http_resp,
     },
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
-    init::state::{ServerState, Session},
+    init::state::ServerState,
     schema::{comments, user_profile_pictures, users},
-    util::{auth::is_superuser::is_superuser, time::now::tokio_now},
+    util::time::now::tokio_now,
 };
 
 #[utoipa::path(
@@ -40,7 +40,8 @@ use crate::{
     )
 )]
 pub async fn update_comment(
-    cookie_jar: CookieJar,
+    Extension(requester_id): Extension<Uuid>,
+    Extension(role_type): Extension<RoleType>,
     State(state): State<Arc<ServerState>>,
     Path((_post_id, comment_id)): Path<(Uuid, Uuid)>,
     Json(request): Json<UpdateCommentRequest>,
@@ -52,27 +53,7 @@ pub async fn update_comment(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    // Authentication
-    let session_id: Uuid = match cookie_jar.get("session_id") {
-        Some(session_id) => match session_id.value().parse::<Uuid>() {
-            Ok(session_id) => session_id,
-            Err(_) => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
-        },
-        None => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
-    };
-
-    let session: Session = state
-        .get_session(&session_id)
-        .await
-        .map_err(|e| code_err(CodeError::UNAUTHORIZED_ACCESS, e))?;
-
-    let requester_id: Uuid = session.get_user_id();
-    drop(session);
-
-    let is_superuser: bool = match is_superuser(state.clone(), requester_id).await {
-        Ok(is_superuser) => is_superuser,
-        Err(e) => return Err(code_err(CodeError::DB_QUERY_ERROR, e)),
-    };
+    let is_superuser = role_type.is_superuser();
 
     // Check authorship
     let author_id: Uuid = comments::table

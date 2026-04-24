@@ -18,7 +18,6 @@ use crate::{
     init::state::ServerState,
     schema::wasm_module,
     util::{
-        auth::is_superuser::is_superuser,
         image::{
             map_image_format_to_db_enum::map_image_format_to_str,
             process_uploaded_images::{
@@ -64,26 +63,12 @@ struct WasmModuleAssetsChangeset {
     )
 )]
 pub async fn update_wasm_module_assets(
-    Extension(user_id): Extension<Uuid>,
+    Extension(_user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,
     Path(wasm_module_id): Path<Uuid>,
     mut multipart: Multipart,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
-
-    // Check superuser status
-    let is_su = is_superuser(state.clone(), user_id).await.map_err(|e| {
-        error!(error = ?e, user_id = %user_id, "Failed to check superuser status");
-        code_err(CodeError::DB_QUERY_ERROR, e)
-    })?;
-
-    if !is_su {
-        error!(user_id = %user_id, "User is not superuser; cannot update WASM module");
-        return Err(code_err(
-            CodeError::IS_NOT_SUPERUSER,
-            "Only superusers can update WASM modules",
-        ));
-    }
 
     let mut bundle_bytes: Option<Vec<u8>> = None;
     let mut bundle_is_gzipped = false;

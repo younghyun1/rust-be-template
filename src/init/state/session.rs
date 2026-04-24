@@ -1,12 +1,15 @@
 use chrono::Utc;
 use uuid::Uuid;
 
+use crate::domain::auth::role::RoleType;
+
 pub const DEFAULT_SESSION_DURATION: chrono::Duration = chrono::Duration::hours(1);
 
 #[derive(Debug, Clone, serde_derive::Serialize, serde_derive::Deserialize)]
 pub struct Session {
     pub session_id: Uuid,
     pub user_id: Uuid,
+    pub role_type: RoleType,
     pub user_name: String,
     pub user_country: i32,
     pub user_language: i32,
@@ -24,6 +27,10 @@ impl Session {
 
     pub fn get_user_id(&self) -> Uuid {
         self.user_id
+    }
+
+    pub fn get_role_type(&self) -> RoleType {
+        self.role_type
     }
 
     pub fn get_user_name(&self) -> &str {

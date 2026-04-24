@@ -20,10 +20,7 @@ use crate::{
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     schema::wasm_module,
-    util::{
-        auth::is_superuser::is_superuser, time::now::tokio_now,
-        wasm_bundle::sniff_content_type_from_gzip_bytes,
-    },
+    util::{time::now::tokio_now, wasm_bundle::sniff_content_type_from_gzip_bytes},
 };
 
 /// PATCH /api/wasm-modules/{wasm_module_id}
@@ -51,20 +48,6 @@ pub async fn update_wasm_module(
     Json(body): Json<UpdateWasmModuleRequest>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
-
-    // Check superuser status
-    let is_su = is_superuser(state.clone(), user_id).await.map_err(|e| {
-        error!(error = ?e, user_id = %user_id, "Failed to check superuser status");
-        code_err(CodeError::DB_QUERY_ERROR, e)
-    })?;
-
-    if !is_su {
-        error!(user_id = %user_id, "User is not superuser; cannot update WASM module");
-        return Err(code_err(
-            CodeError::IS_NOT_SUPERUSER,
-            "Only superusers can update WASM modules",
-        ));
-    }
 
     // Build changeset
     let changeset = WasmModuleChangeset {

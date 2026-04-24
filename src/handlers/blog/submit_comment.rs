@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, State},
     response::IntoResponse,
 };
-use axum_extra::extract::CookieJar;
 use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, prelude::Insertable};
 use uuid::Uuid;
 
@@ -17,8 +16,9 @@ use crate::{
         requests::blog::submit_comment::SubmitCommentRequest, responses::response_data::http_resp,
     },
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
-    init::state::{ServerState, Session},
-    schema::{comments, user_profile_pictures, users},
+    init::state::ServerState,
+    routers::middleware::is_logged_in::AuthSession,
+    schema::{comments, user_profile_pictures},
     util::time::now::tokio_now,
 };
 
@@ -47,7 +47,7 @@ struct NewComment<'a> {
     )
 )]
 pub async fn submit_comment(
-    cookie_jar: CookieJar,
+    Extension(auth_session): Extension<Option<AuthSession>>,
     State(state): State<Arc<ServerState>>,
     Path(post_id): Path<Uuid>,
     Json(request): Json<SubmitCommentRequest>,
@@ -63,23 +63,12 @@ pub async fn submit_comment(
         return Err(CodeError::UNAUTHORIZED_ACCESS.into());
     }
 
-    // Get user id from session (same as submit_post)
-    let session_id: Uuid = match cookie_jar.get("session_id") {
-        Some(session_id) => match session_id.value().parse::<Uuid>() {
-            Ok(session_id) => session_id,
-            Err(_) => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
-        },
+    let auth_session = match auth_session {
+        Some(auth_session) => auth_session,
         None => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
     };
-
-    let session: Session = state
-        .get_session(&session_id)
-        .await
-        .map_err(|e| code_err(CodeError::UNAUTHORIZED_ACCESS, e))?;
-
-    let user_id = session.get_user_id();
-    let user_country = session.get_user_country();
-    drop(session);
+    let user_id = auth_session.user_id;
+    let user_country = auth_session.user_country;
 
     let new_comment = NewComment {
         post_id: &post_id,
@@ -94,13 +83,6 @@ pub async fn submit_comment(
         .get_result(&mut conn)
         .await
         .map_err(|e| code_err(CodeError::DB_INSERTION_ERROR, e))?;
-
-    let user_name: String = users::table
-        .filter(users::user_id.eq(user_id))
-        .select(users::user_name)
-        .first(&mut conn)
-        .await
-        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
 
     let user_profile_picture_url: Option<String> = user_profile_pictures::table
         .filter(user_profile_pictures::user_id.eq(user_id))
@@ -123,7 +105,7 @@ pub async fn submit_comment(
         inserted_comment,
         VoteState::DidNotVote,
         UserBadgeInfo {
-            user_name,
+            user_name: auth_session.user_name,
             user_profile_picture_url: user_profile_picture_url.unwrap_or_default(),
             user_country_flag,
         },

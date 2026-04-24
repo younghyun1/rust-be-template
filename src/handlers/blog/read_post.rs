@@ -17,11 +17,10 @@ use crate::{
     dto::responses::{blog::read_post_response::ReadPostResponse, response_data::http_resp},
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
-    routers::middleware::is_logged_in::AuthStatus,
+    routers::middleware::is_logged_in::{AuthSession, AuthStatus},
     schema::{
         comment_votes, comments, post_tags, post_votes, posts, tags, user_profile_pictures, users,
     },
-    util::auth::is_superuser::is_superuser,
     util::time::now::tokio_now,
 };
 
@@ -65,6 +64,7 @@ impl<'de> Deserialize<'de> for PostLookupKey {
 )]
 pub async fn read_post(
     Extension(is_logged_in): Extension<AuthStatus>,
+    Extension(auth_session): Extension<Option<AuthSession>>,
     State(state): State<Arc<ServerState>>,
     Path(post_lookup_key): Path<PostLookupKey>,
 ) -> HandlerResponse<impl IntoResponse> {
@@ -100,12 +100,9 @@ pub async fn read_post(
         }
     };
 
-    let include_unpublished = match is_logged_in.clone() {
-        AuthStatus::LoggedIn(user_id) => match is_superuser(state.clone(), user_id).await {
-            Ok(is_superuser) => is_superuser,
-            Err(e) => return Err(code_err(CodeError::DB_QUERY_ERROR, e)),
-        },
-        AuthStatus::LoggedOut => false,
+    let include_unpublished = match auth_session {
+        Some(auth_session) => auth_session.role_type.is_superuser(),
+        None => false,
     };
 
     let post_handle = {

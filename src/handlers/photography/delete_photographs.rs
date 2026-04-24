@@ -1,9 +1,8 @@
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
-use axum::{Extension, Json, extract::State, response::IntoResponse};
+use axum::{Json, extract::State, response::IntoResponse};
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
-use uuid::Uuid;
 
 use crate::{
     dto::{
@@ -12,9 +11,8 @@ use crate::{
     },
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
-    routers::middleware::is_logged_in::AuthStatus,
     schema::photographs::dsl::*,
-    util::{auth::is_superuser::is_superuser, time::now::tokio_now},
+    util::time::now::tokio_now,
 };
 
 #[utoipa::path(
@@ -30,39 +28,10 @@ use crate::{
     )
 )]
 pub async fn delete_photographs(
-    Extension(is_logged_in): Extension<AuthStatus>,
     State(state): State<Arc<ServerState>>,
     Json(body): Json<DeletePhotographsRequest>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
-
-    // Only superusers can delete photographs
-    let requester_id: Uuid = match is_logged_in {
-        AuthStatus::LoggedIn(id) => id,
-        AuthStatus::LoggedOut => {
-            return Err(code_err(
-                CodeError::UNAUTHORIZED_ACCESS,
-                "Unauthorized deletion request!",
-            ));
-        }
-    };
-
-    let is_superuser = match is_superuser(state.clone(), requester_id).await {
-        Ok(is_superuser) => is_superuser,
-        Err(e) => {
-            return Err(code_err(
-                CodeError::DB_QUERY_ERROR,
-                format!("Failed to check superuser status: {e}"),
-            ));
-        }
-    };
-
-    if !is_superuser {
-        return Err(code_err(
-            CodeError::UNAUTHORIZED_ACCESS,
-            "Only superusers may delete photographs",
-        ));
-    }
 
     let mut conn = state
         .get_conn()
@@ -116,7 +85,7 @@ pub async fn delete_photographs(
             return None;
         }
 
-        match reqwest::Url::from_str(url_str) {
+        match reqwest::Url::parse(url_str) {
             Ok(u) => {
                 let path = u.path().trim_start_matches('/');
                 if path.is_empty() {

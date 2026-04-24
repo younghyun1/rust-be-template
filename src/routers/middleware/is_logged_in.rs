@@ -10,6 +10,7 @@ use axum_extra::extract::CookieJar;
 use uuid::Uuid;
 
 use crate::{
+    domain::auth::role::RoleType,
     errors::code_error::HandlerResponse,
     init::state::{ServerState, Session},
 };
@@ -23,6 +24,7 @@ pub enum AuthStatus {
 #[derive(Clone)]
 pub struct AuthSession {
     pub user_id: Uuid,
+    pub role_type: RoleType,
     pub user_name: String,
     pub user_country: i32,
 }
@@ -31,6 +33,7 @@ impl From<&Session> for AuthSession {
     fn from(session: &Session) -> Self {
         Self {
             user_id: session.get_user_id(),
+            role_type: session.get_role_type(),
             user_name: session.get_user_name().to_string(),
             user_country: session.get_user_country(),
         }

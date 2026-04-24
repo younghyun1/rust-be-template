@@ -21,6 +21,7 @@ use axum::{
 use chrono::Utc;
 use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::{AsyncConnection, RunQueryDsl};
+use tracing::error;
 
 #[utoipa::path(
     get,
@@ -86,29 +87,39 @@ pub async fn verify_user_email(
         return Err(CodeError::USER_EMAIL_ALREADY_VERIFIED.into());
     }
 
+    let verified_user_id = email_verification_token.user_id;
+
     let updated_user_email = match conn
         .transaction::<_, diesel::result::Error, _>(move |conn| {
-            let user_id = email_verification_token.user_id;
             let token_id = email_verification_token.email_verification_token_id;
 
             Box::pin(async move {
-                let updated_email = diesel::update(users::table.filter(users::user_id.eq(user_id)))
-                    .set((
-                        users::user_is_email_verified.eq(true),
-                        users::user_updated_at.eq(now),
-                    ))
-                    .returning(users::user_email)
-                    .get_result::<String>(conn)
-                    .await?;
+                let updated_email =
+                    match diesel::update(users::table.filter(users::user_id.eq(verified_user_id)))
+                        .set((
+                            users::user_is_email_verified.eq(true),
+                            users::user_updated_at.eq(now),
+                        ))
+                        .returning(users::user_email)
+                        .get_result::<String>(conn)
+                        .await
+                    {
+                        Ok(updated_email) => updated_email,
+                        Err(e) => return Err(e),
+                    };
 
-                diesel::update(
+                match diesel::update(
                     email_verification_tokens::table.filter(
                         email_verification_tokens::email_verification_token_id.eq(token_id),
                     ),
                 )
                 .set(email_verification_tokens::email_verification_token_used_at.eq(now))
                 .execute(conn)
-                .await?;
+                .await
+                {
+                    Ok(_) => (),
+                    Err(e) => return Err(e),
+                }
 
                 Ok(updated_email)
             })
@@ -120,6 +131,19 @@ pub async fn verify_user_email(
             return Err(code_err(CodeError::DB_INSERTION_ERROR, e));
         }
     };
+
+    drop(conn);
+
+    match state.refresh_sessions_for_user(verified_user_id).await {
+        Ok(_) => (),
+        Err(e) => {
+            error!(
+                user_id = %verified_user_id,
+                error = %e,
+                "Failed to refresh sessions after email verification"
+            );
+        }
+    }
 
     // Create the response struct
     let email_validate_response = EmailValidateResponse {

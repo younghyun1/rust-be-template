@@ -10,12 +10,12 @@ use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
 use crate::{
+    domain::auth::role::RoleType,
     dto::responses::{blog::delete_post_response::DeletePostResponse, response_data::http_resp},
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
-    routers::middleware::is_logged_in::AuthStatus,
     schema::posts,
-    util::{auth::is_superuser::is_superuser, time::now::tokio_now},
+    util::time::now::tokio_now,
 };
 
 #[utoipa::path(
@@ -34,30 +34,16 @@ use crate::{
     )
 )]
 pub async fn delete_post(
-    Extension(is_logged_in): Extension<AuthStatus>,
+    Extension(requester_id): Extension<Uuid>,
+    Extension(role_type): Extension<RoleType>,
     State(state): State<Arc<ServerState>>,
     Path(post_id): Path<Uuid>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
-    // 1. Check post author against requester ID:
-    // 1-1. Extract requester ID from extension
-    let requester_id: Uuid = match is_logged_in {
-        AuthStatus::LoggedIn(id) => id,
-        AuthStatus::LoggedOut => {
-            return Err(code_err(
-                CodeError::UNAUTHORIZED_ACCESS,
-                "Unauthorized deletion request!",
-            ));
-        }
-    };
+    let is_superuser = role_type.is_superuser();
 
-    let is_superuser: bool = match is_superuser(state.clone(), requester_id).await {
-        Ok(is_superuser) => is_superuser,
-        Err(e) => return Err(code_err(CodeError::DB_QUERY_ERROR, e)),
-    };
-
-    // 1-2. Check who the author of the comment is
+    // 1. Check post author against requester ID.
     let mut conn = state
         .get_conn()
         .await

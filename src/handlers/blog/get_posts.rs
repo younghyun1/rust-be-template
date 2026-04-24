@@ -8,9 +8,8 @@ use crate::{
     },
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
-    routers::middleware::is_logged_in::AuthStatus,
+    routers::middleware::is_logged_in::{AuthSession, AuthStatus},
     schema::{post_votes, user_profile_pictures, users},
-    util::auth::is_superuser::is_superuser,
     util::time::now::tokio_now,
 };
 use axum::{
@@ -37,17 +36,15 @@ use uuid::Uuid;
 )]
 pub async fn get_posts(
     Extension(is_logged_in): Extension<AuthStatus>,
+    Extension(auth_session): Extension<Option<AuthSession>>,
     State(state): State<Arc<ServerState>>,
     Query(request): Query<GetPostsRequest>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
-    let include_unpublished = match is_logged_in.clone() {
-        AuthStatus::LoggedIn(user_id) => match is_superuser(state.clone(), user_id).await {
-            Ok(is_superuser) => is_superuser,
-            Err(e) => return Err(code_err(CodeError::DB_QUERY_ERROR, e)),
-        },
-        AuthStatus::LoggedOut => false,
+    let include_unpublished = match auth_session {
+        Some(auth_session) => auth_session.role_type.is_superuser(),
+        None => false,
     };
 
     let (post_infos, available_pages): (Vec<CachedPostInfo>, usize) = state

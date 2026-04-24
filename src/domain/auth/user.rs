@@ -1,11 +1,15 @@
 use chrono::{DateTime, Utc};
 use diesel::{Queryable, QueryableByName, Selectable, prelude::Insertable};
-use diesel_async::{AsyncPgConnection, RunQueryDsl, pooled_connection::bb8::PooledConnection};
+use diesel_async::{
+    AsyncConnection, AsyncPgConnection, RunQueryDsl, pooled_connection::bb8::PooledConnection,
+    scoped_futures::ScopedFutureExt,
+};
 use serde_derive::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
+    domain::auth::{role::RoleType, user_roles::UserRole},
     dto::requests::auth::signup_request::SignupRequest,
     errors::code_error::{CodeError, CodeErrorResp, code_err},
     schema::{email_verification_tokens, password_reset_tokens, user_profile_pictures, users},
@@ -67,22 +71,43 @@ impl User {
         conn: &mut PooledConnection<'_, AsyncPgConnection>,
         request: &SignupRequest,
     ) -> Result<Uuid, CodeErrorResp> {
-        let new_user = UserInsertable::from(request)
-            .await
-            .map_err(|e| code_err(CodeError::COULD_NOT_HASH_PW, e))?;
+        let new_user = match UserInsertable::from(request).await {
+            Ok(new_user) => new_user,
+            Err(e) => return Err(code_err(CodeError::COULD_NOT_HASH_PW, e)),
+        };
 
-        diesel::insert_into(users::table)
-            .values(new_user)
-            .returning(users::user_id)
-            .get_result::<Uuid>(conn)
-            .await
-            .map_err(|e| match e {
+        let inserted_user_id = conn
+            .transaction::<Uuid, diesel::result::Error, _>(|conn| {
+                async move {
+                    let user_id = match diesel::insert_into(users::table)
+                        .values(new_user)
+                        .returning(users::user_id)
+                        .get_result::<Uuid>(conn)
+                        .await
+                    {
+                        Ok(user_id) => user_id,
+                        Err(e) => return Err(e),
+                    };
+
+                    match UserRole::insert_for_user(conn, user_id, RoleType::User).await {
+                        Ok(()) => Ok(user_id),
+                        Err(e) => Err(e),
+                    }
+                }
+                .scope_boxed()
+            })
+            .await;
+
+        match inserted_user_id {
+            Ok(user_id) => Ok(user_id),
+            Err(e) => match e {
                 diesel::result::Error::DatabaseError(
                     diesel::result::DatabaseErrorKind::UniqueViolation,
                     _,
-                ) => code_err(CodeError::EMAIL_MUST_BE_UNIQUE, e),
-                _ => code_err(CodeError::DB_INSERTION_ERROR, e),
-            })
+                ) => Err(code_err(CodeError::EMAIL_MUST_BE_UNIQUE, e)),
+                _ => Err(code_err(CodeError::DB_INSERTION_ERROR, e)),
+            },
+        }
     }
 }
 
@@ -99,10 +124,15 @@ pub struct UserInsertable {
 
 impl UserInsertable {
     async fn from(request: &SignupRequest) -> anyhow::Result<Self> {
+        let user_password_hash = match hash_pw(request.user_password.clone()).await {
+            Ok(user_password_hash) => user_password_hash,
+            Err(e) => return Err(e),
+        };
+
         Ok(Self {
             user_name: request.user_name.clone(),
             user_email: request.user_email.clone(),
-            user_password_hash: hash_pw(request.user_password.clone()).await?,
+            user_password_hash,
             user_country: request.user_country,
             user_language: request.user_language,
             user_subdivision: request.user_subdivision,

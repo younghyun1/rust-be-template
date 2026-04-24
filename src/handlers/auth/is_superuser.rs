@@ -1,13 +1,10 @@
-use std::sync::Arc;
-
-use axum::{Extension, extract::State, response::IntoResponse};
+use axum::{Extension, response::IntoResponse};
 
 use crate::{
     dto::responses::{auth::is_superuser_response::IsSuperuserResponse, response_data::http_resp},
-    errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
-    init::state::ServerState,
-    routers::middleware::is_logged_in::AuthStatus,
-    util::{auth::is_superuser::is_superuser, time::now::tokio_now},
+    errors::code_error::{CodeErrorResp, HandlerResponse},
+    routers::middleware::is_logged_in::AuthSession,
+    util::time::now::tokio_now,
 };
 
 #[utoipa::path(
@@ -20,16 +17,13 @@ use crate::{
     )
 )]
 pub async fn is_superuser_handler(
-    Extension(auth_status): Extension<AuthStatus>,
-    State(state): State<Arc<ServerState>>,
+    Extension(auth_session): Extension<Option<AuthSession>>,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
-    let allowed = match auth_status {
-        AuthStatus::LoggedIn(user_id) => is_superuser(state, user_id)
-            .await
-            .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?,
-        AuthStatus::LoggedOut => false,
+    let allowed = match auth_session {
+        Some(auth_session) => auth_session.role_type.is_superuser(),
+        None => false,
     };
 
     Ok(http_resp(

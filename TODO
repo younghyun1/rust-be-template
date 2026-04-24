@@ -1,29 +1,11 @@
 5) OAuth
 8) Soft deletion
-9) Profile image endpoints and S3 persistence
-    - provide a FE menu for Edit Profile
-        - Integrate to top bar
-        - Prepare BE API and req/resp type
-        - debug
-    - have a Profile Picture Upload button
-    - multipart upload to profile picture endpoint
-    - process to WebP
-    - toss to S3
-    - update user_profile_picture row
-    - resp. w. data
 11) Session map disk persistence
-14) Global host system ticker
 15) Increased Session scope - roles, etc
 16) Hot-reloading sessions upon any kind of user info alteration - email checks, and user info updates
-17) PostInfo not being utilized properly in post view. Votes, views, etc. Also have delete, edit, etc.
-17-2) hierarchal comment view (reply button, etc)
 18) Roles-based endpoint access control - it's *my* blog.
 19) Forum
 20) User roles and permissions - admin interface?
-20-1) When creating a new user, add as guest
-20-2) Regular user upon email validation
-20-3) Include role into session
-20-4) Make sure session is updated upon user info change
 21) Pretty code formatting
 22) Audio chat demo
 23) Video call demo
@@ -34,8 +16,7 @@
 28) Source-code links for major components, especially auth
 29) code highlighting for tagged markdown blocks
 30) publish button gets obscured w. long text lol
-31) for auto-purged users, all their stuff is cascade-deleted - use 5) to keep the content around
+31) for auto-purged users, all their stuff is cascade-deleted - use 8) to keep the content around
 32) send emails out to auto-purged users
 33) improved client IP capturing - ConnectInfo(addr), not x-forwarded-for
 34) global in-RAM response cache for authentication non-required endpoint
-35)

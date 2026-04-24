@@ -104,6 +104,8 @@ pub async fn login(
         };
     }
 
+    drop(conn);
+
     let session_id: Uuid = state
         .new_session(&user, user.user_is_email_verified, None)
         .await
@@ -130,8 +132,6 @@ pub async fn login(
             .secure(true)
             .build(),
     };
-
-    drop(conn);
 
     Ok(http_resp_with_cookies(
         LoginResponse {

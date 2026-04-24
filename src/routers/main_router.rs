@@ -4,7 +4,7 @@ use axum::{
     Router,
     extract::DefaultBodyLimit,
     http::{HeaderMap, StatusCode, Uri, header},
-    middleware::from_fn_with_state,
+    middleware::{from_fn, from_fn_with_state},
     response::{IntoResponse, Response},
     routing::{delete, get, patch, post},
 };
@@ -60,8 +60,8 @@ use crate::{
 };
 
 use super::middleware::{
-    auth::auth_middleware, is_logged_in::is_logged_in_middleware,
-    is_superuser::is_superuser_middleware, logging::log_middleware,
+    auth::auth_middleware, is_logged_in::is_logged_in_middleware, logging::log_middleware,
+    role::require_superuser_middleware,
 };
 
 const MAX_REQUEST_SIZE: usize = 1024 * 1024 * 150; // 150MB
@@ -273,7 +273,7 @@ const RATE_LIMIT_BURST_SIZE: u32 = 1024;
 
 pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let auth_middleware = from_fn_with_state(state.clone(), auth_middleware);
-    let is_superuser_middleware = from_fn_with_state(state.clone(), is_superuser_middleware);
+    let require_superuser_middleware = from_fn(require_superuser_middleware);
     // let api_key_check_middleware = from_fn_with_state(state.clone(), api_key_check_middleware);
     let log_middleware = from_fn_with_state(state.clone(), log_middleware);
     let is_logged_in_middleware = from_fn_with_state(state.clone(), is_logged_in_middleware);
@@ -327,12 +327,10 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/api/users/{user_name}", get(get_user_info))
         .route("/api/blog/posts", get(get_posts))
         .route("/api/blog/posts/{post_id}", get(read_post))
-        .route("/api/blog/posts", post(submit_post))
         .route("/api/blog/search", get(search_posts))
         .route("/api/live-chat/messages", get(get_live_chat_messages))
         .route("/api/live-chat/cache-stats", get(get_live_chat_cache_stats))
         .route("/api/i18n/ui-text", get(get_ui_text_bundle))
-        .route("/api/admin/sync-i18n-cache", get(sync_i18n_cache))
         .route("/api/photographs/get", get(get_photographs))
         // WASM modules - public read endpoints
         .route("/api/wasm-modules", get(get_wasm_modules))
@@ -351,12 +349,17 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/api/blog/{post_id}/{comment_id}", delete(delete_comment))
         .route("/api/blog/{post_id}/{comment_id}", patch(update_comment))
         .route("/api/blog/{post_id}", delete(delete_post))
-        .route("/api/blog/{post_id}", patch(update_post))
         .route("/api/blog/{post_id}/comment", post(submit_comment))
         .route(
             "/api/blog/{post_id}/{comment_id}/vote",
             delete(rescind_comment_vote),
         )
+        .layer(auth_middleware.clone());
+
+    let superuser_router = Router::new()
+        .route("/api/admin/sync-i18n-cache", get(sync_i18n_cache))
+        .route("/api/blog/posts", post(submit_post))
+        .route("/api/blog/{post_id}", patch(update_post))
         .route("/api/photographs/upload", post(upload_photograph))
         .route("/api/photographs/delete", delete(delete_photographs))
         // WASM modules - protected CUD endpoints
@@ -373,11 +376,13 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
             "/api/wasm-modules/{wasm_module_id}",
             delete(delete_wasm_module),
         )
+        .layer(require_superuser_middleware.clone())
         .layer(auth_middleware.clone());
 
     // Combine all API routes and apply shared middleware
     let api_router = public_router
         .merge(protected_router)
+        .merge(superuser_router)
         .layer(is_logged_in_middleware)
         // .layer(api_key_check_middleware)
         .layer(log_middleware)
@@ -402,7 +407,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         DeploymentEnvironment::Prod
     ) {
         swagger_router = swagger_router
-            .layer(is_superuser_middleware)
+            .layer(require_superuser_middleware)
             .layer(auth_middleware.clone());
     }
 

@@ -63,6 +63,7 @@ pub async fn auth_middleware(
     }
 
     request.extensions_mut().insert(session.get_user_id());
+    request.extensions_mut().insert(session.get_role_type());
 
     let response = next.run(request).await;
 

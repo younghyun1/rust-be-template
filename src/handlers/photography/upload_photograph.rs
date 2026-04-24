@@ -16,7 +16,6 @@ use crate::{
     init::state::ServerState,
     schema::photographs,
     util::{
-        auth::is_superuser::is_superuser,
         image::{
             exif_utils::extract_exif_shot_at,
             map_image_format_to_db_enum::map_image_format_to_str,
@@ -89,22 +88,6 @@ pub async fn upload_photograph(
     let mut photograph_lon: Option<f64> = None;
 
     let mut photograph_context: PhotographContext = PhotographContext::Photography;
-
-    let is_superuser = match is_superuser(state.clone(), user_id).await {
-        Ok(is_superuser) => is_superuser,
-        Err(e) => {
-            error!(error = ?e, user_id = %user_id, "Failed to check if user is superuser");
-            return Err(code_err(CodeError::DB_QUERY_ERROR, e));
-        }
-    };
-
-    if !is_superuser {
-        error!(user_id = %user_id, "User is not a superuser; cannot upload photograph");
-        return Err(code_err(
-            CodeError::IS_NOT_SUPERUSER,
-            "User is not a superuser; cannot upload photograph",
-        ));
-    }
 
     // Process the multipart fields
     while let Some(field) = multipart.next_field().await.map_err(|e| {

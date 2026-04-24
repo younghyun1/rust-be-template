@@ -5,6 +5,7 @@ use uuid::Uuid;
 use crate::schema::roles;
 
 #[repr(u8)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum RoleType {
     Younghyun = 0,
     Moderator = 1,
@@ -20,6 +21,37 @@ impl RoleType {
             ROLE_USER => Ok(RoleType::User),
             ROLE_GUEST => Ok(RoleType::Guest),
             _ => Err(anyhow::anyhow!("Invalid role ID")),
+        }
+    }
+
+    pub fn id(self) -> Uuid {
+        match self {
+            RoleType::Younghyun => Uuid::from_u128(ROLE_YOUNGHYUN),
+            RoleType::Moderator => Uuid::from_u128(ROLE_MODERATOR),
+            RoleType::User => Uuid::from_u128(ROLE_USER),
+            RoleType::Guest => Uuid::from_u128(ROLE_GUEST),
+        }
+    }
+
+    pub fn is_superuser(self) -> bool {
+        match self {
+            RoleType::Younghyun => true,
+            RoleType::Moderator => false,
+            RoleType::User => false,
+            RoleType::Guest => false,
+        }
+    }
+
+    pub fn permits(self, required_role_type: RoleType) -> bool {
+        self.access_level() >= required_role_type.access_level()
+    }
+
+    fn access_level(self) -> u8 {
+        match self {
+            RoleType::Younghyun => 3,
+            RoleType::Moderator => 2,
+            RoleType::User => 1,
+            RoleType::Guest => 0,
         }
     }
 }

@@ -14,7 +14,11 @@ use tokio::sync::RwLock;
 use tracing::{error, info};
 use uuid::Uuid;
 
-use crate::domain::auth::user::User;
+use crate::domain::auth::{
+    role::RoleType,
+    user::{User, UserInfo},
+    user_roles::UserRole,
+};
 use crate::domain::blog::blog::CachedPostInfo;
 use crate::domain::country::{
     CountryAndSubdivisionsTable, IsoCountry, IsoCountrySubdivision, IsoCurrency, IsoCurrencyTable,
@@ -161,6 +165,14 @@ impl ServerState {
         is_email_verified: bool,
         valid_for: Option<chrono::Duration>,
     ) -> anyhow::Result<Uuid> {
+        let role_type = match self
+            .role_for_user_or_insert_default(user.user_id, RoleType::User)
+            .await
+        {
+            Ok(role_type) => role_type,
+            Err(e) => return Err(e),
+        };
+
         let session_id = Uuid::new_v4();
         let now = chrono::Utc::now();
         let session_duration = match valid_for {
@@ -178,6 +190,7 @@ impl ServerState {
                     created_at: now,
                     expires_at,
                     user_id: user.user_id,
+                    role_type,
                     user_language: user.user_language,
                     user_name: user.user_name.clone(),
                     user_country: user.user_country,
@@ -194,6 +207,76 @@ impl ServerState {
         };
 
         Ok(session_id)
+    }
+
+    pub async fn role_for_user(&self, user_id: Uuid) -> anyhow::Result<Option<RoleType>> {
+        let mut conn = match self.get_conn().await {
+            Ok(conn) => conn,
+            Err(e) => return Err(e),
+        };
+        UserRole::role_for_user(&mut conn, user_id).await
+    }
+
+    pub async fn role_for_user_or_insert_default(
+        &self,
+        user_id: Uuid,
+        default_role_type: RoleType,
+    ) -> anyhow::Result<RoleType> {
+        let mut conn = match self.get_conn().await {
+            Ok(conn) => conn,
+            Err(e) => return Err(e),
+        };
+        UserRole::role_for_user_or_insert_default(&mut conn, user_id, default_role_type).await
+    }
+
+    pub async fn refresh_sessions_for_user(&self, user_id: Uuid) -> anyhow::Result<usize> {
+        let mut conn = match self.get_conn().await {
+            Ok(conn) => conn,
+            Err(e) => return Err(e),
+        };
+
+        let user_info = match users::table
+            .filter(users::user_id.eq(user_id))
+            .select(UserInfo::as_select())
+            .first::<UserInfo>(&mut conn)
+            .await
+            .optional()
+        {
+            Ok(user_info) => user_info,
+            Err(e) => return Err(anyhow::anyhow!("Failed to fetch user info: {}", e)),
+        };
+
+        let user_info = match user_info {
+            Some(user_info) => user_info,
+            None => return Ok(0),
+        };
+
+        let role_type =
+            match UserRole::role_for_user_or_insert_default(&mut conn, user_id, RoleType::User)
+                .await
+            {
+                Ok(role_type) => role_type,
+                Err(e) => return Err(e),
+            };
+
+        drop(conn);
+
+        let mut refreshed = 0;
+        self.session_map
+            .iter_mut_async(|mut entry| {
+                if entry.user_id == user_id {
+                    entry.user_name = user_info.user_name.clone();
+                    entry.user_country = user_info.user_country;
+                    entry.user_language = user_info.user_language;
+                    entry.is_email_verified = user_info.user_is_email_verified;
+                    entry.role_type = role_type;
+                    refreshed += 1;
+                }
+                true
+            })
+            .await;
+
+        Ok(refreshed)
     }
 
     pub async fn get_session(&self, session_id: &Uuid) -> anyhow::Result<Session> {

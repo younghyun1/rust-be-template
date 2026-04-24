@@ -4,11 +4,10 @@ use std::{
 };
 
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, State},
     response::IntoResponse,
 };
-use axum_extra::extract::CookieJar;
 use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
 use uuid::Uuid;
@@ -20,12 +19,9 @@ use crate::{
         responses::{blog::submit_post_response::SubmitPostResponse, response_data::http_resp},
     },
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
-    init::state::{ServerState, Session},
+    init::state::ServerState,
     schema::{post_tags, posts, tags},
-    util::{
-        auth::is_superuser::is_superuser, string::generate_slug::generate_slug,
-        time::now::tokio_now,
-    },
+    util::{string::generate_slug::generate_slug, time::now::tokio_now},
 };
 
 #[utoipa::path(
@@ -45,7 +41,7 @@ use crate::{
     )
 )]
 pub async fn update_post(
-    cookie_jar: CookieJar,
+    Extension(_user_id): Extension<Uuid>,
     State(state): State<Arc<ServerState>>,
     Path(post_id): Path<Uuid>,
     Json(request): Json<UpdatePostRequest>,
@@ -79,35 +75,6 @@ pub async fn update_post(
         }
         None => true,
     };
-
-    // Authentication
-    let session_id: Uuid = match cookie_jar.get("session_id") {
-        Some(session_id) => match session_id.value().parse::<Uuid>() {
-            Ok(session_id) => session_id,
-            Err(_) => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
-        },
-        None => return Err(CodeError::UNAUTHORIZED_ACCESS.into()),
-    };
-
-    let session: Session = state
-        .get_session(&session_id)
-        .await
-        .map_err(|e| code_err(CodeError::UNAUTHORIZED_ACCESS, e))?;
-
-    let user_id: Uuid = session.get_user_id();
-    drop(session);
-
-    let is_superuser = match is_superuser(state.clone(), user_id).await {
-        Ok(is_superuser) => is_superuser,
-        Err(e) => return Err(code_err(CodeError::DB_QUERY_ERROR, e)),
-    };
-
-    if !is_superuser {
-        return Err(code_err(
-            CodeError::UNAUTHORIZED_ACCESS,
-            "User is not authorized to edit posts",
-        ));
-    }
 
     let mut conn = state
         .get_conn()
