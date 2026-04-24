@@ -13,7 +13,7 @@ use crate::{
 
 #[utoipa::path(
     get,
-    path = "/api/admin/sync-country-language-bundle",
+    path = "/api/admin/sync-i18n-cache",
     tag = "admin",
     responses(
         (status = 200, description = "i18n cache synchronized", body = SyncI18nCacheResponse),

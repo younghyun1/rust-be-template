@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use bitcode::{Encode, encode};
 use diesel::{
     ExpressionMethods, QueryDsl,
     prelude::{Insertable, Queryable, QueryableByName},
@@ -37,21 +36,6 @@ pub struct InternationalizationString {
     pub i18n_string_country_subdivision_code: Option<String>,
     #[diesel(sql_type = diesel::sql_types::Varchar)]
     pub i18n_string_reference_key: String,
-}
-
-#[derive(Encode)]
-pub struct InternationalizationStringsToBeEncoded {
-    pub i18n_string_content: String,
-    pub i18n_string_reference_key: String,
-}
-
-impl From<InternationalizationString> for InternationalizationStringsToBeEncoded {
-    fn from(i18n_string: InternationalizationString) -> Self {
-        InternationalizationStringsToBeEncoded {
-            i18n_string_content: i18n_string.i18n_string_content,
-            i18n_string_reference_key: i18n_string.i18n_string_reference_key,
-        }
-    }
 }
 
 impl InternationalizationString {
@@ -108,78 +92,5 @@ impl InternationalizationString {
         drop(conn);
 
         Ok(result)
-    }
-
-    pub async fn get_country_language_bundle_from_cache(
-        country_code: i32,
-        language_code: i32,
-        state: &Arc<ServerState>,
-    ) -> anyhow::Result<Vec<u8>> {
-        // We assume the cache is held as an RwLock in state.i18n_cache
-        // and that its struct looks like:
-        // struct I18nCache { ... bundle_cache: HashMap<(i32, i32), (DateTime<Utc>, Vec<u8>)>, ... rows: Vec<InternationalizationStrings>, ... }
-
-        let mut i18n_cache = state.i18n_cache.write().await;
-
-        // Check if already cached and up-to-date
-        let key = (country_code, language_code);
-        let latest_updated =
-            i18n_cache.latest_updated_at_for_country_language(country_code, language_code);
-
-        let ret = match (i18n_cache.bundle_cache.get(&key), latest_updated) {
-            (Some((cached_ts, data)), Some(newest)) if cached_ts >= &newest => data.clone(),
-            _ => {
-                // Cache miss or stale, build bundle
-                let (encoded, newest) = {
-                    let rows: Vec<_> = i18n_cache
-                        .rows
-                        .iter()
-                        .filter(|row| {
-                            row.i18n_string_country_code == country_code
-                                && row.i18n_string_language_code == language_code
-                        })
-                        .cloned()
-                        .collect();
-
-                    if rows.is_empty() {
-                        return Err(anyhow::anyhow!(
-                            "country-language bundle cache: no bundle found for (country_code={}, language_code={})",
-                            country_code,
-                            language_code
-                        ));
-                    }
-
-                    let max_updated_at = match rows
-                        .iter()
-                        .map(|row| row.i18n_string_updated_at)
-                        .max()
-                    {
-                        Some(updated_at) => updated_at,
-                        None => {
-                            return Err(anyhow::anyhow!(
-                                "country-language bundle cache: no updated timestamp found for (country_code={}, language_code={})",
-                                country_code,
-                                language_code
-                            ));
-                        }
-                    };
-
-                    let to_encode: Vec<InternationalizationStringsToBeEncoded> = rows
-                        .into_iter()
-                        .map(InternationalizationStringsToBeEncoded::from)
-                        .collect();
-
-                    (encode(&to_encode), Some(max_updated_at))
-                };
-                if let Some(latest) = newest {
-                    i18n_cache
-                        .bundle_cache
-                        .insert(key, (latest, encoded.clone()));
-                }
-                encoded
-            }
-        };
-
-        Ok(ret)
     }
 }

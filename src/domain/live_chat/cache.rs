@@ -229,6 +229,10 @@ pub enum LiveChatServerEvent {
         is_typing: bool,
         expires_at: DateTime<Utc>,
     },
+    TypingSet {
+        actors: Vec<ChatActor>,
+        expires_at: DateTime<Utc>,
+    },
     Presence {
         connected_count: u64,
     },
@@ -549,19 +553,34 @@ impl LiveChatCache {
             .await
     }
 
-    pub async fn set_typing(&self, state: TypingState) {
+    pub async fn set_typing(&self, state: TypingState) -> bool {
         let actor_key = state.actor.actor_key.clone();
-        let _ = self.typing_by_actor.upsert_async(actor_key, state).await;
+        self.typing_by_actor
+            .upsert_async(actor_key, state)
+            .await
+            .is_none()
     }
 
-    pub async fn clear_typing(&self, actor_key: &ChatActorKey) {
-        let _ = self.typing_by_actor.remove_async(actor_key).await;
+    pub async fn clear_typing(&self, actor_key: &ChatActorKey) -> bool {
+        self.typing_by_actor.remove_async(actor_key).await.is_some()
     }
 
     pub async fn clear_expired_typing(&self, now: DateTime<Utc>) {
         self.typing_by_actor
             .retain_async(|_, typing_state| typing_state.expires_at > now)
             .await;
+    }
+
+    pub async fn active_typing_actors(&self, now: DateTime<Utc>) -> Vec<ChatActor> {
+        self.clear_expired_typing(now).await;
+        let mut actors = Vec::with_capacity(self.typing_by_actor.len());
+        self.typing_by_actor
+            .iter_async(|_, typing_state| {
+                actors.push(typing_state.actor.clone());
+                true
+            })
+            .await;
+        actors
     }
 
     pub async fn register_connection(

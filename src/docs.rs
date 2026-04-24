@@ -20,7 +20,7 @@ use crate::handlers::{
         get_countries, get_country, get_language, get_languages, get_subdivisions_for_country,
     },
     geo_ip::lookup_ip,
-    i18n::{get_country_language_bundle, get_ui_text_bundle},
+    i18n::get_ui_text_bundle,
     photography::{delete_photographs, get_photographs, upload_photograph},
     server::{get_host_fastfetch, healthcheck, lookup_ip_loc, root, visitor_board},
     user::{get_user_info, upload_profile_picture},
@@ -51,10 +51,7 @@ use crate::dto::{
             update_post_request::UpdatePostRequest, upvote_comment_request::UpvoteCommentRequest,
             upvote_post_request::UpvotePostRequest,
         },
-        i18n::{
-            get_country_language_bundle_request::GetCountryLanguageBundleRequest,
-            get_ui_text_bundle_request::GetUiTextBundleRequest,
-        },
+        i18n::get_ui_text_bundle_request::GetUiTextBundleRequest,
         photography::delete_photographs_request::DeletePhotographsRequest,
     },
     responses::{
@@ -129,7 +126,6 @@ use crate::util::geographic::ip_info_lookup::IpInfo;
         rescind_comment_vote::rescind_comment_vote,
 
         // --- i18n ---
-        get_country_language_bundle::get_country_language_bundle,
         get_ui_text_bundle::get_ui_text_bundle,
 
         // --- admin ---
@@ -181,7 +177,6 @@ use crate::util::geographic::ip_info_lookup::IpInfo;
             DeletePostResponse,
 
             // --- i18n DTOs ---
-            GetCountryLanguageBundleRequest,
             GetUiTextBundleRequest,
             UiTextBundleResponse,
 

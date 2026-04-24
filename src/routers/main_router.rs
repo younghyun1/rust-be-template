@@ -39,10 +39,7 @@ use crate::{
             get_subdivisions_for_country::get_subdivisions_for_country,
         },
         geo_ip::{lookup_ip::lookup_ip_info, lookup_my_ip::lookup_my_ip_info},
-        i18n::{
-            get_country_language_bundle::get_country_language_bundle,
-            get_ui_text_bundle::get_ui_text_bundle,
-        },
+        i18n::get_ui_text_bundle::get_ui_text_bundle,
         live_chat::{get_live_chat_cache_stats, get_live_chat_messages, live_chat_ws_handler},
         photography::{
             delete_photographs::delete_photographs, get_photographs::get_photographs,
@@ -334,15 +331,8 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/api/blog/search", get(search_posts))
         .route("/api/live-chat/messages", get(get_live_chat_messages))
         .route("/api/live-chat/cache-stats", get(get_live_chat_cache_stats))
-        .route(
-            "/api/i18n/country-language-bundle",
-            get(get_country_language_bundle),
-        )
         .route("/api/i18n/ui-text", get(get_ui_text_bundle))
-        .route(
-            "/api/admin/sync-country-language-bundle",
-            get(sync_i18n_cache),
-        )
+        .route("/api/admin/sync-i18n-cache", get(sync_i18n_cache))
         .route("/api/photographs/get", get(get_photographs))
         // WASM modules - public read endpoints
         .route("/api/wasm-modules", get(get_wasm_modules))

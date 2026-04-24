@@ -2,6 +2,7 @@ use std::{net::SocketAddr, sync::Arc};
 
 use axum::{
     Extension,
+    body::Bytes,
     extract::{
         ConnectInfo, State,
         ws::{Message, WebSocket, WebSocketUpgrade},
@@ -17,6 +18,10 @@ use uuid::Uuid;
 use crate::{
     domain::live_chat::{
         ban::{LIVE_CHAT_BAN_SOURCE_ABNORMAL_MESSAGING, LiveChatBan, LiveChatBanInsertable},
+        binary_codec::{
+            LIVE_CHAT_BINARY_PROTOCOL, LiveChatBinaryClientEvent, decode_client_event,
+            encode_server_event,
+        },
         cache::{
             CachedChatMessage, CachedLiveChatBan, ChatActor, ChatConnectionState,
             DEFAULT_LIVE_CHAT_ROOM, LiveChatServerEvent, TypingState,
@@ -34,6 +39,12 @@ const LIVE_CHAT_INITIAL_MESSAGES: usize = 50;
 const LIVE_CHAT_MAX_MESSAGE_CHARS: usize = 300;
 const LIVE_CHAT_MAX_FRAME_BYTES: usize = 2 * 1024;
 const LIVE_CHAT_TYPING_TTL_SECONDS: i64 = 4;
+
+#[derive(Clone, Copy)]
+enum LiveChatWireProtocol {
+    Json,
+    Binary,
+}
 
 pub async fn live_chat_ws_handler(
     Extension(auth_status): Extension<AuthStatus>,
@@ -57,7 +68,15 @@ pub async fn live_chat_ws_handler(
         return (StatusCode::FORBIDDEN, "Live chat access denied.").into_response();
     }
 
-    ws.on_upgrade(move |socket| handle_live_chat_socket(socket, state, actor, client_ip))
+    let ws = ws.protocols([LIVE_CHAT_BINARY_PROTOCOL]);
+    let wire_protocol = match ws.selected_protocol().and_then(|value| value.to_str().ok()) {
+        Some(LIVE_CHAT_BINARY_PROTOCOL) => LiveChatWireProtocol::Binary,
+        _ => LiveChatWireProtocol::Json,
+    };
+
+    ws.on_upgrade(move |socket| {
+        handle_live_chat_socket(socket, state, actor, client_ip, wire_protocol)
+    })
 }
 
 async fn resolve_actor(
@@ -98,6 +117,7 @@ async fn handle_live_chat_socket(
     state: Arc<ServerState>,
     actor: ChatActor,
     client_ip: std::net::IpAddr,
+    wire_protocol: LiveChatWireProtocol,
 ) {
     let connection_id = Uuid::now_v7();
     state
@@ -122,7 +142,10 @@ async fn handle_live_chat_socket(
         recent_messages,
         connected_count: state.live_chat_cache.connected_count(),
     };
-    if send_event(&mut socket, &hello).await.is_err() {
+    if send_event(&mut socket, &hello, wire_protocol)
+        .await
+        .is_err()
+    {
         cleanup_live_chat_connection(state, connection_id, &actor).await;
         return;
     }
@@ -144,6 +167,7 @@ async fn handle_live_chat_socket(
                             actor.clone(),
                             client_ip,
                             message,
+                            wire_protocol,
                         ).await
                     }
                     Some(Err(e)) => {
@@ -160,7 +184,7 @@ async fn handle_live_chat_socket(
             broadcast_event = broadcast_rx.recv() => {
                 match broadcast_event {
                     Ok(event) => {
-                        if send_event(&mut socket, &event).await.is_err() {
+                        if send_event(&mut socket, &event, wire_protocol).await.is_err() {
                             break;
                         }
                     }
@@ -181,11 +205,100 @@ async fn handle_client_message(
     actor: ChatActor,
     client_ip: std::net::IpAddr,
     message: Message,
+    wire_protocol: LiveChatWireProtocol,
 ) -> bool {
     if matches!(message, Message::Close(_)) {
         return false;
     }
 
+    let client_event = match wire_protocol {
+        LiveChatWireProtocol::Json => match decode_json_client_event(socket, &message).await {
+            Some(event) => event,
+            None => return true,
+        },
+        LiveChatWireProtocol::Binary => match decode_binary_client_event(socket, message).await {
+            Some(event) => event,
+            None => return true,
+        },
+    };
+
+    match client_event {
+        DecodedLiveChatClientEvent::SendMessage {
+            client_message_id,
+            body,
+        } => {
+            return handle_send_message(
+                socket,
+                state,
+                actor,
+                client_ip,
+                client_message_id,
+                body,
+                wire_protocol,
+            )
+            .await;
+        }
+        DecodedLiveChatClientEvent::Typing { is_typing } => {
+            handle_typing(state, actor, is_typing).await;
+        }
+        DecodedLiveChatClientEvent::Heartbeat { nonce } => {
+            let event = LiveChatServerEvent::HeartbeatAck { nonce };
+            let _ = send_event(socket, &event, wire_protocol).await;
+        }
+    }
+
+    true
+}
+
+enum DecodedLiveChatClientEvent {
+    SendMessage {
+        client_message_id: String,
+        body: String,
+    },
+    Typing {
+        is_typing: bool,
+    },
+    Heartbeat {
+        nonce: String,
+    },
+}
+
+impl From<LiveChatClientEvent> for DecodedLiveChatClientEvent {
+    fn from(event: LiveChatClientEvent) -> Self {
+        match event {
+            LiveChatClientEvent::SendMessage {
+                client_message_id,
+                body,
+            } => Self::SendMessage {
+                client_message_id,
+                body,
+            },
+            LiveChatClientEvent::Typing { is_typing } => Self::Typing { is_typing },
+            LiveChatClientEvent::Heartbeat { nonce } => Self::Heartbeat { nonce },
+        }
+    }
+}
+
+impl From<LiveChatBinaryClientEvent> for DecodedLiveChatClientEvent {
+    fn from(event: LiveChatBinaryClientEvent) -> Self {
+        match event {
+            LiveChatBinaryClientEvent::SendMessage {
+                client_message_id,
+                body,
+            } => Self::SendMessage {
+                client_message_id,
+                body,
+            },
+            LiveChatBinaryClientEvent::Typing { is_typing } => Self::Typing { is_typing },
+            LiveChatBinaryClientEvent::Heartbeat { nonce } => Self::Heartbeat { nonce },
+        }
+    }
+}
+
+async fn decode_json_client_event(
+    socket: &mut WebSocket,
+    message: &Message,
+) -> Option<DecodedLiveChatClientEvent> {
     let text = match message.to_text() {
         Ok(text) => text,
         Err(e) => {
@@ -194,8 +307,8 @@ async fn handle_client_message(
                 message: "Expected UTF-8 text frame".to_string(),
             };
             error!(error = ?e, "Failed to parse live chat WebSocket frame as text");
-            let _ = send_event(socket, &event).await;
-            return true;
+            let _ = send_event(socket, &event, LiveChatWireProtocol::Json).await;
+            return None;
         }
     };
 
@@ -204,41 +317,62 @@ async fn handle_client_message(
             code: "frame_too_large".to_string(),
             message: "Live chat event payload is too large.".to_string(),
         };
-        let _ = send_event(socket, &event).await;
-        return true;
+        let _ = send_event(socket, &event, LiveChatWireProtocol::Json).await;
+        return None;
     }
 
-    let client_event = match serde_json::from_str::<LiveChatClientEvent>(text) {
-        Ok(event) => event,
+    match serde_json::from_str::<LiveChatClientEvent>(text) {
+        Ok(event) => Some(event.into()),
         Err(e) => {
             let event = LiveChatServerEvent::Error {
                 code: "invalid_json".to_string(),
                 message: "Invalid live chat event payload".to_string(),
             };
             warn!(error = ?e, "Failed to parse live chat client event");
-            let _ = send_event(socket, &event).await;
-            return true;
+            let _ = send_event(socket, &event, LiveChatWireProtocol::Json).await;
+            None
+        }
+    }
+}
+
+async fn decode_binary_client_event(
+    socket: &mut WebSocket,
+    message: Message,
+) -> Option<DecodedLiveChatClientEvent> {
+    let bytes = match message {
+        Message::Binary(bytes) => bytes,
+        Message::Close(_) => return None,
+        _ => {
+            let event = LiveChatServerEvent::Error {
+                code: "invalid_frame".to_string(),
+                message: "Expected binary live chat frame".to_string(),
+            };
+            let _ = send_event(socket, &event, LiveChatWireProtocol::Binary).await;
+            return None;
         }
     };
 
-    match client_event {
-        LiveChatClientEvent::SendMessage {
-            client_message_id,
-            body,
-        } => {
-            return handle_send_message(socket, state, actor, client_ip, client_message_id, body)
-                .await;
-        }
-        LiveChatClientEvent::Typing { is_typing } => {
-            handle_typing(state, actor, is_typing).await;
-        }
-        LiveChatClientEvent::Heartbeat { nonce } => {
-            let event = LiveChatServerEvent::HeartbeatAck { nonce };
-            let _ = send_event(socket, &event).await;
-        }
+    if bytes.len() > LIVE_CHAT_MAX_FRAME_BYTES {
+        let event = LiveChatServerEvent::Error {
+            code: "frame_too_large".to_string(),
+            message: "Live chat event payload is too large.".to_string(),
+        };
+        let _ = send_event(socket, &event, LiveChatWireProtocol::Binary).await;
+        return None;
     }
 
-    true
+    match decode_client_event(&bytes) {
+        Ok(event) => Some(event.into()),
+        Err(e) => {
+            let event = LiveChatServerEvent::Error {
+                code: "invalid_binary".to_string(),
+                message: "Invalid live chat binary event payload".to_string(),
+            };
+            warn!(error = ?e, "Failed to parse live chat binary client event");
+            let _ = send_event(socket, &event, LiveChatWireProtocol::Binary).await;
+            None
+        }
+    }
 }
 
 async fn handle_send_message(
@@ -248,6 +382,7 @@ async fn handle_send_message(
     client_ip: std::net::IpAddr,
     client_message_id: String,
     body: String,
+    wire_protocol: LiveChatWireProtocol,
 ) -> bool {
     let now = Utc::now();
     if state
@@ -259,7 +394,7 @@ async fn handle_send_message(
             code: "banned".to_string(),
             message: "Live chat access denied.".to_string(),
         };
-        let _ = send_event(socket, &event).await;
+        let _ = send_event(socket, &event, wire_protocol).await;
         return false;
     }
 
@@ -275,7 +410,7 @@ async fn handle_send_message(
             code: "banned".to_string(),
             message: "Live chat access denied for abnormal messaging patterns.".to_string(),
         };
-        let _ = send_event(socket, &event).await;
+        let _ = send_event(socket, &event, wire_protocol).await;
         return false;
     }
 
@@ -285,7 +420,7 @@ async fn handle_send_message(
             code: "empty_message".to_string(),
             message: "Message cannot be empty.".to_string(),
         };
-        let _ = send_event(socket, &event).await;
+        let _ = send_event(socket, &event, wire_protocol).await;
         return true;
     }
 
@@ -294,7 +429,7 @@ async fn handle_send_message(
             code: "message_too_large".to_string(),
             message: format!("Message must be {LIVE_CHAT_MAX_MESSAGE_CHARS} characters or fewer."),
         };
-        let _ = send_event(socket, &event).await;
+        let _ = send_event(socket, &event, wire_protocol).await;
         return true;
     }
 
@@ -305,7 +440,7 @@ async fn handle_send_message(
                 code: "persist_failed".to_string(),
                 message: "Message could not be saved.".to_string(),
             };
-            let _ = send_event(socket, &event).await;
+            let _ = send_event(socket, &event, wire_protocol).await;
             return true;
         }
     };
@@ -314,13 +449,17 @@ async fn handle_send_message(
         .live_chat_cache
         .append_persisted_chat_message(persisted.clone())
         .await;
-    state.live_chat_cache.clear_typing(&actor.actor_key).await;
+    let typing_changed = state.live_chat_cache.clear_typing(&actor.actor_key).await;
+    if typing_changed {
+        let expires_at = Utc::now() + ChronoDuration::seconds(LIVE_CHAT_TYPING_TTL_SECONDS);
+        broadcast_typing_set(state.clone(), expires_at).await;
+    }
 
     let ack = LiveChatServerEvent::MessageAck {
         client_message_id,
         message: persisted.clone(),
     };
-    let _ = send_event(socket, &ack).await;
+    let _ = send_event(socket, &ack, wire_protocol).await;
 
     state
         .live_chat_cache
@@ -413,7 +552,7 @@ async fn persist_live_chat_ban(
 
 async fn handle_typing(state: Arc<ServerState>, actor: ChatActor, is_typing: bool) {
     let expires_at = Utc::now() + ChronoDuration::seconds(LIVE_CHAT_TYPING_TTL_SECONDS);
-    if is_typing {
+    let changed = if is_typing {
         state
             .live_chat_cache
             .set_typing(TypingState {
@@ -421,19 +560,21 @@ async fn handle_typing(state: Arc<ServerState>, actor: ChatActor, is_typing: boo
                 room_key: DEFAULT_LIVE_CHAT_ROOM.to_string(),
                 expires_at,
             })
-            .await;
+            .await
     } else {
-        state.live_chat_cache.clear_typing(&actor.actor_key).await;
-    }
+        state.live_chat_cache.clear_typing(&actor.actor_key).await
+    };
 
-    state.live_chat_cache.clear_expired_typing(Utc::now()).await;
+    if is_typing || changed {
+        broadcast_typing_set(state, expires_at).await;
+    }
+}
+
+async fn broadcast_typing_set(state: Arc<ServerState>, expires_at: chrono::DateTime<Utc>) {
+    let actors = state.live_chat_cache.active_typing_actors(Utc::now()).await;
     state
         .live_chat_cache
-        .broadcast(LiveChatServerEvent::Typing {
-            actor,
-            is_typing,
-            expires_at,
-        });
+        .broadcast(LiveChatServerEvent::TypingSet { actors, expires_at });
 }
 
 async fn cleanup_live_chat_connection(
@@ -445,7 +586,11 @@ async fn cleanup_live_chat_connection(
         .live_chat_cache
         .unregister_connection(connection_id)
         .await;
-    state.live_chat_cache.clear_typing(&actor.actor_key).await;
+    let typing_changed = state.live_chat_cache.clear_typing(&actor.actor_key).await;
+    if typing_changed {
+        let expires_at = Utc::now() + ChronoDuration::seconds(LIVE_CHAT_TYPING_TTL_SECONDS);
+        broadcast_typing_set(state.clone(), expires_at).await;
+    }
     state
         .live_chat_cache
         .broadcast(LiveChatServerEvent::Presence {
@@ -457,7 +602,20 @@ async fn cleanup_live_chat_connection(
 async fn send_event(
     socket: &mut WebSocket,
     event: &LiveChatServerEvent,
+    wire_protocol: LiveChatWireProtocol,
 ) -> Result<(), axum::Error> {
+    if matches!(wire_protocol, LiveChatWireProtocol::Binary) {
+        let payload = match encode_server_event(event) {
+            Ok(payload) => payload,
+            Err(e) => {
+                error!(error = ?e, "Failed to serialize binary live chat server event");
+                return Ok(());
+            }
+        };
+
+        return socket.send(Message::Binary(Bytes::from(payload))).await;
+    }
+
     let payload = match serde_json::to_string(event) {
         Ok(payload) => payload,
         Err(e) => {

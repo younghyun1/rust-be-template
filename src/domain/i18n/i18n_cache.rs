@@ -1,12 +1,7 @@
 use crate::domain::i18n::i18n::InternationalizationString;
-use bitcode::encode;
 use chrono::{DateTime, Utc};
 use std::collections::{BTreeMap, HashMap};
 use uuid::Uuid;
-
-use super::i18n::InternationalizationStringsToBeEncoded;
-
-type CountryLanguageKey = (i32, i32);
 
 pub struct I18nCache {
     pub rows: Vec<InternationalizationString>,
@@ -20,7 +15,6 @@ pub struct I18nCache {
     // BTreeMap indexes
     pub created_at_idx: BTreeMap<DateTime<Utc>, Vec<usize>>,
     pub updated_at_idx: BTreeMap<DateTime<Utc>, Vec<usize>>,
-    pub bundle_cache: HashMap<CountryLanguageKey, (DateTime<Utc>, Vec<u8>)>,
 }
 
 impl Default for I18nCache {
@@ -41,7 +35,6 @@ impl I18nCache {
             reference_idx: HashMap::new(),
             created_at_idx: BTreeMap::new(),
             updated_at_idx: BTreeMap::new(),
-            bundle_cache: HashMap::new(),
         }
     }
 
@@ -162,58 +155,6 @@ impl I18nCache {
             .range(start..=end)
             .flat_map(|(_k, v)| v.iter().map(|&i| &self.rows[i]))
             .collect()
-    }
-
-    pub fn latest_updated_at_for_country_language(
-        &self,
-        country_code: i32,
-        language_code: i32,
-    ) -> Option<DateTime<Utc>> {
-        for (_, indices) in self.updated_at_idx.iter().rev() {
-            for &idx in indices.iter().rev() {
-                let row = &self.rows[idx];
-                if row.i18n_string_country_code == country_code
-                    && row.i18n_string_language_code == language_code
-                {
-                    return Some(row.i18n_string_updated_at);
-                }
-            }
-        }
-        None
-    }
-
-    pub fn build_country_language_bundle(
-        &self,
-        country_code: i32,
-        language_code: i32,
-    ) -> (Vec<u8>, Option<DateTime<Utc>>) {
-        let rows: Vec<_> = self
-            .rows
-            .iter()
-            .filter(|row| {
-                row.i18n_string_country_code == country_code
-                    && row.i18n_string_language_code == language_code
-            })
-            .cloned()
-            .collect();
-
-        if rows.is_empty() {
-            return (vec![], None);
-        }
-
-        let max_updated_at = match rows.iter().map(|row| row.i18n_string_updated_at).max() {
-            Some(updated_at) => updated_at,
-            None => {
-                return (vec![], None);
-            }
-        };
-
-        let to_encode: Vec<InternationalizationStringsToBeEncoded> = rows
-            .into_iter()
-            .map(InternationalizationStringsToBeEncoded::from)
-            .collect();
-
-        (encode(&to_encode), Some(max_updated_at))
     }
 
     pub fn ui_text_bundle(
