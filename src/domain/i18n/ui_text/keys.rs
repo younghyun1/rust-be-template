@@ -7,6 +7,7 @@ pub const TOP_BAR_NAV_ABOUT: &str = "top_bar.nav.about";
 pub const TOP_BAR_NAV_ABOUT_BLOG: &str = "top_bar.nav.about_blog";
 pub const TOP_BAR_NAV_BLOG: &str = "top_bar.nav.blog";
 pub const TOP_BAR_NAV_PHOTOGRAPHS: &str = "top_bar.nav.photographs";
+pub const TOP_BAR_NAV_LIVE_CHAT: &str = "top_bar.nav.live_chat";
 pub const TOP_BAR_NAV_PROJECTS: &str = "top_bar.nav.projects";
 pub const TOP_BAR_NAV_VISITOR_BOARD: &str = "top_bar.nav.visitor_board";
 pub const TOP_BAR_NAV_GEO_IP: &str = "top_bar.nav.geo_ip";
@@ -79,6 +80,7 @@ pub const REQUIRED_UI_TEXT_KEYS: &[&str] = &[
     TOP_BAR_NAV_ABOUT_BLOG,
     TOP_BAR_NAV_BLOG,
     TOP_BAR_NAV_PHOTOGRAPHS,
+    TOP_BAR_NAV_LIVE_CHAT,
     TOP_BAR_NAV_PROJECTS,
     TOP_BAR_NAV_VISITOR_BOARD,
     TOP_BAR_NAV_GEO_IP,
