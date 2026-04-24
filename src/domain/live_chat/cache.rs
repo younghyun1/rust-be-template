@@ -6,17 +6,21 @@ use std::{
     },
 };
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use scc::{Guard, HashMap, Queue, TreeIndex};
 use serde_derive::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
-use super::message::{LIVE_CHAT_SENDER_KIND_GUEST, LiveChatMessage};
+use super::{
+    ban::LiveChatBan,
+    message::{LIVE_CHAT_SENDER_KIND_GUEST, LiveChatMessage},
+};
 
 pub const DEFAULT_LIVE_CHAT_ROOM: &str = "main";
 pub const LIVE_CHAT_CACHE_MAX_BYTES: usize = 128 * 1024 * 1024;
 pub const LIVE_CHAT_BROADCAST_CAPACITY: usize = 1024;
+pub const LIVE_CHAT_ABNORMAL_MESSAGE_LIMIT_PER_SECOND: u32 = 10;
 const LIVE_CHAT_MESSAGE_FIXED_BYTES: usize = 256;
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -50,6 +54,52 @@ pub enum ChatActorKey {
     Guest(String),
 }
 
+#[derive(Debug, Clone, Eq, Hash, PartialEq)]
+enum LiveChatRateKey {
+    User(Uuid),
+    Ip(IpAddr),
+}
+
+#[derive(Debug, Clone)]
+struct LiveChatRateState {
+    window_started_at: DateTime<Utc>,
+    count: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct CachedLiveChatBan {
+    pub live_chat_ban_id: Uuid,
+    pub user_id: Option<Uuid>,
+    pub banned_ip: Option<IpAddr>,
+    pub reason: String,
+    pub ban_source: String,
+    pub banned_at: DateTime<Utc>,
+    pub expires_at: Option<DateTime<Utc>>,
+}
+
+impl CachedLiveChatBan {
+    pub fn is_active(&self, now: DateTime<Utc>) -> bool {
+        match self.expires_at {
+            Some(expires_at) => expires_at > now,
+            None => true,
+        }
+    }
+}
+
+impl From<LiveChatBan> for CachedLiveChatBan {
+    fn from(ban: LiveChatBan) -> Self {
+        Self {
+            live_chat_ban_id: ban.live_chat_ban_id,
+            user_id: ban.user_id,
+            banned_ip: ban.banned_ip.map(|ip| ip.addr()),
+            reason: ban.reason,
+            ban_source: ban.ban_source,
+            banned_at: ban.banned_at,
+            expires_at: ban.expires_at,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatActor {
     pub actor_key: ChatActorKey,
@@ -57,10 +107,12 @@ pub struct ChatActor {
     pub user_id: Option<Uuid>,
     pub guest_ip: Option<IpAddr>,
     pub display_name: String,
+    pub country_flag: Option<String>,
+    pub user_profile_picture_url: Option<String>,
 }
 
 impl ChatActor {
-    pub fn guest(ip: IpAddr) -> Self {
+    pub fn guest(ip: IpAddr, country_flag: Option<String>) -> Self {
         let display_name = format!("guest@{ip}");
         Self {
             actor_key: ChatActorKey::Guest(ip.to_string()),
@@ -68,16 +120,25 @@ impl ChatActor {
             user_id: None,
             guest_ip: Some(ip),
             display_name,
+            country_flag,
+            user_profile_picture_url: None,
         }
     }
 
-    pub fn user(user_id: Uuid, display_name: String) -> Self {
+    pub fn user(
+        user_id: Uuid,
+        display_name: String,
+        country_flag: Option<String>,
+        user_profile_picture_url: Option<String>,
+    ) -> Self {
         Self {
             actor_key: ChatActorKey::User(user_id),
             sender_kind: super::message::LIVE_CHAT_SENDER_KIND_USER,
             user_id: Some(user_id),
             guest_ip: None,
             display_name,
+            country_flag,
+            user_profile_picture_url,
         }
     }
 }
@@ -90,6 +151,8 @@ pub struct CachedChatMessage {
     pub guest_ip: Option<IpAddr>,
     pub sender_kind: i16,
     pub sender_display_name: String,
+    pub sender_country_flag: Option<String>,
+    pub user_profile_picture_url: Option<String>,
     pub message_body: String,
     pub message_created_at: DateTime<Utc>,
     pub message_edited_at: Option<DateTime<Utc>>,
@@ -101,6 +164,14 @@ impl CachedChatMessage {
         LIVE_CHAT_MESSAGE_FIXED_BYTES
             + self.room_key.len()
             + self.sender_display_name.len()
+            + match &self.sender_country_flag {
+                Some(country_flag) => country_flag.len(),
+                None => 0,
+            }
+            + match &self.user_profile_picture_url {
+                Some(user_profile_picture_url) => user_profile_picture_url.len(),
+                None => 0,
+            }
             + self.message_body.len()
     }
 }
@@ -114,6 +185,8 @@ impl From<LiveChatMessage> for CachedChatMessage {
             guest_ip: message.guest_ip.map(|ip| ip.addr()),
             sender_kind: message.sender_kind,
             sender_display_name: message.sender_display_name,
+            sender_country_flag: None,
+            user_profile_picture_url: None,
             message_body: message.message_body,
             message_created_at: message.message_created_at,
             message_edited_at: message.message_edited_at,
@@ -142,6 +215,7 @@ pub enum LiveChatServerEvent {
     Hello {
         actor: ChatActor,
         recent_messages: Vec<CachedChatMessage>,
+        connected_count: u64,
     },
     Message {
         message: CachedChatMessage,
@@ -184,6 +258,9 @@ pub struct LiveChatCache {
     eviction_queue: Queue<ChatEvictionKey>,
     typing_by_actor: HashMap<ChatActorKey, TypingState>,
     connected_clients: HashMap<Uuid, ChatConnectionState>,
+    bans_by_user: HashMap<Uuid, CachedLiveChatBan>,
+    bans_by_ip: HashMap<IpAddr, CachedLiveChatBan>,
+    message_rate_by_key: HashMap<LiveChatRateKey, LiveChatRateState>,
     total_bytes: AtomicUsize,
     message_count: AtomicUsize,
     connected_count: AtomicU64,
@@ -200,6 +277,9 @@ impl LiveChatCache {
             eviction_queue: Queue::new(),
             typing_by_actor: HashMap::new(),
             connected_clients: HashMap::new(),
+            bans_by_user: HashMap::new(),
+            bans_by_ip: HashMap::new(),
+            message_rate_by_key: HashMap::new(),
             total_bytes: AtomicUsize::new(0),
             message_count: AtomicUsize::new(0),
             connected_count: AtomicU64::new(0),
@@ -214,6 +294,135 @@ impl LiveChatCache {
 
     pub fn broadcast(&self, event: LiveChatServerEvent) {
         let _ = self.broadcast_tx.send(event);
+    }
+
+    pub async fn sync_bans(&self, bans: Vec<LiveChatBan>) {
+        self.bans_by_user.clear_async().await;
+        self.bans_by_ip.clear_async().await;
+        let now = Utc::now();
+
+        for ban in bans {
+            let cached_ban = CachedLiveChatBan::from(ban);
+            if cached_ban.is_active(now) {
+                self.cache_ban(cached_ban).await;
+            }
+        }
+    }
+
+    pub async fn cache_ban(&self, ban: CachedLiveChatBan) {
+        if let Some(user_id) = ban.user_id {
+            let _ = self.bans_by_user.upsert_async(user_id, ban.clone()).await;
+        }
+
+        if let Some(ip) = ban.banned_ip {
+            let _ = self.bans_by_ip.upsert_async(ip, ban).await;
+        }
+    }
+
+    pub async fn is_banned(&self, user_id: Option<Uuid>, ip: IpAddr) -> bool {
+        let now = Utc::now();
+
+        if let Some(user_id) = user_id
+            && let Some(is_active) = self
+                .bans_by_user
+                .read_async(&user_id, |_, ban| ban.is_active(now))
+                .await
+        {
+            if is_active {
+                return true;
+            }
+            let _ = self.bans_by_user.remove_async(&user_id).await;
+        }
+
+        if let Some(is_active) = self
+            .bans_by_ip
+            .read_async(&ip, |_, ban| ban.is_active(now))
+            .await
+        {
+            if is_active {
+                return true;
+            }
+            let _ = self.bans_by_ip.remove_async(&ip).await;
+        }
+
+        false
+    }
+
+    pub async fn record_message_attempt(
+        &self,
+        user_id: Option<Uuid>,
+        ip: IpAddr,
+        now: DateTime<Utc>,
+    ) -> bool {
+        let ip_abnormal = self
+            .record_message_attempt_for_key(LiveChatRateKey::Ip(ip), now)
+            .await;
+        let user_abnormal = match user_id {
+            Some(user_id) => {
+                self.record_message_attempt_for_key(LiveChatRateKey::User(user_id), now)
+                    .await
+            }
+            None => false,
+        };
+
+        ip_abnormal || user_abnormal
+    }
+
+    async fn record_message_attempt_for_key(
+        &self,
+        key: LiveChatRateKey,
+        now: DateTime<Utc>,
+    ) -> bool {
+        let mut is_abnormal = false;
+        if self
+            .message_rate_by_key
+            .update_async(&key, |_, state| {
+                if now.signed_duration_since(state.window_started_at) < ChronoDuration::seconds(1) {
+                    state.count = state.count.saturating_add(1);
+                } else {
+                    state.window_started_at = now;
+                    state.count = 1;
+                }
+                is_abnormal = state.count > LIVE_CHAT_ABNORMAL_MESSAGE_LIMIT_PER_SECOND;
+            })
+            .await
+            .is_none()
+        {
+            match self
+                .message_rate_by_key
+                .insert_async(
+                    key,
+                    LiveChatRateState {
+                        window_started_at: now,
+                        count: 1,
+                    },
+                )
+                .await
+            {
+                Ok(_) => {}
+                Err((key, _state)) => {
+                    let mut raced_is_abnormal = false;
+                    let _ = self
+                        .message_rate_by_key
+                        .update_async(&key, |_, state| {
+                            if now.signed_duration_since(state.window_started_at)
+                                < ChronoDuration::seconds(1)
+                            {
+                                state.count = state.count.saturating_add(1);
+                            } else {
+                                state.window_started_at = now;
+                                state.count = 1;
+                            }
+                            raced_is_abnormal =
+                                state.count > LIVE_CHAT_ABNORMAL_MESSAGE_LIMIT_PER_SECOND;
+                        })
+                        .await;
+                    return raced_is_abnormal;
+                }
+            }
+        }
+
+        is_abnormal
     }
 
     pub async fn clear_messages(&self) {

@@ -20,10 +20,10 @@ use crate::handlers::{
         get_countries, get_country, get_language, get_languages, get_subdivisions_for_country,
     },
     geo_ip::lookup_ip,
-    i18n::get_country_language_bundle,
+    i18n::{get_country_language_bundle, get_ui_text_bundle},
     photography::{delete_photographs, get_photographs, upload_photograph},
     server::{get_host_fastfetch, healthcheck, lookup_ip_loc, root, visitor_board},
-    user::upload_profile_picture,
+    user::{get_user_info, upload_profile_picture},
 };
 
 // ---- schemas (for `components(schemas(...))`) ----
@@ -51,7 +51,10 @@ use crate::dto::{
             update_post_request::UpdatePostRequest, upvote_comment_request::UpvoteCommentRequest,
             upvote_post_request::UpvotePostRequest,
         },
-        i18n::get_country_language_bundle_request::GetCountryLanguageBundleRequest,
+        i18n::{
+            get_country_language_bundle_request::GetCountryLanguageBundleRequest,
+            get_ui_text_bundle_request::GetUiTextBundleRequest,
+        },
         photography::delete_photographs_request::DeletePhotographsRequest,
     },
     responses::{
@@ -68,9 +71,11 @@ use crate::dto::{
             read_post_response::ReadPostResponse, submit_post_response::SubmitPostResponse,
             vote_comment_response::VoteCommentResponse, vote_post_response::VotePostResponse,
         },
+        i18n::ui_text_bundle_response::UiTextBundleResponse,
         photography::get_photograph_response::{
             GetPhotographsResponse, PaginationMeta, PhotographItem,
         },
+        user::public_user_info_response::PublicUserInfoResponse,
     },
 };
 use crate::errors::code_error::CodeErrorResp;
@@ -125,6 +130,7 @@ use crate::util::geographic::ip_info_lookup::IpInfo;
 
         // --- i18n ---
         get_country_language_bundle::get_country_language_bundle,
+        get_ui_text_bundle::get_ui_text_bundle,
 
         // --- admin ---
         sync_i18n_cache::sync_i18n_cache,
@@ -135,6 +141,7 @@ use crate::util::geographic::ip_info_lookup::IpInfo;
         delete_photographs::delete_photographs,
 
         // --- user ---
+        get_user_info::get_user_info,
         upload_profile_picture::upload_profile_picture,
     ),
     components(
@@ -175,6 +182,8 @@ use crate::util::geographic::ip_info_lookup::IpInfo;
 
             // --- i18n DTOs ---
             GetCountryLanguageBundleRequest,
+            GetUiTextBundleRequest,
+            UiTextBundleResponse,
 
             // --- admin DTOs ---
             SyncI18nCacheResponse,
@@ -186,6 +195,8 @@ use crate::util::geographic::ip_info_lookup::IpInfo;
             DeletePhotographsRequest,
 
             // --- domain models used in responses ---
+            PublicUserInfoResponse,
+
             IpInfo,
 
             IsoCountry,

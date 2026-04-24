@@ -6,96 +6,99 @@ use axum::{
         ConnectInfo, State,
         ws::{Message, WebSocket, WebSocketUpgrade},
     },
-    http::HeaderMap,
-    response::Response,
+    http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
 };
 use chrono::{Duration as ChronoDuration, Utc};
-use diesel::{ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
-use tokio::time::{Duration, Instant};
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use crate::{
     domain::live_chat::{
+        ban::{LIVE_CHAT_BAN_SOURCE_ABNORMAL_MESSAGING, LiveChatBan, LiveChatBanInsertable},
         cache::{
-            CachedChatMessage, ChatActor, ChatConnectionState, DEFAULT_LIVE_CHAT_ROOM,
-            LiveChatServerEvent, TypingState,
+            CachedChatMessage, CachedLiveChatBan, ChatActor, ChatConnectionState,
+            DEFAULT_LIVE_CHAT_ROOM, LiveChatServerEvent, TypingState,
         },
         message::LiveChatMessageInsertable,
     },
     dto::requests::live_chat::LiveChatClientEvent,
     init::state::ServerState,
-    routers::middleware::is_logged_in::AuthStatus,
-    schema::{live_chat_messages, users},
+    routers::middleware::is_logged_in::{AuthSession, AuthStatus},
+    schema::{live_chat_bans, live_chat_messages},
     util::extract::client_ip::extract_client_ip,
 };
 
 const LIVE_CHAT_INITIAL_MESSAGES: usize = 50;
-const LIVE_CHAT_MAX_MESSAGE_BYTES: usize = 4096;
-const LIVE_CHAT_MIN_SEND_INTERVAL_MS: u64 = 500;
+const LIVE_CHAT_MAX_MESSAGE_CHARS: usize = 300;
+const LIVE_CHAT_MAX_FRAME_BYTES: usize = 2 * 1024;
 const LIVE_CHAT_TYPING_TTL_SECONDS: i64 = 4;
 
 pub async fn live_chat_ws_handler(
     Extension(auth_status): Extension<AuthStatus>,
+    Extension(auth_session): Extension<Option<AuthSession>>,
     State(state): State<Arc<ServerState>>,
     ConnectInfo(socket_addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> Response {
-    let actor = resolve_actor(state.clone(), auth_status, &headers, socket_addr).await;
-    ws.on_upgrade(move |socket| handle_live_chat_socket(socket, state, actor))
+    let client_ip = match extract_client_ip(&headers, socket_addr) {
+        Some(ip) => ip,
+        None => socket_addr.ip(),
+    };
+    let actor = resolve_actor(state.clone(), auth_status, auth_session, client_ip).await;
+
+    if state
+        .live_chat_cache
+        .is_banned(actor.user_id, client_ip)
+        .await
+    {
+        return (StatusCode::FORBIDDEN, "Live chat access denied.").into_response();
+    }
+
+    ws.on_upgrade(move |socket| handle_live_chat_socket(socket, state, actor, client_ip))
 }
 
 async fn resolve_actor(
     state: Arc<ServerState>,
     auth_status: AuthStatus,
-    headers: &HeaderMap,
-    socket_addr: SocketAddr,
+    auth_session: Option<AuthSession>,
+    client_ip: std::net::IpAddr,
 ) -> ChatActor {
     match auth_status {
         AuthStatus::LoggedIn(user_id) => {
-            let display_name = match get_user_display_name(state, user_id).await {
-                Some(name) => name,
-                None => format!("user@{user_id}"),
+            let (display_name, country_flag, user_profile_picture_url) = match auth_session {
+                Some(session) if session.user_id == user_id => {
+                    let country_flag = state
+                        .country_flag_for_country_code(session.user_country)
+                        .await;
+                    let user_profile_picture_url =
+                        state.latest_user_profile_picture_url(user_id).await;
+                    (session.user_name, country_flag, user_profile_picture_url)
+                }
+                _ => (format!("user@{user_id}"), None, None),
             };
-            ChatActor::user(user_id, display_name)
+            ChatActor::user(
+                user_id,
+                display_name,
+                country_flag,
+                user_profile_picture_url,
+            )
         }
         AuthStatus::LoggedOut => {
-            let guest_ip = match extract_client_ip(headers, socket_addr) {
-                Some(ip) => ip,
-                None => socket_addr.ip(),
-            };
-            ChatActor::guest(guest_ip)
+            let country_flag = state.country_flag_for_ip(client_ip).await;
+            ChatActor::guest(client_ip, country_flag)
         }
     }
 }
 
-async fn get_user_display_name(state: Arc<ServerState>, user_id: Uuid) -> Option<String> {
-    let mut conn = match state.get_conn().await {
-        Ok(conn) => conn,
-        Err(e) => {
-            error!(error = ?e, user_id = %user_id, "Failed to get DB connection for live chat actor");
-            return None;
-        }
-    };
-
-    let user_name = users::table
-        .filter(users::user_id.eq(user_id))
-        .select(users::user_name)
-        .first::<String>(&mut conn)
-        .await
-        .map_err(|e| {
-            warn!(error = ?e, user_id = %user_id, "Failed to resolve live chat username");
-            e
-        })
-        .ok();
-
-    drop(conn);
-    user_name
-}
-
-async fn handle_live_chat_socket(mut socket: WebSocket, state: Arc<ServerState>, actor: ChatActor) {
+async fn handle_live_chat_socket(
+    mut socket: WebSocket,
+    state: Arc<ServerState>,
+    actor: ChatActor,
+    client_ip: std::net::IpAddr,
+) {
     let connection_id = Uuid::now_v7();
     state
         .live_chat_cache
@@ -108,6 +111,7 @@ async fn handle_live_chat_socket(mut socket: WebSocket, state: Arc<ServerState>,
             },
         )
         .await;
+    let mut broadcast_rx = state.live_chat_cache.subscribe();
 
     let recent_messages = state
         .live_chat_cache
@@ -116,6 +120,7 @@ async fn handle_live_chat_socket(mut socket: WebSocket, state: Arc<ServerState>,
     let hello = LiveChatServerEvent::Hello {
         actor: actor.clone(),
         recent_messages,
+        connected_count: state.live_chat_cache.connected_count(),
     };
     if send_event(&mut socket, &hello).await.is_err() {
         cleanup_live_chat_connection(state, connection_id, &actor).await;
@@ -128,9 +133,6 @@ async fn handle_live_chat_socket(mut socket: WebSocket, state: Arc<ServerState>,
             connected_count: state.live_chat_cache.connected_count(),
         });
 
-    let mut broadcast_rx = state.live_chat_cache.subscribe();
-    let mut last_send_at: Option<Instant> = None;
-
     loop {
         tokio::select! {
             socket_message = socket.recv() => {
@@ -140,8 +142,8 @@ async fn handle_live_chat_socket(mut socket: WebSocket, state: Arc<ServerState>,
                             &mut socket,
                             state.clone(),
                             actor.clone(),
+                            client_ip,
                             message,
-                            &mut last_send_at,
                         ).await
                     }
                     Some(Err(e)) => {
@@ -177,8 +179,8 @@ async fn handle_client_message(
     socket: &mut WebSocket,
     state: Arc<ServerState>,
     actor: ChatActor,
+    client_ip: std::net::IpAddr,
     message: Message,
-    last_send_at: &mut Option<Instant>,
 ) -> bool {
     if matches!(message, Message::Close(_)) {
         return false;
@@ -196,6 +198,15 @@ async fn handle_client_message(
             return true;
         }
     };
+
+    if text.len() > LIVE_CHAT_MAX_FRAME_BYTES {
+        let event = LiveChatServerEvent::Error {
+            code: "frame_too_large".to_string(),
+            message: "Live chat event payload is too large.".to_string(),
+        };
+        let _ = send_event(socket, &event).await;
+        return true;
+    }
 
     let client_event = match serde_json::from_str::<LiveChatClientEvent>(text) {
         Ok(event) => event,
@@ -215,7 +226,8 @@ async fn handle_client_message(
             client_message_id,
             body,
         } => {
-            handle_send_message(socket, state, actor, client_message_id, body, last_send_at).await;
+            return handle_send_message(socket, state, actor, client_ip, client_message_id, body)
+                .await;
         }
         LiveChatClientEvent::Typing { is_typing } => {
             handle_typing(state, actor, is_typing).await;
@@ -233,20 +245,38 @@ async fn handle_send_message(
     socket: &mut WebSocket,
     state: Arc<ServerState>,
     actor: ChatActor,
+    client_ip: std::net::IpAddr,
     client_message_id: String,
     body: String,
-    last_send_at: &mut Option<Instant>,
-) {
-    let now = Instant::now();
-    if let Some(previous) = *last_send_at
-        && now.duration_since(previous) < Duration::from_millis(LIVE_CHAT_MIN_SEND_INTERVAL_MS)
+) -> bool {
+    let now = Utc::now();
+    if state
+        .live_chat_cache
+        .is_banned(actor.user_id, client_ip)
+        .await
     {
         let event = LiveChatServerEvent::Error {
-            code: "rate_limited".to_string(),
-            message: "Please slow down before sending another message.".to_string(),
+            code: "banned".to_string(),
+            message: "Live chat access denied.".to_string(),
         };
         let _ = send_event(socket, &event).await;
-        return;
+        return false;
+    }
+
+    if state
+        .live_chat_cache
+        .record_message_attempt(actor.user_id, client_ip, now)
+        .await
+    {
+        if let Some(ban) = persist_live_chat_ban(state.clone(), &actor, client_ip).await {
+            state.live_chat_cache.cache_ban(ban).await;
+        }
+        let event = LiveChatServerEvent::Error {
+            code: "banned".to_string(),
+            message: "Live chat access denied for abnormal messaging patterns.".to_string(),
+        };
+        let _ = send_event(socket, &event).await;
+        return false;
     }
 
     let body = body.trim().to_string();
@@ -256,16 +286,16 @@ async fn handle_send_message(
             message: "Message cannot be empty.".to_string(),
         };
         let _ = send_event(socket, &event).await;
-        return;
+        return true;
     }
 
-    if body.len() > LIVE_CHAT_MAX_MESSAGE_BYTES {
+    if body.chars().count() > LIVE_CHAT_MAX_MESSAGE_CHARS {
         let event = LiveChatServerEvent::Error {
             code: "message_too_large".to_string(),
-            message: "Message is too large.".to_string(),
+            message: format!("Message must be {LIVE_CHAT_MAX_MESSAGE_CHARS} characters or fewer."),
         };
         let _ = send_event(socket, &event).await;
-        return;
+        return true;
     }
 
     let persisted = match persist_message(state.clone(), &actor, body).await {
@@ -276,11 +306,10 @@ async fn handle_send_message(
                 message: "Message could not be saved.".to_string(),
             };
             let _ = send_event(socket, &event).await;
-            return;
+            return true;
         }
     };
 
-    *last_send_at = Some(now);
     state
         .live_chat_cache
         .append_persisted_chat_message(persisted.clone())
@@ -296,6 +325,8 @@ async fn handle_send_message(
     state
         .live_chat_cache
         .broadcast(LiveChatServerEvent::Message { message: persisted });
+
+    true
 }
 
 async fn persist_message(
@@ -334,7 +365,50 @@ async fn persist_message(
         .ok();
 
     drop(conn);
-    persisted.map(CachedChatMessage::from)
+    persisted.map(|message| {
+        let mut cached_message = CachedChatMessage::from(message);
+        cached_message.sender_country_flag = actor.country_flag.clone();
+        cached_message.user_profile_picture_url = actor.user_profile_picture_url.clone();
+        cached_message
+    })
+}
+
+async fn persist_live_chat_ban(
+    state: Arc<ServerState>,
+    actor: &ChatActor,
+    client_ip: std::net::IpAddr,
+) -> Option<CachedLiveChatBan> {
+    let mut conn = match state.get_conn().await {
+        Ok(conn) => conn,
+        Err(e) => {
+            error!(error = ?e, "Failed to get DB connection for live chat ban");
+            return None;
+        }
+    };
+
+    let new_ban = LiveChatBanInsertable {
+        live_chat_ban_id: Uuid::now_v7(),
+        user_id: actor.user_id,
+        banned_ip: Some(ipnet::IpNet::from(client_ip)),
+        reason: "More than 10 live chat message events in one second.".to_string(),
+        ban_source: LIVE_CHAT_BAN_SOURCE_ABNORMAL_MESSAGING.to_string(),
+        banned_at: Utc::now(),
+        expires_at: None,
+    };
+
+    let persisted = diesel::insert_into(live_chat_bans::table)
+        .values(new_ban)
+        .returning(live_chat_bans::all_columns)
+        .get_result::<LiveChatBan>(&mut conn)
+        .await
+        .map_err(|e| {
+            error!(error = ?e, user_id = ?actor.user_id, client_ip = %client_ip, "Failed to persist live chat ban");
+            e
+        })
+        .ok();
+
+    drop(conn);
+    persisted.map(CachedLiveChatBan::from)
 }
 
 async fn handle_typing(state: Arc<ServerState>, actor: ChatActor, is_typing: bool) {

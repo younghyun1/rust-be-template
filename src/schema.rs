@@ -111,6 +111,18 @@ diesel::table! {
 }
 
 diesel::table! {
+    live_chat_bans (live_chat_ban_id) {
+        live_chat_ban_id -> Uuid,
+        user_id -> Nullable<Uuid>,
+        banned_ip -> Nullable<Inet>,
+        reason -> Text,
+        ban_source -> Varchar,
+        banned_at -> Timestamptz,
+        expires_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
     live_chat_messages (live_chat_message_id) {
         live_chat_message_id -> Uuid,
         room_key -> Varchar,
@@ -303,6 +315,7 @@ diesel::joinable!(i18n_strings -> iso_language (i18n_string_language_code));
 diesel::joinable!(iso_country -> iso_currency (country_currency));
 diesel::joinable!(iso_country -> iso_language (country_primary_language));
 diesel::joinable!(iso_country_subdivision -> iso_country (country_code));
+diesel::joinable!(live_chat_bans -> users (user_id));
 diesel::joinable!(live_chat_messages -> users (user_id));
 diesel::joinable!(password_reset_tokens -> users (user_id));
 diesel::joinable!(photographs -> user_profile_picture_image_types (photograph_image_type));
@@ -332,6 +345,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     iso_country_subdivision,
     iso_currency,
     iso_language,
+    live_chat_bans,
     live_chat_messages,
     password_reset_tokens,
     permissions,

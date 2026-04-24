@@ -47,12 +47,16 @@ pub async fn get_live_chat_messages(
     let start = tokio_now();
     let limit = request.limit.clamp(1, MAX_LIVE_CHAT_PAGE_SIZE);
 
-    let messages = match request.before_message_id {
+    let mut messages = match request.before_message_id {
         Some(before_message_id) => {
             get_messages_before_from_db(state.clone(), before_message_id, limit).await?
         }
         None => state.live_chat_cache.get_recent_chat_messages(limit).await,
     };
+    state
+        .enrich_live_chat_message_flags(&mut messages)
+        .await
+        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
 
     let has_more = messages.len() == limit;
     let next_before_message_id = messages

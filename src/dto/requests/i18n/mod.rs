@@ -1,1 +1,2 @@
 pub mod get_country_language_bundle_request;
+pub mod get_ui_text_bundle_request;

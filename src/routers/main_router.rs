@@ -39,7 +39,10 @@ use crate::{
             get_subdivisions_for_country::get_subdivisions_for_country,
         },
         geo_ip::{lookup_ip::lookup_ip_info, lookup_my_ip::lookup_my_ip_info},
-        i18n::get_country_language_bundle::get_country_language_bundle,
+        i18n::{
+            get_country_language_bundle::get_country_language_bundle,
+            get_ui_text_bundle::get_ui_text_bundle,
+        },
         live_chat::{get_live_chat_cache_stats, get_live_chat_messages, live_chat_ws_handler},
         photography::{
             delete_photographs::delete_photographs, get_photographs::get_photographs,
@@ -50,7 +53,7 @@ use crate::{
             lookup_ip_loc::lookup_ip_location, root::root_handler,
             visitor_board::get_visitor_board_entries,
         },
-        user::upload_profile_picture::upload_profile_picture,
+        user::{get_user_info::get_user_info, upload_profile_picture::upload_profile_picture},
         wasm_module::{
             delete_wasm_module, get_wasm_modules, serve_wasm, update_wasm_module,
             update_wasm_module_assets, upload_wasm_module,
@@ -324,6 +327,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         )
         .route("/api/auth/reset-password", post(reset_password))
         .route("/api/auth/verify-user-email", get(verify_user_email))
+        .route("/api/users/{user_name}", get(get_user_info))
         .route("/api/blog/posts", get(get_posts))
         .route("/api/blog/posts/{post_id}", get(read_post))
         .route("/api/blog/posts", post(submit_post))
@@ -334,6 +338,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
             "/api/i18n/country-language-bundle",
             get(get_country_language_bundle),
         )
+        .route("/api/i18n/ui-text", get(get_ui_text_bundle))
         .route(
             "/api/admin/sync-country-language-bundle",
             get(sync_i18n_cache),

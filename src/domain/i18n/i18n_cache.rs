@@ -214,4 +214,42 @@ impl I18nCache {
 
         (encode(&to_encode), Some(max_updated_at))
     }
+
+    pub fn ui_text_bundle(
+        &self,
+        country_code: i32,
+        language_code: i32,
+        fallback_country_code: i32,
+        fallback_language_code: i32,
+        required_keys: &[&str],
+    ) -> HashMap<String, String> {
+        let mut texts = HashMap::with_capacity(required_keys.len());
+
+        for key in required_keys {
+            let text = match self.find_ui_text(key, country_code, language_code) {
+                Some(text) => Some(text),
+                None => self.find_ui_text(key, fallback_country_code, fallback_language_code),
+            };
+
+            if let Some(text) = text {
+                texts.insert((*key).to_string(), text);
+            }
+        }
+
+        texts
+    }
+
+    fn find_ui_text(&self, key: &str, country_code: i32, language_code: i32) -> Option<String> {
+        let indices = self.reference_idx.get(key)?;
+        for &idx in indices {
+            let row = self.rows.get(idx)?;
+            if row.i18n_string_country_code == country_code
+                && row.i18n_string_language_code == language_code
+            {
+                return Some(row.i18n_string_content.clone());
+            }
+        }
+
+        None
+    }
 }
