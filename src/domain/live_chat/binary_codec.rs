@@ -377,6 +377,7 @@ mod tests {
     use super::*;
     use crate::domain::live_chat::{
         cache::{CachedChatMessage, ChatActor},
+        guest_nickname::guest_nickname_for_ip,
         message::LIVE_CHAT_SENDER_KIND_GUEST,
     };
 
@@ -520,7 +521,7 @@ mod tests {
             user_id: None,
             guest_ip: Some(guest_ip),
             sender_kind: LIVE_CHAT_SENDER_KIND_GUEST,
-            sender_display_name: format!("guest@{guest_ip}"),
+            sender_display_name: guest_nickname_for_ip(guest_ip),
             sender_country_flag: Some("🇺🇸".to_string()),
             user_profile_picture_url: None,
             message_body: "hello".to_string(),

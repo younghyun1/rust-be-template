@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 use super::{
     ban::LiveChatBan,
+    guest_nickname::{guest_nickname_for_ip, normalize_guest_display_name},
     message::{LIVE_CHAT_SENDER_KIND_GUEST, LiveChatMessage},
 };
 
@@ -113,7 +114,7 @@ pub struct ChatActor {
 
 impl ChatActor {
     pub fn guest(ip: IpAddr, country_flag: Option<String>) -> Self {
-        let display_name = format!("guest@{ip}");
+        let display_name = guest_nickname_for_ip(ip);
         Self {
             actor_key: ChatActorKey::Guest(ip.to_string()),
             sender_kind: LIVE_CHAT_SENDER_KIND_GUEST,
@@ -178,13 +179,20 @@ impl CachedChatMessage {
 
 impl From<LiveChatMessage> for CachedChatMessage {
     fn from(message: LiveChatMessage) -> Self {
+        let guest_ip = message.guest_ip.map(|ip| ip.addr());
+        let sender_display_name = normalize_guest_display_name(
+            message.sender_display_name,
+            message.sender_kind,
+            guest_ip,
+        );
+
         Self {
             live_chat_message_id: message.live_chat_message_id,
             room_key: message.room_key,
             user_id: message.user_id,
-            guest_ip: message.guest_ip.map(|ip| ip.addr()),
+            guest_ip,
             sender_kind: message.sender_kind,
-            sender_display_name: message.sender_display_name,
+            sender_display_name,
             sender_country_flag: None,
             user_profile_picture_url: None,
             message_body: message.message_body,
