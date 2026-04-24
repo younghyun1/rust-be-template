@@ -43,7 +43,7 @@ utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
 # rayon = "1.10.0"
 
 # ORM
-diesel = { version = "2.3.7", features = [
+diesel = { version = "2.3.8", features = [
     "postgres",
     "chrono",
     "serde_json",
