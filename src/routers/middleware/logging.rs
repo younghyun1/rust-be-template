@@ -6,32 +6,36 @@ use std::{
 use axum::{
     body::Body,
     extract::{ConnectInfo, State},
-    http::{HeaderValue, Request, Response, StatusCode},
+    http::{HeaderMap, HeaderValue, Request, Response, StatusCode},
     middleware::Next,
 };
 use chrono::Utc;
-use scc::hash_map::Entry;
 use tokio::time::Instant;
-use tracing::{Level, error, info};
+use tracing::Level;
+use uuid::Uuid;
 
 use crate::{
     build_info::{BUILD_TIME_UTC, LIB_VERSION_MAP, RUSTC_VERSION},
+    errors::code_error::CodeErrorLogContext,
     init::state::{DeploymentEnvironment, ServerState},
-    util::{
-        extract::client_ip::extract_client_ip, geographic::ip_info_lookup::IpInfo,
-        time::now::tokio_now,
-    },
+    util::extract::client_ip::extract_client_ip,
 };
 
-// by default, debug and below not logged at all; hence why
-macro_rules! log_codeerror {
-    ($level:expr_2021, $kind:expr_2021, response.method = $method:expr_2021, response.path = $path:expr_2021, response.client_ip = $client_ip:expr_2021, response.status = $status:expr_2021, response.status_code = $status_code:expr_2021, response.duration = $duration:expr_2021, response.error_code = $error_code:expr_2021, response.message = $message:expr_2021, response.detail = $detail:expr_2021) => {
+#[derive(Debug, Clone)]
+pub struct RequestLogContext {
+    pub request_id: String,
+    pub received_at: chrono::DateTime<chrono::Utc>,
+    pub client_ip: Option<IpAddr>,
+}
+
+macro_rules! log_request_completion {
+    ($level:expr_2021, request_id = $request_id:expr_2021, method = $method:expr_2021, path = $path:expr_2021, client_ip = $client_ip:expr_2021, status_code = $status_code:expr_2021, duration = $duration:expr_2021, error_code = $error_code:expr_2021, message = $message:expr_2021, detail = $detail:expr_2021) => {
         match $level {
-            Level::ERROR => tracing::error!(kind = %$kind, method = %$method, path = %$path, client_ip = ?$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
-            Level::WARN => tracing::warn!(kind = %$kind, method = %$method, path = %$path, client_ip = ?$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
-            Level::INFO => tracing::info!(kind = %$kind, method = %$method, path = %$path, client_ip = ?$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
-            Level::DEBUG => tracing::debug!(kind = %$kind, method = %$method, path = %$path, client_ip = ?$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
-            Level::TRACE => tracing::trace!(kind = %$kind, method = %$method, path = %$path, client_ip = ?$client_ip, status = %$status, status_code = %$status_code, duration = %$duration, error_code = %$error_code, message = %$message, detail = %$detail),
+            Level::ERROR => tracing::error!(event = "request_completed", request_id = %$request_id, method = %$method, path = %$path, client_ip = ?$client_ip, status_code = %$status_code, duration = %$duration, error_code = ?$error_code, message = ?$message, detail = ?$detail),
+            Level::WARN => tracing::warn!(event = "request_completed", request_id = %$request_id, method = %$method, path = %$path, client_ip = ?$client_ip, status_code = %$status_code, duration = %$duration, error_code = ?$error_code, message = ?$message, detail = ?$detail),
+            Level::INFO => tracing::info!(event = "request_completed", request_id = %$request_id, method = %$method, path = %$path, client_ip = ?$client_ip, status_code = %$status_code, duration = %$duration, error_code = ?$error_code, message = ?$message, detail = ?$detail),
+            Level::DEBUG => tracing::debug!(event = "request_completed", request_id = %$request_id, method = %$method, path = %$path, client_ip = ?$client_ip, status_code = %$status_code, duration = %$duration, error_code = ?$error_code, message = ?$message, detail = ?$detail),
+            Level::TRACE => tracing::trace!(event = "request_completed", request_id = %$request_id, method = %$method, path = %$path, client_ip = ?$client_ip, status_code = %$status_code, duration = %$duration, error_code = ?$error_code, message = ?$message, detail = ?$detail),
         }
     };
 }
@@ -51,184 +55,142 @@ pub async fn log_middleware(
     let path = request.uri().path().to_owned();
 
     let client_ip = extract_client_ip(request.headers(), info);
+    let request_id = request_id_from_headers(request.headers());
 
     match state.get_deployment_environment() {
         DeploymentEnvironment::Local
         | DeploymentEnvironment::Staging
         | DeploymentEnvironment::Dev => (),
         DeploymentEnvironment::Prod => {
-            tokio::spawn(log_visitors(state.clone(), client_ip));
+            state.enqueue_visitor_log(client_ip).await;
         }
     }
 
-    tracing::info!(kind = %"RECV", method = %method, path = %path, client_ip = ?client_ip);
     request.extensions_mut().insert(now);
+    request.extensions_mut().insert(RequestLogContext {
+        request_id: request_id.clone(),
+        received_at: now,
+        client_ip,
+    });
 
     let mut response = next.run(request).await;
+    add_server_headers(&mut response, &request_id);
 
-    if response.status() == StatusCode::OK {
-        let duration = start.elapsed();
-        let headers = response.headers_mut();
-
-        headers.insert(
-            "x-server-built-time",
-            HeaderValue::from_static(BUILD_TIME_UTC),
-        );
-        headers.insert(
-            "x-server-name",
-            match LIB_VERSION_MAP.get("axum") {
-                Some(libversion) => HeaderValue::from_str(&format!(
-                    "{}{}",
-                    libversion.get_name(),
-                    libversion.get_version()
-                ))
-                .unwrap_or_else(|_| HeaderValue::from_static("unknown")),
-                None => HeaderValue::from_static("unknown"),
-            },
-        );
-        headers.insert(
-            "x-server-rust-version",
-            HeaderValue::from_static(RUSTC_VERSION),
-        );
-
-        tracing::info!(kind = %"RESP", method = %method, path = %path, client_ip = ?client_ip, duration = ?duration);
-    } else {
-        // Use lowercase header keys for consistency and use empty strings if headers are not present
-        let headers = response.headers_mut();
-
-        let log_level = header_value_to_str(headers.get("x-error-log-level")).unwrap_or("INFO");
-        let status_code = header_value_to_str(headers.get("x-error-status-code")).unwrap_or("");
-        let error_code = header_value_to_str(headers.get("x-error-code")).unwrap_or("");
-        let message = header_value_to_str(headers.get("x-error-message")).unwrap_or("");
-        let detail = header_value_to_str(headers.get("x-error-detail")).unwrap_or("");
-
-        let duration = start.elapsed();
-
-        log_codeerror!(
-            log_level.parse::<Level>().unwrap_or(Level::ERROR),
-            "ERSP",
-            response.method = method,
-            response.path = path,
-            response.client_ip = client_ip,
-            response.status = "ERROR",
-            response.status_code = status_code,
-            response.duration = format!("{:?}", duration),
-            response.error_code = error_code,
-            response.message = message,
-            response.detail = detail
-        );
-
-        headers.remove("x-error-log-level");
-        headers.remove("x-error-status-code");
-        headers.remove("x-error-code");
-        headers.remove("x-error-message");
-        headers.remove("x-error-detail");
-
-        headers.insert(
-            "x-server-built-time",
-            HeaderValue::from_static(BUILD_TIME_UTC),
-        );
-        headers.insert(
-            "x-server-name",
-            match LIB_VERSION_MAP.get("axum") {
-                Some(libversion) => HeaderValue::from_str(&format!(
-                    "{} {}",
-                    libversion.get_name(),
-                    libversion.get_version()
-                ))
-                .unwrap_or_else(|_| HeaderValue::from_static("unknown")),
-                None => HeaderValue::from_static("unknown"),
-            },
-        );
-        headers.insert(
-            "x-server-rust-version",
-            HeaderValue::from_static(RUSTC_VERSION),
-        );
-    }
+    let duration = start.elapsed();
+    let status = response.status();
+    let error_context = response.extensions().get::<CodeErrorLogContext>().cloned();
+    log_completed_request(
+        &request_id,
+        &method,
+        &path,
+        client_ip,
+        status,
+        duration,
+        error_context,
+    );
 
     response
 }
 
-fn header_value_to_str(value: Option<&HeaderValue>) -> Option<&str> {
-    value.and_then(|v| v.to_str().ok())
+fn request_id_from_headers(headers: &HeaderMap) -> String {
+    match headers.get("x-request-id") {
+        Some(value) => match value.to_str() {
+            Ok(parsed) => {
+                let trimmed = parsed.trim();
+                if trimmed.is_empty() {
+                    Uuid::new_v4().to_string()
+                } else {
+                    trimmed.to_owned()
+                }
+            }
+            Err(_) => Uuid::new_v4().to_string(),
+        },
+        None => Uuid::new_v4().to_string(),
+    }
 }
 
-async fn log_visitors(state: Arc<ServerState>, inp_ip: Option<IpAddr>) {
-    let start = tokio_now();
-    use diesel_async::RunQueryDsl;
+fn add_server_headers(response: &mut Response<Body>, request_id: &str) {
+    let headers = response.headers_mut();
 
-    let ip = match inp_ip {
-        Some(inp_ip) => inp_ip,
-        None => {
-            return;
-        }
-    };
-    let ip_info: IpInfo = match state.lookup_ip_location(ip) {
-        Some(info) => info,
-        None => {
-            tracing::error!(kind = "ip_lookup_fail", ip = %ip, "Failed to look up IP location");
-            return;
-        }
-    };
-
-    // Use the already available data from IpInfo directly.
-    let city = ip_info.city.clone();
-    let country = ip_info.country_name.clone();
-    let city_lat = ip_info.latitude;
-    let city_lon = ip_info.longitude;
-
-    // now toss that into the state scc cache
-    // Use only the lower 8 bytes of the big-endian representation of each f64 as key
-    let lat_bytes = city_lat.to_be_bytes();
-    let lon_bytes = city_lon.to_be_bytes();
-
-    let key = (lat_bytes, lon_bytes);
-
-    match state.visitor_board_map.entry_async(key).await {
-        Entry::Occupied(mut occ) => {
-            *occ.get_mut() += 1;
-        }
-        Entry::Vacant(vac) => {
-            vac.insert_entry(1);
-        }
-    }
-
-    if city_lat == 0.0 && city_lon == 0.0 {
-        return;
-    }
-
-    // now persist to DB
-    let mut conn = match state.get_conn().await {
-        Ok(conn) => conn,
-        Err(e) => {
-            error!(kind = "db_conn_error", error = %e, "Failed to get database connection");
-            return;
-        }
-    };
-
-    use crate::schema::visitation_data;
-    use chrono::Utc;
-    use diesel::prelude::*;
-
-    let visited_at = Utc::now();
-
-    let new_row = (
-        visitation_data::latitude.eq(city_lat),
-        visitation_data::longitude.eq(city_lon),
-        visitation_data::ip_address.eq(ipnet::IpNet::from(ip)),
-        visitation_data::city.eq(city.clone()),
-        visitation_data::country.eq(country.clone()),
-        visitation_data::visited_at.eq(visited_at),
+    headers.insert(
+        "x-server-built-time",
+        HeaderValue::from_static(BUILD_TIME_UTC),
     );
-
-    if let Err(e) = diesel::insert_into(visitation_data::table)
-        .values(new_row)
-        .execute(&mut conn)
-        .await
-    {
-        error!(kind = "db_insert_error", error = %e, city = %city, country = %country, ip = %ip, "Failed to insert visitor row");
+    headers.insert(
+        "x-server-name",
+        match LIB_VERSION_MAP.get("axum") {
+            Some(libversion) => {
+                let value = format!("{} {}", libversion.get_name(), libversion.get_version());
+                match HeaderValue::from_str(&value) {
+                    Ok(header_value) => header_value,
+                    Err(e) => {
+                        tracing::warn!(error = %e, value = %value, "Failed to build x-server-name header");
+                        HeaderValue::from_static("unknown")
+                    }
+                }
+            }
+            None => HeaderValue::from_static("unknown"),
+        },
+    );
+    headers.insert(
+        "x-server-rust-version",
+        HeaderValue::from_static(RUSTC_VERSION),
+    );
+    match HeaderValue::from_str(request_id) {
+        Ok(header_value) => {
+            headers.insert("x-request-id", header_value);
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, request_id = %request_id, "Failed to build x-request-id header");
+        }
     }
+}
 
-    drop(conn);
-    info!(duration = ?start.elapsed(), "Visitor logged successfully");
+fn log_completed_request(
+    request_id: &str,
+    method: &axum::http::Method,
+    path: &str,
+    client_ip: Option<IpAddr>,
+    status: StatusCode,
+    duration: std::time::Duration,
+    error_context: Option<CodeErrorLogContext>,
+) {
+    let duration = format!("{duration:?}");
+    match error_context {
+        Some(context) => {
+            log_request_completion!(
+                context.log_level,
+                request_id = request_id,
+                method = method,
+                path = path,
+                client_ip = client_ip,
+                status_code = context.status_code.as_u16(),
+                duration = duration,
+                error_code = Some(context.error_code),
+                message = Some(context.message.as_str()),
+                detail = Some(context.detail.as_str())
+            );
+        }
+        None => {
+            let level = if status.is_server_error() {
+                Level::ERROR
+            } else if status.is_client_error() {
+                Level::WARN
+            } else {
+                Level::INFO
+            };
+            log_request_completion!(
+                level,
+                request_id = request_id,
+                method = method,
+                path = path,
+                client_ip = client_ip,
+                status_code = status.as_u16(),
+                duration = duration,
+                error_code = Option::<u8>::None,
+                message = Option::<&str>::None,
+                detail = Option::<&str>::None
+            );
+        }
+    }
 }

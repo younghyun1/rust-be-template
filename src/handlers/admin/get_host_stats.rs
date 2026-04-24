@@ -9,7 +9,7 @@ use axum::{
     response::Response,
 };
 use tokio::time::{self, Duration};
-use tracing::info;
+use tracing::debug;
 
 use crate::init::state::ServerState;
 
@@ -61,7 +61,7 @@ async fn handle_host_stats_socket(mut socket: WebSocket, state: Arc<ServerState>
             .send(Message::Binary(Bytes::from(host_stats.to_bytes())))
             .await
         {
-            info!(error = ?e, "WebSocket disconnected");
+            debug!(error = ?e, "Host stats WebSocket disconnected");
             return;
         }
     }

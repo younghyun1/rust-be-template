@@ -18,29 +18,27 @@ pub fn next_scheduled_day_mark(
     second_offset: u32,
 ) -> Result<chrono::DateTime<chrono::Utc>> {
     // 1) Truncate to the current day boundary.
-    let truncated_to_day = now
+    let truncated_to_day = match now
         .with_hour(0)
         .and_then(|dt| dt.with_minute(0))
         .and_then(|dt| dt.with_second(0))
-        .and_then(|dt| dt.with_nanosecond(0));
-    if truncated_to_day.is_none() {
-        tracing::error!(%now, "Failed to truncate to start-of-day for scheduling.");
-        panic!("Failed to truncate to start-of-day for scheduling. Input: {now}");
-    }
-    let truncated_to_day = truncated_to_day.unwrap();
+        .and_then(|dt| dt.with_nanosecond(0))
+    {
+        Some(truncated_to_day) => truncated_to_day,
+        None => {
+            error!(now = %now, "Failed to truncate to start-of-day for scheduling");
+            return Err(anyhow!("Failed to truncate to start-of-day for scheduling"));
+        }
+    };
 
     // 2) Add the desired hour + minute + second offset to get the target time within this day.
     // Sanity check offsets
     if hour_offset > 23 || minute_offset > 59 || second_offset > 59 {
-        tracing::error!(
+        error!(
             hour_offset,
-            minute_offset,
-            second_offset,
-            "Bad schedule time: hour/minute/second out of range"
+            minute_offset, second_offset, "Bad schedule time: hour/minute/second out of range"
         );
-        panic!(
-            "Invalid offset for daily schedule: hour_offset={hour_offset}, minute_offset={minute_offset}, second_offset={second_offset}",
-        );
+        return Err(anyhow!("Invalid offset for daily schedule"));
     }
     let mut target_time = truncated_to_day
         + chrono::Duration::hours(hour_offset as i64)
@@ -104,8 +102,9 @@ where
             Ok((d, nm)) => (d, nm),
             Err(e) => {
                 error!(
-                    "Could not calculate next scheduled time for {}: {:?}",
-                    task_descriptor, e
+                    task_name = %task_descriptor,
+                    error = ?e,
+                    "Could not calculate next scheduled time"
                 );
                 tokio::time::sleep(std::time::Duration::from_secs(10)).await;
                 continue;
@@ -117,13 +116,16 @@ where
                 task_name = %task_descriptor,
                 initial_run_time = %next_mark.to_rfc3339_opts(SecondsFormat::AutoSi, true),
                 ?delay,
-                "Scheduled task initialized. First run upcoming in {}",
-                format_duration(delay)
+                delay_human = %format_duration(delay),
+                "Scheduled task initialized"
             );
             initialized = true;
         }
 
-        let this_run_time = scheduled_run_time.unwrap_or(next_mark);
+        let this_run_time = match scheduled_run_time {
+            Some(scheduled_run_time) => scheduled_run_time,
+            None => next_mark,
+        };
 
         tokio::time::sleep(delay).await;
 
@@ -133,13 +135,20 @@ where
 
         // Efficient: just add one day to the already-calculated scheduled time.
         let next_run_time = this_run_time + Duration::days(1);
+        let next_delay = match (next_run_time - Utc::now()).to_std() {
+            Ok(next_delay) => next_delay,
+            Err(e) => {
+                error!(task_name = %task_descriptor, error = ?e, "Scheduled task next delay was negative");
+                std::time::Duration::from_secs(86400)
+            }
+        };
 
         info!(
             task_name = %task_descriptor,
             next_run_time = %next_run_time.to_rfc3339_opts(SecondsFormat::AutoSi, true),
             duration=?elapsed,
-            "Scheduled task ran! Next one running in {}",
-            format_duration((next_run_time - Utc::now()).to_std().unwrap_or(std::time::Duration::from_secs(86400)))
+            next_delay_human = %format_duration(next_delay),
+            "Scheduled task ran"
         );
 
         scheduled_run_time = Some(next_run_time);

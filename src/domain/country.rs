@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use diesel::{Queryable, QueryableByName};
 use diesel_async::{AsyncPgConnection, RunQueryDsl, pooled_connection::bb8::PooledConnection};
 use serde_derive::{Deserialize, Serialize};
+use tracing::error;
 use utoipa::ToSchema;
 
 use crate::schema::iso_country;
@@ -268,7 +269,13 @@ impl From<Vec<IsoLanguage>> for IsoLanguageTable {
             );
         });
 
-        let serialized_map: serde_json::Value = serde_json::to_value(&languages).unwrap();
+        let serialized_map: serde_json::Value = match serde_json::to_value(&languages) {
+            Ok(serialized_map) => serialized_map,
+            Err(e) => {
+                error!(error = ?e, "Failed to serialize language table cache");
+                serde_json::Value::Null
+            }
+        };
 
         IsoLanguageTable {
             rows,

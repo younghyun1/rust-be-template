@@ -280,16 +280,21 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let compression_middleware = CompressionLayer::new().zstd(true).gzip(true);
     let cors_layer = CorsLayer::very_permissive();
 
-    let governor_conf = Arc::new(
-        match GovernorConfigBuilder::default()
-            .per_millisecond(REPLENISHED_EVERY_MILLISECONDS)
-            .burst_size(RATE_LIMIT_BURST_SIZE)
-            .finish()
-        {
-            Some(conf) => conf,
-            None => panic!("Failed to build governor config"),
-        },
-    );
+    let governor_conf = match GovernorConfigBuilder::default()
+        .per_millisecond(REPLENISHED_EVERY_MILLISECONDS)
+        .burst_size(RATE_LIMIT_BURST_SIZE)
+        .finish()
+    {
+        Some(conf) => Some(Arc::new(conf)),
+        None => {
+            tracing::error!(
+                replenished_every_milliseconds = REPLENISHED_EVERY_MILLISECONDS,
+                burst_size = RATE_LIMIT_BURST_SIZE,
+                "Failed to build governor config; rate limiting disabled"
+            );
+            None
+        }
+    };
 
     // Publicly accessible API routes
     let public_router = Router::new()
@@ -380,16 +385,19 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .layer(auth_middleware.clone());
 
     // Combine all API routes and apply shared middleware
-    let api_router = public_router
+    let mut api_router = public_router
         .merge(protected_router)
         .merge(superuser_router)
         .layer(is_logged_in_middleware)
         // .layer(api_key_check_middleware)
         .layer(log_middleware)
-        .layer(DefaultBodyLimit::max(MAX_REQUEST_SIZE))
-        .layer(GovernorLayer::new(governor_conf))
-        .layer(cors_layer)
-        .with_state(state.clone());
+        .layer(DefaultBodyLimit::max(MAX_REQUEST_SIZE));
+
+    if let Some(governor_conf) = governor_conf {
+        api_router = api_router.layer(GovernorLayer::new(governor_conf));
+    }
+
+    let api_router = api_router.layer(cors_layer).with_state(state.clone());
 
     // Final router: merge API routes and set the static asset handler as the fallback
     let mut router = Router::new().merge(api_router);

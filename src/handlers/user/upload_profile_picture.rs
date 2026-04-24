@@ -6,7 +6,7 @@ use axum::{
     response::IntoResponse,
 };
 use diesel_async::RunQueryDsl;
-use tracing::error;
+use tracing::{error, warn};
 use uuid::Uuid;
 
 use crate::{
@@ -83,7 +83,7 @@ pub async fn upload_profile_picture(
                 .file_name()
                 .and_then(|name| name.rsplit('.').next().map(|ext| ext.to_string()))
                 .ok_or_else(|| {
-                    error!(user_id = %user_id, "Missing file extension in uploaded filename");
+                    warn!(user_id = %user_id, "Missing file extension in uploaded filename");
                     code_err(
                         CodeError::FILE_UPLOAD_ERROR,
                         "No extensions, that's illegal!",
@@ -94,7 +94,7 @@ pub async fn upload_profile_picture(
                     .content_type()
                     .map(|mime| mime.to_string())
                     .ok_or_else(|| {
-                        error!(user_id = %user_id, "No MIME content type on uploaded file");
+                        warn!(user_id = %user_id, "No MIME content type on uploaded file");
                         code_err(
                             CodeError::FILE_UPLOAD_ERROR,
                             "No MIME extensions, that's illegal!",
@@ -106,7 +106,7 @@ pub async fn upload_profile_picture(
                 .map(|m| ALLOWED_MIME_TYPES.contains(&m.as_str()))
                 .unwrap_or(false)
             {
-                error!(
+                warn!(
                     user_id = %user_id,
                     mime = ?mime,
                     "Unsupported image type; rejecting upload"
@@ -126,7 +126,7 @@ pub async fn upload_profile_picture(
     }
 
     if uploaded_file.is_empty() {
-        error!(user_id = %user_id, "Uploaded file is empty");
+        warn!(user_id = %user_id, "Uploaded file is empty");
         return Err(code_err(CodeError::FILE_UPLOAD_ERROR, "File is empty!"));
     }
 

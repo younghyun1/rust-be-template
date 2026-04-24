@@ -27,7 +27,7 @@ pub async fn compress_old_logs(_state: Arc<ServerState>) {
         let entry = match entry {
             Ok(entry) => entry,
             Err(err) => {
-                error!("Error walking logs directory {}: {}", LOGS_DIR, err);
+                error!(logs_dir = LOGS_DIR, error = %err, "Error walking logs directory");
                 continue;
             }
         };
@@ -71,7 +71,7 @@ pub async fn compress_old_logs(_state: Arc<ServerState>) {
 
                 Ok(())
             })() {
-                error!("Failed to compress log file {:?}: {}", path, err);
+                error!(log_file_path = %path.display(), error = %err, "Failed to compress log file");
             } else {
                 let duration = entry_start.elapsed();
                 info!(

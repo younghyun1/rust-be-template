@@ -56,7 +56,7 @@ pub async fn lookup_ip_info(
     let ip_info: IpInfo = match state.lookup_ip_location(ip) {
         Some(info) => info,
         None => {
-            tracing::error!(kind = "ip_lookup_fail", ip = %ip, "Failed to look up IP location");
+            error!(kind = "ip_lookup_fail", ip = %ip, "Failed to look up IP location");
             return Err(code_err(
                 CodeError::INVALID_IP_ADDRESS,
                 "Invalid IP address string! Input IPv4 or IPv6 string, please.",

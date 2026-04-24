@@ -50,7 +50,7 @@ impl<D: serde::Serialize, M: serde::Serialize> IntoResponse for ResponseWithCook
                         headers.append(SET_COOKIE, header_value);
                     }
                     Err(e) => {
-                        error!(cookie_val = %cookie.to_string(), error = %e, "Failed to set cookie");
+                        error!(cookie_name = %cookie.name(), error = %e, "Failed to set cookie header");
                     }
                 }
             }
@@ -64,7 +64,7 @@ impl<D: serde::Serialize, M: serde::Serialize> IntoResponse for ResponseWithCook
                         headers.append(SET_COOKIE, header_value);
                     }
                     Err(e) => {
-                        error!(cookie_val = %cookie.to_string(), error = %e, "Failed to unset cookie");
+                        error!(cookie_name = %cookie.name(), error = %e, "Failed to unset cookie header");
                     }
                 }
             }

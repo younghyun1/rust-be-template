@@ -1,6 +1,6 @@
 use init::server_init::server_init_proc;
 use mimalloc::MiMalloc;
-use tracing::{info, level_filters};
+use tracing::{error, info, level_filters};
 use tracing_subscriber::Layer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -27,10 +27,6 @@ pub const LOGS_DIR: &str = "./logs/";
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> anyhow::Result<()> {
     let start = tokio::time::Instant::now();
-    rustls::crypto::aws_lc_rs::default_provider()
-        .install_default()
-        .expect("Failed to install rustls crypto provider");
-
     if std::env::var("IS_AWS_ECS").is_err() {
         dotenvy::dotenv().map_err(|e| anyhow::anyhow!("Failed to load .env: {}", e))?;
     }
@@ -64,7 +60,15 @@ async fn main() -> anyhow::Result<()> {
         .with(file_layer)
         .init();
 
-    info!("Initializing server...");
+    match rustls::crypto::aws_lc_rs::default_provider().install_default() {
+        Ok(()) => {}
+        Err(e) => {
+            error!(error = ?e, "Failed to install rustls crypto provider");
+            return Err(anyhow::anyhow!("Failed to install rustls crypto provider"));
+        }
+    }
+
+    info!(event = "server_init_start", "Initializing server");
 
     // Apparently, when you listen in from Tokio's main thread, that slows down performance due to delegation overhead as the main thread is reserved...
     let server_handle = tokio::spawn(async move { server_init_proc(start).await });
@@ -72,11 +76,11 @@ async fn main() -> anyhow::Result<()> {
     match server_handle.await {
         Ok(Ok(_)) => {}
         Ok(Err(e)) => {
-            tracing::error!(error = ?e, "Server initialization failed (inner error)");
+            error!(error = ?e, "Server initialization failed");
             return Err(e);
         }
         Err(e) => {
-            tracing::error!(error = ?e, "Server task join failed");
+            error!(error = ?e, "Server task join failed");
             return Err(anyhow::anyhow!("Server task join error: {e}"));
         }
     }

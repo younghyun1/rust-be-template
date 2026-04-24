@@ -1,34 +1,44 @@
+use tracing::error;
+
 pub fn get_memory_size() -> u64 {
-    #[cfg(target_os = "windows")]
-    {
-        use windows::Win32::System::SystemInformation::GetPhysicallyInstalledSystemMemory;
-        let mut kilobytes: u64 = 0;
-        unsafe {
-            GetPhysicallyInstalledSystemMemory(&mut kilobytes).unwrap();
-        }
+    platform_memory_size()
+}
 
-        kilobytes * 1024 // bytes
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+fn platform_memory_size() -> u64 {
+    let page_count = unsafe { libc::sysconf(libc::_SC_PHYS_PAGES) };
+    let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
+
+    if page_count <= 0 || page_size <= 0 {
+        error!(
+            page_count,
+            page_size, "Failed to query physical memory size with sysconf"
+        );
+        return 0;
     }
 
-    #[cfg(target_os = "linux")]
-    {
-        use std::fs::File;
-        use std::io::{BufRead, BufReader};
-
-        let meminfo = File::open("/proc/meminfo").unwrap();
-        let reader = BufReader::new(meminfo);
-
-        for line in reader.lines() {
-            let line = line.unwrap();
-            if line.starts_with("MemTotal:") {
-                let parts: Vec<&str> = line.split_whitespace().collect();
-                let kb: u64 = parts[1].parse().unwrap();
-                return kb * 1024; // bytes
-            }
+    let page_count = match u64::try_from(page_count) {
+        Ok(page_count) => page_count,
+        Err(e) => {
+            error!(page_count, error = ?e, "Failed to convert physical page count");
+            return 0;
         }
+    };
+    let page_size = match u64::try_from(page_size) {
+        Ok(page_size) => page_size,
+        Err(e) => {
+            error!(page_size, error = ?e, "Failed to convert physical page size");
+            return 0;
+        }
+    };
 
-        0
-    }
+    page_count.saturating_mul(page_size)
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+fn platform_memory_size() -> u64 {
+    error!("Physical memory size lookup is unsupported on this target");
+    0
 }
 
 #[cfg(test)]
@@ -42,7 +52,6 @@ mod tests {
         let mem = get_memory_size();
         let duration = start.elapsed();
         println!("get_memory_size() took {:?}", duration);
-        // Should be at least 128 MB on modern systems
         assert!(
             mem > 128 * 1024 * 1024,
             "Memory size too small: {} bytes",

@@ -94,11 +94,18 @@ pub async fn reset_password_request_process(
 
     tokio::spawn(async move {
         let email_client = state.get_email_client();
-        let password_reset_email = PasswordResetEmail::new()
+        let password_reset_email = match PasswordResetEmail::new()
             .set_link(&format!(
                 "https://{DOMAIN_NAME}/reset-password?token={password_reset_token}"
             ))
-            .to_message(&user_email);
+            .to_message(&user_email)
+        {
+            Ok(password_reset_email) => password_reset_email,
+            Err(e) => {
+                error!(error = %e, "Could not build password reset email");
+                return;
+            }
+        };
 
         match email_client.send(password_reset_email).await {
             Ok(_) => (),

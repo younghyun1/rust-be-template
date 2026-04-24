@@ -53,17 +53,22 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
         .await
         .map_err(|e| anyhow::anyhow!("Failed to load TLS config: {}", e))?;
 
-    info!("Loaded keys.");
+    info!(event = "tls_config_loaded", "Loaded TLS configuration");
 
     let db_url = DbConfig::from_env()
         .map_err(|e| anyhow::anyhow!("Failed to get DB config from environment: {}", e))?
         .to_url()
         .map_err(|e| anyhow::anyhow!("Failed to convert DB config to URL: {}", e))?;
 
-    // Diagnostic Step 1: Log the exact connection URL to verify its format.
-    info!(url = %db_url, "Attempting to connect to database.");
+    info!(
+        event = "database_connect_start",
+        "Attempting to connect to database"
+    );
 
-    info!("Loaded DB configuration.");
+    info!(
+        event = "database_config_loaded",
+        "Loaded database configuration"
+    );
 
     let pool_config =
         AsyncDieselConnectionManager::<diesel_async::AsyncPgConnection>::new(db_url.clone());
@@ -74,19 +79,12 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
         .connection_timeout(Duration::from_secs(2))
         .build(pool_config)
         .await
-        .map_err(|e| {
-            // Diagnostic Step 2: Add crucial context to the error message.
-            anyhow::anyhow!(
-                "Failed to build connection pool. URL: '{}'. Error: {}",
-                db_url,
-                e
-            )
-        })?;
+        .map_err(|e| anyhow::anyhow!("Failed to build connection pool: {}", e))?;
 
     info!(
-        "Connection pool built with {} connections. Will scale to {} connections.",
-        num_cores,
-        num_cores * 10u32
+        min_idle_connections = num_cores,
+        max_connections = num_cores * 10u32,
+        "Connection pool built"
     );
 
     let app_name_version: String = std::env::var("APP_NAME_VERSION")
@@ -100,10 +98,7 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
             .credentials(email_creds)
             .build();
 
-    info!(
-        "Email client configured; relay at {}",
-        email_config.get_url()
-    );
+    info!(smtp_relay = %email_config.get_url(), "Email client configured");
 
     let state = Arc::new(
         ServerState::builder()
@@ -136,7 +131,10 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
 
     state.insert_api_key(api_key_uuid).await?;
 
-    info!("ServerState initialized.");
+    info!(
+        event = "server_state_initialized",
+        "ServerState initialized"
+    );
 
     // initialize scheduled jobs manager
     task_init(state.clone()).await?;
@@ -146,11 +144,11 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
         https: host_port,
     }));
 
-    info!("Listening to Port {}...", host_port);
+    info!(host_port = host_port, "Listening for HTTPS traffic");
 
     info!(
-        "Initialization complete in {:?}. Starting server now...",
-        start.elapsed()
+        elapsed = ?start.elapsed(),
+        "Initialization complete; starting server"
     );
 
     axum_server::bind_rustls(host_socket_addr, config)
@@ -211,7 +209,7 @@ async fn redirect_http_to_https(ports: Ports) -> anyhow::Result<()> {
         match make_https(&host, uri, ports.https) {
             Ok(uri) => Ok(Redirect::permanent(&uri.to_string())),
             Err(error) => {
-                tracing::warn!(%error, "failed to convert URI to HTTPS");
+                tracing::warn!(error = %error, "Failed to convert URI to HTTPS");
                 Err(StatusCode::BAD_REQUEST)
             }
         }
@@ -221,12 +219,10 @@ async fn redirect_http_to_https(ports: Ports) -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to bind TCP listener: {}", e))?;
-    tracing::debug!(
-        "listening on {}",
-        listener
-            .local_addr()
-            .map_err(|e| anyhow::anyhow!("Failed to get local address: {}", e))?
-    );
+    let local_addr = listener
+        .local_addr()
+        .map_err(|e| anyhow::anyhow!("Failed to get local address: {}", e))?;
+    tracing::debug!(local_addr = %local_addr, "Listening for HTTP redirect traffic");
     axum::serve(listener, redirect.into_make_service())
         .await
         .map_err(|e| anyhow::anyhow!("Failed to serve redirection: {}", e))

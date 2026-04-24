@@ -86,7 +86,11 @@ pub async fn login(
         Some(cookie) => match Uuid::from_str(cookie.value()) {
             Ok(id) => Some(id),
             Err(e) => {
-                error!(session_id=%cookie.value(), error=%e, "Invalid session_id in submitted cookies.");
+                error!(
+                    cookie_name = %cookie.name(),
+                    error = %e,
+                    "Invalid session_id in submitted cookies"
+                );
                 None
             }
         },
@@ -96,10 +100,18 @@ pub async fn login(
     if let Some(old_session_id) = old_session_id {
         match state.remove_session(old_session_id).await {
             Ok((removed_session_id, session_count)) => {
-                trace!(removed_session_id = %removed_session_id, session_count = %session_count, "User re-logging-in; session removed.");
+                trace!(
+                    removed_session_id = %removed_session_id,
+                    session_count = %session_count,
+                    "User re-logging-in; session removed"
+                );
             }
             Err(e) => {
-                warn!(error = %e, old_session_id = %old_session_id, "Could not remove session ID! Server may have been re-started.");
+                warn!(
+                    error = %e,
+                    old_session_id = %old_session_id,
+                    "Could not remove session ID; server may have restarted"
+                );
             }
         };
     }

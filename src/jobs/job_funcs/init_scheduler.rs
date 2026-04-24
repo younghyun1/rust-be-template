@@ -12,9 +12,10 @@ use crate::{
         },
         job_funcs::{
             every_day::schedule_task_every_day_at, every_hour::schedule_task_every_hour_at,
+            every_minute::schedule_task_every_minute_at,
             every_second::schedule_task_every_second_at,
         },
-        maintenance::compress_logs::compress_old_logs,
+        maintenance::{compress_logs::compress_old_logs, flush_visitor_logs::flush_visitor_logs},
     },
 };
 
@@ -74,6 +75,20 @@ pub async fn task_init(state: Arc<ServerState>) -> anyhow::Result<()> {
             6,
             30,
             00,
+        )
+        .await
+    });
+
+    let coroutine_state = Arc::clone(&state);
+    tokio::spawn(async move {
+        schedule_task_every_minute_at(
+            coroutine_state,
+            move |coroutine_state: Arc<ServerState>| async move {
+                flush_visitor_logs(coroutine_state).await
+            },
+            String::from("FLUSH_VISITOR_LOGS"),
+            0,
+            0,
         )
         .await
     });

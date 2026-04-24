@@ -19,16 +19,18 @@ pub fn next_scheduled_week_mark(
     second_offset: u32,
 ) -> Result<chrono::DateTime<chrono::Utc>> {
     // 1) Truncate today to 00:00:00.
-    let today_midnight = now
+    let today_midnight = match now
         .with_hour(0)
         .and_then(|dt| dt.with_minute(0))
         .and_then(|dt| dt.with_second(0))
-        .and_then(|dt| dt.with_nanosecond(0));
-    if today_midnight.is_none() {
-        tracing::error!(%now, "Failed to truncate to start-of-day for scheduling.");
-        panic!("Failed to truncate to start-of-day for scheduling. Input: {now}");
-    }
-    let today_midnight = today_midnight.unwrap();
+        .and_then(|dt| dt.with_nanosecond(0))
+    {
+        Some(today_midnight) => today_midnight,
+        None => {
+            error!(now = %now, "Failed to truncate to start-of-day for scheduling");
+            return Err(anyhow!("Failed to truncate to start-of-day for scheduling"));
+        }
+    };
 
     // 2) Find day difference (how many days to the next target weekday).
     let current_weekday = now.weekday();
@@ -37,15 +39,11 @@ pub fn next_scheduled_week_mark(
         .rem_euclid(7);
     // Sanity check offsets
     if hour_offset > 23 || minute_offset > 59 || second_offset > 59 {
-        tracing::error!(
+        error!(
             hour_offset,
-            minute_offset,
-            second_offset,
-            "Bad schedule time: hour/minute/second out of range"
+            minute_offset, second_offset, "Bad schedule time: hour/minute/second out of range"
         );
-        panic!(
-            "Invalid offset for weekly schedule: hour_offset={hour_offset}, minute_offset={minute_offset}, second_offset={second_offset}",
-        );
+        return Err(anyhow!("Invalid offset for weekly schedule"));
     }
     let target_time_today = today_midnight
         + chrono::Duration::hours(hour_offset as i64)
@@ -122,8 +120,9 @@ where
             Ok((d, nm)) => (d, nm),
             Err(e) => {
                 error!(
-                    "Could not calculate next scheduled time for {}: {:?}",
-                    task_descriptor, e
+                    task_name = %task_descriptor,
+                    error = ?e,
+                    "Could not calculate next scheduled time"
                 );
                 tokio::time::sleep(std::time::Duration::from_secs(10)).await;
                 continue;
@@ -135,13 +134,16 @@ where
                 task_name = %task_descriptor,
                 initial_run_time = %next_mark.to_rfc3339_opts(SecondsFormat::AutoSi, true),
                 ?delay,
-                "Scheduled task initialized. First run upcoming in {}",
-                format_duration(delay)
+                delay_human = %format_duration(delay),
+                "Scheduled task initialized"
             );
             initialized = true;
         }
 
-        let this_run_time = scheduled_run_time.unwrap_or(next_mark);
+        let this_run_time = match scheduled_run_time {
+            Some(scheduled_run_time) => scheduled_run_time,
+            None => next_mark,
+        };
 
         tokio::time::sleep(delay).await;
 
@@ -151,13 +153,20 @@ where
 
         // Add one week to the previously scheduled run time.
         let next_run_time = this_run_time + Duration::weeks(1);
+        let next_delay = match (next_run_time - Utc::now()).to_std() {
+            Ok(next_delay) => next_delay,
+            Err(e) => {
+                error!(task_name = %task_descriptor, error = ?e, "Scheduled task next delay was negative");
+                std::time::Duration::from_secs(604800)
+            }
+        };
 
         info!(
             task_name = %task_descriptor,
             next_run_time = %next_run_time.to_rfc3339_opts(SecondsFormat::AutoSi, true),
             duration=?elapsed,
-            "Scheduled task ran! Next one running in {}",
-            format_duration((next_run_time - Utc::now()).to_std().unwrap_or(std::time::Duration::from_secs(604800)))
+            next_delay_human = %format_duration(next_delay),
+            "Scheduled task ran"
         );
 
         scheduled_run_time = Some(next_run_time);

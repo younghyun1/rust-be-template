@@ -10,7 +10,7 @@ pub fn extract_exif_shot_at(image_bytes: &[u8]) -> Result<Option<DateTime<Utc>>>
     let exif_reader = match exif::Reader::new().read_from_container(&mut cursor) {
         Ok(r) => r,
         Err(e) => {
-            debug!("Could not read standard EXIF container: {}", e);
+            debug!(error = %e, "Could not read standard EXIF container");
             return Ok(None);
         }
     };
@@ -25,7 +25,7 @@ pub fn extract_exif_shot_at(image_bytes: &[u8]) -> Result<Option<DateTime<Utc>>>
     };
 
     let raw = field.display_value().to_string();
-    debug!("Found raw EXIF/Metadata string: '{}'", raw);
+    debug!(raw_exif_datetime = %raw, "Found raw EXIF metadata string");
 
     let clean_raw = raw
         .trim_matches('"')
@@ -37,8 +37,10 @@ pub fn extract_exif_shot_at(image_bytes: &[u8]) -> Result<Option<DateTime<Utc>>>
 
     if parts.len() != 2 {
         warn!(
-            "Parsed datetime string '{}' (from '{}') does not have 2 parts",
-            clean_raw, raw
+            clean_raw = %clean_raw,
+            raw_exif_datetime = %raw,
+            part_count = parts.len(),
+            "Parsed datetime string does not have 2 parts"
         );
         return Ok(None);
     }
@@ -50,10 +52,10 @@ pub fn extract_exif_shot_at(image_bytes: &[u8]) -> Result<Option<DateTime<Utc>>>
         // This is where your error was happening.
         // Now that we replaced '-' with ':', date_parts.len() should be 3.
         warn!(
-            "EXIF datetime parts invalid structure: date_parts len={}, time_parts len={} (raw: {})",
-            date_parts.len(),
-            time_parts.len(),
-            clean_raw
+            date_part_count = date_parts.len(),
+            time_part_count = time_parts.len(),
+            clean_raw = %clean_raw,
+            "EXIF datetime parts invalid structure"
         );
         return Ok(None);
     }

@@ -45,7 +45,7 @@ impl FastFetchCache {
         {
             Ok(output) => output,
             Err(e) => {
-                error!("Failed to run fastfetch: {}", e);
+                error!(error = %e, "Failed to run fastfetch");
                 return Err(CodeError::COULD_NOT_RUN_FASTFETCH);
             }
         };
@@ -53,7 +53,7 @@ impl FastFetchCache {
         // Convert stdout to a String, assuming UTF-8/ANSI output
         let ansi_output = String::from_utf8_lossy(&output.stdout).to_string();
         let html_output = convert(&ansi_output).map_err(|e| {
-            error!("Failed to convert fastfetch output to HTML: {}", e);
+            error!(error = %e, "Failed to convert fastfetch output to HTML");
             CodeError::COULD_NOT_RUN_FASTFETCH
         })?;
 

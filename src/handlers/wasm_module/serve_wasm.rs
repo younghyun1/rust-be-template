@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use axum::{
-    body::Body,
+    body::{Body, Bytes},
     extract::{Path, State},
     http::{Response, StatusCode, header},
     response::IntoResponse,
 };
-use tracing::info;
+use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::init::state::ServerState;
@@ -41,8 +41,7 @@ pub async fn serve_wasm(
                 "Serving WASM module bundle"
             );
 
-            // Clone the bytes from Arc for the body
-            let body = Body::from((*bytes).clone());
+            let body = Body::from(Bytes::from_owner(bytes));
 
             let mut response = Response::builder()
                 .status(StatusCode::OK)
@@ -55,11 +54,25 @@ pub async fn serve_wasm(
                 response = response.header(header::CONTENT_ENCODING, "gzip");
             }
 
-            response.body(body).unwrap()
+            match response.body(body) {
+                Ok(response) => response,
+                Err(e) => {
+                    error!(error = ?e, wasm_module_id = %wasm_module_id, "Failed to build WASM response");
+                    let mut response = Response::new(Body::from("Failed to build WASM response"));
+                    *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+                    response
+                }
+            }
         }
-        None => Response::builder()
+        None => match Response::builder()
             .status(StatusCode::NOT_FOUND)
             .body(Body::from("WASM module not found"))
-            .unwrap(),
+        {
+            Ok(response) => response,
+            Err(e) => {
+                error!(error = ?e, wasm_module_id = %wasm_module_id, "Failed to build WASM not-found response");
+                Response::new(Body::from("WASM module not found"))
+            }
+        },
     }
 }

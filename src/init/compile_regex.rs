@@ -17,7 +17,7 @@
 //             rgx
 //         }
 //         Err(e) => {
-//             panic!("Could not compile email regex: {:?}", e);
+//             tracing::error!(error = ?e, "Could not compile email regex");
 //         }
 //     }
 // }

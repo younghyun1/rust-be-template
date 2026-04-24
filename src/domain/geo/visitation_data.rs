@@ -1,6 +1,6 @@
 use crate::schema::visitation_data;
 use diesel::{
-    Selectable,
+    Insertable, Selectable,
     prelude::{Queryable, QueryableByName},
 };
 
@@ -11,6 +11,17 @@ pub struct VisitationData {
     pub latitude: f64,
     pub longitude: f64,
     pub ip_address: std::net::IpAddr,
+    pub city: String,
+    pub country: String,
+    pub visited_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Clone, Insertable)]
+#[diesel(table_name = visitation_data)]
+pub struct NewVisitationData {
+    pub latitude: f64,
+    pub longitude: f64,
+    pub ip_address: ipnet::IpNet,
     pub city: String,
     pub country: String,
     pub visited_at: chrono::DateTime<chrono::Utc>,

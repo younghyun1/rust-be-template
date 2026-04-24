@@ -108,7 +108,13 @@ pub async fn signup_handler(
     tokio::spawn(async move {
         let email_client = state.get_email_client();
 
-        let email: Message = validation_email.to_message(&user_email);
+        let email: Message = match validation_email.to_message(&user_email) {
+            Ok(email) => email,
+            Err(e) => {
+                error!(error = %e, "Could not build validation email");
+                return;
+            }
+        };
 
         match email_client.send(email).await {
             Ok(_) => (),

@@ -92,6 +92,7 @@ impl ServerStateBuilder {
             session_map: scc::HashMap::new(),
             blog_posts_cache: scc::HashMap::new(),
             blog_post_slug_cache: scc::HashMap::new(),
+            blog_post_order_cache: RwLock::new(Vec::new()),
             search_index: {
                 // Use disk-persisted index, configurable via env var
                 let index_path = std::env::var("SEARCH_INDEX_PATH")
@@ -129,6 +130,7 @@ impl ServerStateBuilder {
                 .user_agent("cyhdev.com")
                 .build()?,
             visitor_board_map: scc::HashMap::new(),
+            visitor_log_buffer: tokio::sync::Mutex::new(std::collections::HashMap::new()),
             system_info_state: SystemInfoState::new(),
             aws_profile_picture_config,
             fastfetch: fastfetch_cache,

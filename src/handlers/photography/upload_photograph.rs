@@ -6,7 +6,7 @@ use axum::{
     response::IntoResponse,
 };
 use diesel_async::RunQueryDsl;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use crate::{
@@ -107,7 +107,7 @@ pub async fn upload_photograph(
                         .as_deref()
                         .and_then(|name| name.rsplit('.').next().map(|ext| ext.to_string()))
                         .ok_or_else(|| {
-                            error!(user_id = %user_id, "Missing file extension in uploaded filename");
+                            warn!(user_id = %user_id, "Missing file extension in uploaded filename");
                             code_err(
                                 CodeError::FILE_UPLOAD_ERROR,
                                 "No extensions, that's illegal!",
@@ -118,7 +118,7 @@ pub async fn upload_photograph(
                             .content_type()
                             .map(|mime| mime.to_string())
                             .ok_or_else(|| {
-                                error!(user_id = %user_id, "No MIME content type on uploaded file");
+                                warn!(user_id = %user_id, "No MIME content type on uploaded file");
                                 code_err(
                                     CodeError::FILE_UPLOAD_ERROR,
                                     "No MIME extensions, that's illegal!",
@@ -130,7 +130,7 @@ pub async fn upload_photograph(
                         .map(|m| ALLOWED_MIME_TYPES.contains(&m.as_str()))
                         .unwrap_or(false)
                     {
-                        error!(
+                        warn!(
                             user_id = %user_id,
                             mime = ?mime,
                             "Unsupported image type; rejecting upload"
@@ -172,7 +172,7 @@ pub async fn upload_photograph(
                     Ok(v) => photograph_lat = Some(v),
 
                     Err(_) => {
-                        error!(user_id = %user_id, value = %text, "Invalid lat value");
+                        warn!(user_id = %user_id, value = %text, "Invalid lat value");
                         return Err(code_err(
                             CodeError::FILE_UPLOAD_ERROR,
                             "Invalid latitude value",
@@ -190,7 +190,7 @@ pub async fn upload_photograph(
                 match text.parse::<f64>() {
                     Ok(v) => photograph_lon = Some(v),
                     Err(_) => {
-                        error!(user_id = %user_id, value = %text, "Invalid lon value");
+                        warn!(user_id = %user_id, value = %text, "Invalid lon value");
                         return Err(code_err(
                             CodeError::FILE_UPLOAD_ERROR,
                             "Invalid longitude value",
@@ -207,7 +207,7 @@ pub async fn upload_photograph(
                 match PhotographContext::from_str(&text) {
                     Some(ctx) => photograph_context = ctx,
                     None => {
-                        error!(user_id = %user_id, value = %text, "Invalid photograph context");
+                        warn!(user_id = %user_id, value = %text, "Invalid photograph context");
                         return Err(code_err(
                             CodeError::FILE_UPLOAD_ERROR,
                             "Invalid photograph context",
@@ -218,13 +218,13 @@ pub async fn upload_photograph(
 
             // Unknown fields: log and ignore
             Some(other) => {
-                error!(user_id = %user_id, field = other, "Unexpected multipart field");
+                warn!(user_id = %user_id, field = other, "Unexpected multipart field");
             }
         }
     }
 
     if uploaded_file.is_empty() {
-        error!(user_id = %user_id, "Uploaded file is empty");
+        warn!(user_id = %user_id, "Uploaded file is empty");
 
         return Err(code_err(CodeError::FILE_UPLOAD_ERROR, "File is empty!"));
     }
@@ -242,7 +242,7 @@ pub async fn upload_photograph(
             let comments = match photograph_comments {
                 Some(c) if !c.is_empty() => c,
                 _ => {
-                    error!(user_id = %user_id, "Missing required comments field");
+                    warn!(user_id = %user_id, "Missing required comments field");
                     return Err(code_err(
                         CodeError::FILE_UPLOAD_ERROR,
                         "Missing required comments field",
@@ -253,7 +253,7 @@ pub async fn upload_photograph(
             let lat = match photograph_lat {
                 Some(v) => v,
                 None => {
-                    error!(user_id = %user_id, "Missing required lat field");
+                    warn!(user_id = %user_id, "Missing required lat field");
                     return Err(code_err(
                         CodeError::FILE_UPLOAD_ERROR,
                         "Missing required latitude field",
@@ -264,7 +264,7 @@ pub async fn upload_photograph(
             let lon = match photograph_lon {
                 Some(v) => v,
                 None => {
-                    error!(user_id = %user_id, "Missing required lon field");
+                    warn!(user_id = %user_id, "Missing required lon field");
                     return Err(code_err(
                         CodeError::FILE_UPLOAD_ERROR,
                         "Missing required longitude field",

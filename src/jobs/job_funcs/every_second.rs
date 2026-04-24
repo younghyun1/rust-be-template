@@ -17,9 +17,13 @@ fn next_scheduled_second_mark(
     microsecond_offset: u32,
 ) -> Result<chrono::DateTime<chrono::Utc>> {
     // 1) Truncate "now" to the current second (drop sub-second components).
-    let truncated_to_second = now
-        .with_nanosecond(0)
-        .ok_or_else(|| anyhow!("Could not truncate to second boundary."))?;
+    let truncated_to_second = match now.with_nanosecond(0) {
+        Some(truncated_to_second) => truncated_to_second,
+        None => {
+            error!(now = %now, "Could not truncate to second boundary");
+            return Err(anyhow!("Could not truncate to second boundary"));
+        }
+    };
 
     // 2) Calculate total microseconds offset.
     let total_microseconds_offset = (millisecond_offset as i64 * 1_000) + microsecond_offset as i64;
@@ -81,8 +85,9 @@ where
             Ok(info) => info,
             Err(e) => {
                 error!(
-                    "Could not calculate next second mark for '{}': {:?}",
-                    task_descriptor, e
+                    task_name = %task_descriptor,
+                    error = ?e,
+                    "Could not calculate next scheduled second mark"
                 );
                 // If we fail, wait some short fallback time and try again.
                 tokio::time::sleep(std::time::Duration::from_millis(500)).await;
@@ -95,13 +100,16 @@ where
                 task_name = %task_descriptor,
                 initial_run_time = %next_mark.to_rfc3339_opts(SecondsFormat::AutoSi, true),
                 delay = %format!("{:?}", delay),
-                "Scheduled task initialized. First run upcoming in {}",
-                format_duration(delay)
+                delay_human = %format_duration(delay),
+                "Scheduled task initialized"
             );
             initialized = true;
         }
 
-        let this_run_time = scheduled_run_time.unwrap_or(next_mark);
+        let this_run_time = match scheduled_run_time {
+            Some(scheduled_run_time) => scheduled_run_time,
+            None => next_mark,
+        };
 
         tokio::time::sleep(delay).await;
 
@@ -111,13 +119,20 @@ where
 
         // Efficiently compute the next run time by simply adding one second to the previously scheduled (not actual) scheduled time.
         let next_run_time = this_run_time + Duration::seconds(1);
+        let next_delay = match (next_run_time - Utc::now()).to_std() {
+            Ok(next_delay) => next_delay,
+            Err(e) => {
+                error!(task_name = %task_descriptor, error = ?e, "Scheduled task next delay was negative");
+                std::time::Duration::from_millis(1000)
+            }
+        };
 
         debug!(
             task_name = %task_descriptor,
             next_run_time = %next_run_time.to_rfc3339_opts(SecondsFormat::AutoSi, true),
             duration = %format!("{:?}", elapsed),
-            "Scheduled task ran! Next one running in {}",
-            format_duration((next_run_time - Utc::now()).to_std().unwrap_or(std::time::Duration::from_millis(1000)))
+            next_delay_human = %format_duration(next_delay),
+            "Scheduled task ran"
         );
 
         scheduled_run_time = Some(next_run_time);
