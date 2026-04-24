@@ -63,9 +63,12 @@ pub async fn is_logged_in_middleware(
     };
 
     request.extensions_mut().insert(auth_status);
-    request.extensions_mut().insert(auth_session);
+    request.extensions_mut().insert(auth_session.clone());
 
-    let response = next.run(request).await;
+    let mut response = next.run(request).await;
+    if let Some(auth_session) = auth_session {
+        response.extensions_mut().insert(auth_session);
+    }
 
     Ok(response)
 }

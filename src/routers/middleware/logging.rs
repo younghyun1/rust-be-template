@@ -18,6 +18,7 @@ use crate::{
     build_info::{BUILD_TIME_UTC, LIB_VERSION_MAP, RUSTC_VERSION},
     errors::code_error::CodeErrorLogContext,
     init::state::{DeploymentEnvironment, ServerState},
+    routers::middleware::is_logged_in::AuthSession,
     util::extract::client_ip::extract_client_ip,
 };
 
@@ -28,14 +29,42 @@ pub struct RequestLogContext {
     pub client_ip: Option<IpAddr>,
 }
 
+#[derive(Debug, Clone)]
+struct RequestActor {
+    user_id: Uuid,
+    user_name: String,
+    role_type: crate::domain::auth::role::RoleType,
+}
+
+impl From<&AuthSession> for RequestActor {
+    fn from(auth_session: &AuthSession) -> Self {
+        Self {
+            user_id: auth_session.user_id,
+            user_name: auth_session.user_name.clone(),
+            role_type: auth_session.role_type,
+        }
+    }
+}
+
+struct CompletedRequestLog<'a> {
+    request_id: &'a str,
+    method: &'a axum::http::Method,
+    path: &'a str,
+    client_ip: Option<IpAddr>,
+    actor: Option<RequestActor>,
+    status: StatusCode,
+    duration: std::time::Duration,
+    error_context: Option<CodeErrorLogContext>,
+}
+
 macro_rules! log_request_completion {
-    ($level:expr_2021, request_id = $request_id:expr_2021, method = $method:expr_2021, path = $path:expr_2021, client_ip = $client_ip:expr_2021, status_code = $status_code:expr_2021, duration = $duration:expr_2021, error_code = $error_code:expr_2021, message = $message:expr_2021, detail = $detail:expr_2021) => {
+    ($level:expr_2021, request_id = $request_id:expr_2021, method = $method:expr_2021, path = $path:expr_2021, client_ip = $client_ip:expr_2021, actor = $actor:expr_2021, status_code = $status_code:expr_2021, duration = $duration:expr_2021, error_code = $error_code:expr_2021, message = $message:expr_2021, detail = $detail:expr_2021) => {
         match $level {
-            Level::ERROR => tracing::error!(event = "request_completed", request_id = %$request_id, method = %$method, path = %$path, client_ip = ?$client_ip, status_code = %$status_code, duration = %$duration, error_code = ?$error_code, message = ?$message, detail = ?$detail),
-            Level::WARN => tracing::warn!(event = "request_completed", request_id = %$request_id, method = %$method, path = %$path, client_ip = ?$client_ip, status_code = %$status_code, duration = %$duration, error_code = ?$error_code, message = ?$message, detail = ?$detail),
-            Level::INFO => tracing::info!(event = "request_completed", request_id = %$request_id, method = %$method, path = %$path, client_ip = ?$client_ip, status_code = %$status_code, duration = %$duration, error_code = ?$error_code, message = ?$message, detail = ?$detail),
-            Level::DEBUG => tracing::debug!(event = "request_completed", request_id = %$request_id, method = %$method, path = %$path, client_ip = ?$client_ip, status_code = %$status_code, duration = %$duration, error_code = ?$error_code, message = ?$message, detail = ?$detail),
-            Level::TRACE => tracing::trace!(event = "request_completed", request_id = %$request_id, method = %$method, path = %$path, client_ip = ?$client_ip, status_code = %$status_code, duration = %$duration, error_code = ?$error_code, message = ?$message, detail = ?$detail),
+            Level::ERROR => tracing::error!(event = "request_completed", request_id = %$request_id, method = %$method, path = %$path, client_ip = ?$client_ip, user_id = ?$actor.as_ref().map(|actor| actor.user_id), user_name = ?$actor.as_ref().map(|actor| actor.user_name.as_str()), role_type = ?$actor.as_ref().map(|actor| actor.role_type), status_code = %$status_code, duration = %$duration, error_code = ?$error_code, message = ?$message, detail = ?$detail),
+            Level::WARN => tracing::warn!(event = "request_completed", request_id = %$request_id, method = %$method, path = %$path, client_ip = ?$client_ip, user_id = ?$actor.as_ref().map(|actor| actor.user_id), user_name = ?$actor.as_ref().map(|actor| actor.user_name.as_str()), role_type = ?$actor.as_ref().map(|actor| actor.role_type), status_code = %$status_code, duration = %$duration, error_code = ?$error_code, message = ?$message, detail = ?$detail),
+            Level::INFO => tracing::info!(event = "request_completed", request_id = %$request_id, method = %$method, path = %$path, client_ip = ?$client_ip, user_id = ?$actor.as_ref().map(|actor| actor.user_id), user_name = ?$actor.as_ref().map(|actor| actor.user_name.as_str()), role_type = ?$actor.as_ref().map(|actor| actor.role_type), status_code = %$status_code, duration = %$duration, error_code = ?$error_code, message = ?$message, detail = ?$detail),
+            Level::DEBUG => tracing::debug!(event = "request_completed", request_id = %$request_id, method = %$method, path = %$path, client_ip = ?$client_ip, user_id = ?$actor.as_ref().map(|actor| actor.user_id), user_name = ?$actor.as_ref().map(|actor| actor.user_name.as_str()), role_type = ?$actor.as_ref().map(|actor| actor.role_type), status_code = %$status_code, duration = %$duration, error_code = ?$error_code, message = ?$message, detail = ?$detail),
+            Level::TRACE => tracing::trace!(event = "request_completed", request_id = %$request_id, method = %$method, path = %$path, client_ip = ?$client_ip, user_id = ?$actor.as_ref().map(|actor| actor.user_id), user_name = ?$actor.as_ref().map(|actor| actor.user_name.as_str()), role_type = ?$actor.as_ref().map(|actor| actor.role_type), status_code = %$status_code, duration = %$duration, error_code = ?$error_code, message = ?$message, detail = ?$detail),
         }
     };
 }
@@ -79,15 +108,20 @@ pub async fn log_middleware(
     let duration = start.elapsed();
     let status = response.status();
     let error_context = response.extensions().get::<CodeErrorLogContext>().cloned();
-    log_completed_request(
-        &request_id,
-        &method,
-        &path,
+    let actor = response
+        .extensions()
+        .get::<AuthSession>()
+        .map(RequestActor::from);
+    log_completed_request(CompletedRequestLog {
+        request_id: &request_id,
+        method: &method,
+        path: &path,
         client_ip,
+        actor,
         status,
         duration,
         error_context,
-    );
+    });
 
     response
 }
@@ -146,24 +180,17 @@ fn add_server_headers(response: &mut Response<Body>, request_id: &str) {
     }
 }
 
-fn log_completed_request(
-    request_id: &str,
-    method: &axum::http::Method,
-    path: &str,
-    client_ip: Option<IpAddr>,
-    status: StatusCode,
-    duration: std::time::Duration,
-    error_context: Option<CodeErrorLogContext>,
-) {
-    let duration = format!("{duration:?}");
-    match error_context {
+fn log_completed_request(completed: CompletedRequestLog<'_>) {
+    let duration = format!("{:?}", completed.duration);
+    match completed.error_context {
         Some(context) => {
             log_request_completion!(
                 context.log_level,
-                request_id = request_id,
-                method = method,
-                path = path,
-                client_ip = client_ip,
+                request_id = completed.request_id,
+                method = completed.method,
+                path = completed.path,
+                client_ip = completed.client_ip,
+                actor = completed.actor,
                 status_code = context.status_code.as_u16(),
                 duration = duration,
                 error_code = Some(context.error_code),
@@ -172,20 +199,21 @@ fn log_completed_request(
             );
         }
         None => {
-            let level = if status.is_server_error() {
+            let level = if completed.status.is_server_error() {
                 Level::ERROR
-            } else if status.is_client_error() {
+            } else if completed.status.is_client_error() {
                 Level::WARN
             } else {
                 Level::INFO
             };
             log_request_completion!(
                 level,
-                request_id = request_id,
-                method = method,
-                path = path,
-                client_ip = client_ip,
-                status_code = status.as_u16(),
+                request_id = completed.request_id,
+                method = completed.method,
+                path = completed.path,
+                client_ip = completed.client_ip,
+                actor = completed.actor,
+                status_code = completed.status.as_u16(),
                 duration = duration,
                 error_code = Option::<u8>::None,
                 message = Option::<&str>::None,
