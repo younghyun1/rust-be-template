@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 use crate::domain::country::{CountryAndSubdivisionsTable, IsoCurrencyTable, IsoLanguageTable};
 use crate::domain::i18n::i18n_cache::I18nCache;
+use crate::domain::live_chat::cache::LiveChatCache;
 use crate::init::load_cache::fastfetch_cache::FastFetchCache;
 use crate::init::load_cache::system_info::SystemInfoState;
 use crate::init::search::PostSearchIndex;
@@ -132,6 +133,7 @@ impl ServerStateBuilder {
             aws_profile_picture_config,
             fastfetch: fastfetch_cache,
             wasm_module_cache: scc::HashMap::new(),
+            live_chat_cache: LiveChatCache::default(),
         })
     }
 }

@@ -122,6 +122,7 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
     state.sync_i18n_data().await?;
     state.sync_visitor_board_data().await?;
     state.sync_wasm_module_cache().await?;
+    state.sync_live_chat_cache().await?;
 
     let api_key = std::env::var("X_API_KEY")
         .map_err(|e| anyhow::anyhow!("Failed to load X_API_KEY from .env: {}", e))?;

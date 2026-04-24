@@ -99,11 +99,11 @@ email_address = "0.2.9"
 argon2 = "0.5.3"
 rand = "0.10"
 rand_08 = { package = "rand", version = "0.8.6" }
-rustls = { version = "0.23.38", features = [] }
+rustls = { version = "0.23.39", features = [] }
 zeroize = { version = "1.8.2", features = ["derive"] }
 
 # memory allocator
-mimalloc = { version = "0.1.49", features = [] }
+mimalloc = { version = "0.1.50", features = [] }
 
 # email
 lettre = { version = "0.11.21", default-features = false, features = [
@@ -143,7 +143,7 @@ mime_guess = "2.0.5"
 internment = "0.8.6"
 
 # aws
-aws-sdk-s3 = { version = "1.130.0", features = ["behavior-version-latest"] }
+aws-sdk-s3 = { version = "1.131.0", features = ["behavior-version-latest"] }
 aws-config = { version = "1.8.16", features = [
     "rustls",
     "behavior-version-latest",
@@ -160,7 +160,7 @@ chrono = { version = "0.4.44" }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libc = { version = "0.2.185", features = [] }
+libc = { version = "0.2.186", features = [] }
 
 [target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]
 zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt", "pkg-config"] }

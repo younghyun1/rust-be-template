@@ -40,6 +40,7 @@ use crate::{
         },
         geo_ip::{lookup_ip::lookup_ip_info, lookup_my_ip::lookup_my_ip_info},
         i18n::get_country_language_bundle::get_country_language_bundle,
+        live_chat::{get_live_chat_cache_stats, get_live_chat_messages, live_chat_ws_handler},
         photography::{
             delete_photographs::delete_photographs, get_photographs::get_photographs,
             upload_photograph::upload_photograph,
@@ -296,6 +297,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/api/healthcheck/state", get(root_handler))
         .route("/api/healthcheck/fastfetch", get(get_host_fastfetch))
         .route("/ws/host-stats", get(ws_host_stats_handler))
+        .route("/ws/live-chat", get(live_chat_ws_handler))
         .route("/api/dropdown/language", get(get_languages))
         .route("/api/dropdown/language/{language_id}", get(get_language))
         .route("/api/dropdown/country", get(get_countries))
@@ -326,6 +328,8 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/api/blog/posts/{post_id}", get(read_post))
         .route("/api/blog/posts", post(submit_post))
         .route("/api/blog/search", get(search_posts))
+        .route("/api/live-chat/messages", get(get_live_chat_messages))
+        .route("/api/live-chat/cache-stats", get(get_live_chat_cache_stats))
         .route(
             "/api/i18n/country-language-bundle",
             get(get_country_language_bundle),

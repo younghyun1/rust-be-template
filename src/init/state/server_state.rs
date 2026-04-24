@@ -2,7 +2,7 @@ use std::net::IpAddr;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 
-use diesel::{ExpressionMethods, OptionalExtension, QueryDsl};
+use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, SelectableHelper};
 use diesel_async::pooled_connection::bb8::{Pool, PooledConnection};
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use lettre::{AsyncSmtpTransport, Tokio1Executor};
@@ -19,12 +19,17 @@ use crate::domain::country::{
 };
 use crate::domain::i18n::i18n::InternationalizationString;
 use crate::domain::i18n::i18n_cache::I18nCache;
+use crate::domain::live_chat::{
+    cache::{CachedChatMessage, LiveChatCache},
+    message::LiveChatMessage,
+};
 use crate::init::load_cache::fastfetch_cache::FastFetchCache;
 use crate::init::load_cache::post_info::load_post_info;
 use crate::init::load_cache::system_info::SystemInfoState;
 use crate::init::search::PostSearchIndex;
 use crate::schema::{
-    iso_country, iso_country_subdivision, iso_currency, iso_language, wasm_module,
+    iso_country, iso_country_subdivision, iso_currency, iso_language, live_chat_messages,
+    wasm_module,
 };
 use crate::util::geographic::ip_info_lookup::{
     GeoIpDatabases, IpInfo, lookup_ip_location_from_map,
@@ -61,6 +66,7 @@ pub struct ServerState {
     pub fastfetch: FastFetchCache,
     /// In-memory cache for WASM modules (UUID -> (Arc<gz_bytes>, is_gzipped, content_type))
     pub wasm_module_cache: scc::HashMap<Uuid, (Arc<Vec<u8>>, bool, &'static str)>,
+    pub live_chat_cache: LiveChatCache,
 }
 
 impl ServerState {
@@ -809,5 +815,39 @@ impl ServerState {
     /// Remove WASM module from cache (call after deletion).
     pub async fn invalidate_wasm_module(&self, wasm_module_id: Uuid) {
         let _ = self.wasm_module_cache.remove_async(&wasm_module_id).await;
+    }
+
+    pub async fn sync_live_chat_cache(&self) -> anyhow::Result<usize> {
+        const LIVE_CHAT_STARTUP_ROW_LIMIT: i64 = 50_000;
+
+        let start = tokio_now();
+        let mut conn = self.get_conn().await?;
+
+        let mut rows: Vec<LiveChatMessage> = live_chat_messages::table
+            .select(LiveChatMessage::as_select())
+            .order(live_chat_messages::message_created_at.desc())
+            .limit(LIVE_CHAT_STARTUP_ROW_LIMIT)
+            .load(&mut conn)
+            .await?;
+
+        drop(conn);
+
+        self.live_chat_cache.clear_messages().await;
+        rows.reverse();
+        let row_count = rows.len();
+
+        for row in rows {
+            self.live_chat_cache
+                .append_persisted_chat_message(CachedChatMessage::from(row))
+                .await;
+        }
+
+        info!(
+            elapsed = ?start.elapsed(),
+            rows_synchronized = %row_count,
+            "Synchronized live chat cache."
+        );
+
+        Ok(row_count)
     }
 }

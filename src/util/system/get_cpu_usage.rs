@@ -130,6 +130,6 @@ mod tests {
         let dur = start.elapsed();
         println!("CPU usage: {:.2}%", usage);
         println!("Elapsed time: {:?}", dur);
-        assert!(usage >= 0.0 && usage <= 100.0);
+        assert!((0.0..=100.0).contains(&usage));
     }
 }

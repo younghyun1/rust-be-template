@@ -17,7 +17,10 @@ use tracing::{Level, error, info};
 use crate::{
     build_info::{BUILD_TIME_UTC, LIB_VERSION_MAP, RUSTC_VERSION},
     init::state::{DeploymentEnvironment, ServerState},
-    util::{geographic::ip_info_lookup::IpInfo, time::now::tokio_now},
+    util::{
+        extract::client_ip::extract_client_ip, geographic::ip_info_lookup::IpInfo,
+        time::now::tokio_now,
+    },
 };
 
 // by default, debug and below not logged at all; hence why
@@ -47,26 +50,7 @@ pub async fn log_middleware(
     let method = request.method().clone();
     let path = request.uri().path().to_owned();
 
-    let client_ip_str: String = match request
-        .headers()
-        .get("x-forwarded-for")
-        .and_then(|value| value.to_str().ok())
-    {
-        Some(val) => val.to_owned(),
-        None => info.ip().to_string(),
-    };
-
-    let client_ip: Option<IpAddr> = match client_ip_str.parse() {
-        Ok(ip) => Some(ip),
-        Err(e) => {
-            error!(
-                error = ?e,
-                client_ip = %client_ip_str,
-                "Could not parse IP address into IpAddr"
-            );
-            None
-        }
-    };
+    let client_ip = extract_client_ip(request.headers(), info);
 
     match state.get_deployment_environment() {
         DeploymentEnvironment::Local
