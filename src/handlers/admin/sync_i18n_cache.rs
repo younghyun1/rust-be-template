@@ -25,6 +25,11 @@ pub async fn sync_i18n_cache(
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
+    state
+        .sync_file_backed_ui_text_sources()
+        .await
+        .map_err(|e| code_err(CodeError::COULD_NOT_SYNC_18N_CACHE, e))?;
+
     let num_rows: usize = state
         .sync_i18n_data()
         .await

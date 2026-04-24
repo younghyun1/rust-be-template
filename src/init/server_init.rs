@@ -119,6 +119,7 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
     // Failures on these should be fatal.
     state.synchronize_post_info_cache().await;
     state.sync_country_data().await?;
+    state.sync_file_backed_ui_text_sources().await?;
     state.sync_i18n_data().await?;
     state.sync_visitor_board_data().await?;
     state.sync_wasm_module_cache().await?;

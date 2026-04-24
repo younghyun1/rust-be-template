@@ -201,11 +201,12 @@ impl I18nCache {
             return (vec![], None);
         }
 
-        let max_updated_at = rows
-            .iter()
-            .map(|row| row.i18n_string_updated_at)
-            .max()
-            .unwrap();
+        let max_updated_at = match rows.iter().map(|row| row.i18n_string_updated_at).max() {
+            Some(updated_at) => updated_at,
+            None => {
+                return (vec![], None);
+            }
+        };
 
         let to_encode: Vec<InternationalizationStringsToBeEncoded> = rows
             .into_iter()

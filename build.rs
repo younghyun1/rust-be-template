@@ -67,7 +67,10 @@ pub const LIB_VERSIONS: [LibVersion; {libs_count}] = ["#,
     for dep in deps.list.iter() {
         writeln!(
             f,
-            "    LibVersion {{ name: {:?}, version: {:?} }},",
+            r#"    LibVersion {{
+        name: {:?},
+        version: {:?},
+    }},"#,
             dep.name, dep.version
         )
         .expect("Failed to write dep entry");
@@ -77,7 +80,9 @@ pub const LIB_VERSIONS: [LibVersion; {libs_count}] = ["#,
     // Write a const LIB_VERSION_MAP as well
     writeln!(
         f,
-        "pub const LIB_VERSION_MAP: LibVersionMap = LibVersionMap {{ list: &LIB_VERSIONS }};"
+        r#"pub const LIB_VERSION_MAP: LibVersionMap = LibVersionMap {{
+    list: &LIB_VERSIONS,
+}};"#
     )
     .expect("Failed to write LIB_VERSION_MAP const");
 }

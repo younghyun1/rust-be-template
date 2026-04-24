@@ -149,11 +149,20 @@ impl InternationalizationString {
                         ));
                     }
 
-                    let max_updated_at = rows
+                    let max_updated_at = match rows
                         .iter()
                         .map(|row| row.i18n_string_updated_at)
                         .max()
-                        .unwrap();
+                    {
+                        Some(updated_at) => updated_at,
+                        None => {
+                            return Err(anyhow::anyhow!(
+                                "country-language bundle cache: no updated timestamp found for (country_code={}, language_code={})",
+                                country_code,
+                                language_code
+                            ));
+                        }
+                    };
 
                     let to_encode: Vec<InternationalizationStringsToBeEncoded> = rows
                         .into_iter()

@@ -65,6 +65,9 @@ README.md
 
 # artefacts
 *.json
+!/i18n/
+!/i18n/ui/
+!/i18n/ui/*.json
 *.txt
 
 log/
