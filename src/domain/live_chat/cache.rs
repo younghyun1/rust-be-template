@@ -8,14 +8,25 @@ use std::{
 
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use scc::{Guard, HashMap, Queue, TreeIndex};
-use serde_derive::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
-use super::{
-    ban::LiveChatBan,
-    guest_nickname::{guest_nickname_for_ip, normalize_guest_display_name},
-    message::{LIVE_CHAT_SENDER_KIND_GUEST, LiveChatMessage},
+use crate::domain::live_chat::ban::LiveChatBan;
+
+mod actor;
+mod ban;
+mod event;
+mod message;
+mod rate;
+
+pub use actor::{ChatActor, ChatActorKey};
+pub use ban::CachedLiveChatBan;
+pub use event::{ChatConnectionState, LiveChatCacheStats, LiveChatServerEvent, TypingState};
+pub use message::{CachedChatMessage, ChatTimelineKey};
+
+use self::{
+    message::ChatEvictionKey,
+    rate::{LiveChatRateKey, LiveChatRateState},
 };
 
 pub const DEFAULT_LIVE_CHAT_ROOM: &str = "main";
@@ -23,246 +34,6 @@ pub const LIVE_CHAT_CACHE_MAX_BYTES: usize = 128 * 1024 * 1024;
 pub const LIVE_CHAT_BROADCAST_CAPACITY: usize = 1024;
 pub const LIVE_CHAT_ABNORMAL_MESSAGE_LIMIT_PER_SECOND: u32 = 10;
 const LIVE_CHAT_MESSAGE_FIXED_BYTES: usize = 256;
-
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct ChatTimelineKey {
-    pub room_key: String,
-    pub message_created_at_micros: i64,
-    pub live_chat_message_id: Uuid,
-}
-
-impl ChatTimelineKey {
-    pub fn from_message(message: &CachedChatMessage) -> Self {
-        Self {
-            room_key: message.room_key.clone(),
-            message_created_at_micros: message.message_created_at.timestamp_micros(),
-            live_chat_message_id: message.live_chat_message_id,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ChatEvictionKey {
-    live_chat_message_id: Uuid,
-    timeline_key: ChatTimelineKey,
-    estimated_bytes: usize,
-}
-
-#[derive(Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", content = "value", rename_all = "snake_case")]
-pub enum ChatActorKey {
-    User(Uuid),
-    Guest(String),
-}
-
-#[derive(Debug, Clone, Eq, Hash, PartialEq)]
-enum LiveChatRateKey {
-    User(Uuid),
-    Ip(IpAddr),
-}
-
-#[derive(Debug, Clone)]
-struct LiveChatRateState {
-    window_started_at: DateTime<Utc>,
-    count: u32,
-}
-
-#[derive(Debug, Clone)]
-pub struct CachedLiveChatBan {
-    pub live_chat_ban_id: Uuid,
-    pub user_id: Option<Uuid>,
-    pub banned_ip: Option<IpAddr>,
-    pub reason: String,
-    pub ban_source: String,
-    pub banned_at: DateTime<Utc>,
-    pub expires_at: Option<DateTime<Utc>>,
-}
-
-impl CachedLiveChatBan {
-    pub fn is_active(&self, now: DateTime<Utc>) -> bool {
-        match self.expires_at {
-            Some(expires_at) => expires_at > now,
-            None => true,
-        }
-    }
-}
-
-impl From<LiveChatBan> for CachedLiveChatBan {
-    fn from(ban: LiveChatBan) -> Self {
-        Self {
-            live_chat_ban_id: ban.live_chat_ban_id,
-            user_id: ban.user_id,
-            banned_ip: ban.banned_ip.map(|ip| ip.addr()),
-            reason: ban.reason,
-            ban_source: ban.ban_source,
-            banned_at: ban.banned_at,
-            expires_at: ban.expires_at,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChatActor {
-    pub actor_key: ChatActorKey,
-    pub sender_kind: i16,
-    pub user_id: Option<Uuid>,
-    pub guest_ip: Option<IpAddr>,
-    pub display_name: String,
-    pub country_flag: Option<String>,
-    pub user_profile_picture_url: Option<String>,
-}
-
-impl ChatActor {
-    pub fn guest(ip: IpAddr, country_flag: Option<String>) -> Self {
-        let display_name = guest_nickname_for_ip(ip);
-        Self {
-            actor_key: ChatActorKey::Guest(ip.to_string()),
-            sender_kind: LIVE_CHAT_SENDER_KIND_GUEST,
-            user_id: None,
-            guest_ip: Some(ip),
-            display_name,
-            country_flag,
-            user_profile_picture_url: None,
-        }
-    }
-
-    pub fn user(
-        user_id: Uuid,
-        display_name: String,
-        country_flag: Option<String>,
-        user_profile_picture_url: Option<String>,
-    ) -> Self {
-        Self {
-            actor_key: ChatActorKey::User(user_id),
-            sender_kind: super::message::LIVE_CHAT_SENDER_KIND_USER,
-            user_id: Some(user_id),
-            guest_ip: None,
-            display_name,
-            country_flag,
-            user_profile_picture_url,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CachedChatMessage {
-    pub live_chat_message_id: Uuid,
-    pub room_key: String,
-    pub user_id: Option<Uuid>,
-    pub guest_ip: Option<IpAddr>,
-    pub sender_kind: i16,
-    pub sender_display_name: String,
-    pub sender_country_flag: Option<String>,
-    pub user_profile_picture_url: Option<String>,
-    pub message_body: String,
-    pub message_created_at: DateTime<Utc>,
-    pub message_edited_at: Option<DateTime<Utc>>,
-    pub message_deleted_at: Option<DateTime<Utc>>,
-}
-
-impl CachedChatMessage {
-    pub fn estimated_bytes(&self) -> usize {
-        LIVE_CHAT_MESSAGE_FIXED_BYTES
-            + self.room_key.len()
-            + self.sender_display_name.len()
-            + match &self.sender_country_flag {
-                Some(country_flag) => country_flag.len(),
-                None => 0,
-            }
-            + match &self.user_profile_picture_url {
-                Some(user_profile_picture_url) => user_profile_picture_url.len(),
-                None => 0,
-            }
-            + self.message_body.len()
-    }
-}
-
-impl From<LiveChatMessage> for CachedChatMessage {
-    fn from(message: LiveChatMessage) -> Self {
-        let guest_ip = message.guest_ip.map(|ip| ip.addr());
-        let sender_display_name = normalize_guest_display_name(
-            message.sender_display_name,
-            message.sender_kind,
-            guest_ip,
-        );
-
-        Self {
-            live_chat_message_id: message.live_chat_message_id,
-            room_key: message.room_key,
-            user_id: message.user_id,
-            guest_ip,
-            sender_kind: message.sender_kind,
-            sender_display_name,
-            sender_country_flag: None,
-            user_profile_picture_url: None,
-            message_body: message.message_body,
-            message_created_at: message.message_created_at,
-            message_edited_at: message.message_edited_at,
-            message_deleted_at: message.message_deleted_at,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TypingState {
-    pub actor: ChatActor,
-    pub room_key: String,
-    pub expires_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ChatConnectionState {
-    pub actor: ChatActor,
-    pub room_key: String,
-    pub connected_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum LiveChatServerEvent {
-    Hello {
-        actor: ChatActor,
-        recent_messages: Vec<CachedChatMessage>,
-        connected_count: u64,
-    },
-    Message {
-        message: CachedChatMessage,
-    },
-    MessageAck {
-        client_message_id: String,
-        message: CachedChatMessage,
-    },
-    Typing {
-        actor: ChatActor,
-        is_typing: bool,
-        expires_at: DateTime<Utc>,
-    },
-    TypingSet {
-        actors: Vec<ChatActor>,
-        expires_at: DateTime<Utc>,
-    },
-    Presence {
-        connected_count: u64,
-    },
-    HeartbeatAck {
-        nonce: String,
-    },
-    Error {
-        code: String,
-        message: String,
-    },
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LiveChatCacheStats {
-    pub max_bytes: usize,
-    pub used_bytes: usize,
-    pub message_count: usize,
-    pub oldest_cached_at: Option<DateTime<Utc>>,
-    pub newest_cached_at: Option<DateTime<Utc>>,
-    pub active_typing_count: usize,
-    pub connected_count: u64,
-}
 
 pub struct LiveChatCache {
     messages_by_id: HashMap<Uuid, Arc<CachedChatMessage>>,
