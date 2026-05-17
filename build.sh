@@ -28,9 +28,9 @@ cleanup_builder_context() {
 }
 trap cleanup_builder_context EXIT
 
-git reset --hard && git pull
+git pull --ff-only
 cd ../solid-csr-spa-template/
-git reset --hard && git pull
+git pull --ff-only
 npm update
 npm install
 ./deploy_to_be.sh
@@ -64,7 +64,7 @@ RUN apt-get update && \
 
 RUN rustup update && \
     rustup toolchain install nightly --component rust-src && \
-    rustup target add --toolchain nightly "${TARGET_TRIPLE}" && \
+    rustup target add --toolchain nightly "${TARGET_TRIPLE}"
 
 WORKDIR /app
 DOCKERFILE
