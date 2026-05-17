@@ -18,7 +18,7 @@ fi
 
 APP_NAME="${APP_NAME:-rust-be-template}"
 TARGET_TRIPLE="${TARGET_TRIPLE:-x86_64-unknown-linux-gnu}"
-RUST_DOCKER_TAG="${RUST_DOCKER_TAG:-1.90.0-bookworm}"
+RUST_DOCKER_TAG="${RUST_DOCKER_TAG:-latest}"
 BUILDER_IMAGE="${BUILDER_IMAGE:-rust-be-template-znver3-builder:${RUST_DOCKER_TAG}}"
 DOCKER_PLATFORM="${DOCKER_PLATFORM:-linux/amd64}"
 BUILDER_CONTEXT="$(mktemp -d)"
@@ -42,7 +42,7 @@ docker build \
   --build-arg TARGET_TRIPLE="$TARGET_TRIPLE" \
   -t "$BUILDER_IMAGE" \
   -f - "$BUILDER_CONTEXT" <<'DOCKERFILE'
-ARG RUST_DOCKER_TAG=1.90.0-bookworm
+ARG RUST_DOCKER_TAG=latest
 FROM rust:${RUST_DOCKER_TAG}
 
 ARG TARGET_TRIPLE=x86_64-unknown-linux-gnu
@@ -76,7 +76,6 @@ docker run --rm \
   -e TARGET_TRIPLE="$TARGET_TRIPLE" \
   -e HOST_UID="$(id -u)" \
   -e HOST_GID="$(id -g)" \
-  -e CARGO_TARGET_DIR=/app/target/docker-znver3 \
   -v "$PWD":/app \
   -w /app \
   "$BUILDER_IMAGE" \
@@ -97,7 +96,5 @@ cargo +nightly build \
   --target "$TARGET_TRIPLE" \
   --release
 
-mkdir -p /app/target/release
-cp "$CARGO_TARGET_DIR/$TARGET_TRIPLE/release/$APP_NAME" "/app/target/release/$APP_NAME"
-ldd "/app/target/release/$APP_NAME"
+ldd "/app/target/$TARGET_TRIPLE/release/$APP_NAME"
 DOCKER_SCRIPT
