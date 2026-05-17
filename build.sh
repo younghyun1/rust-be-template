@@ -69,7 +69,7 @@ RUN rustup update && \
 WORKDIR /app
 DOCKERFILE
 
-docker run --rm \
+docker run --rm -i \
   --platform "$DOCKER_PLATFORM" \
   -e APP_NAME="$APP_NAME" \
   -e TARGET_TRIPLE="$TARGET_TRIPLE" \
