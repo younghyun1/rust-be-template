@@ -65,7 +65,6 @@ RUN apt-get update && \
 RUN rustup update && \
     rustup toolchain install nightly --component rust-src && \
     rustup target add --toolchain nightly "${TARGET_TRIPLE}" && \
-    cargo install cargo-edit --locked
 
 WORKDIR /app
 DOCKERFILE
@@ -87,7 +86,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-cargo upgrade --incompatible
 cargo update
 
 RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }-C target-cpu=znver3" \
