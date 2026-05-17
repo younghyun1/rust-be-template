@@ -68,46 +68,44 @@ pub async fn vote_post(
     };
 
     let (upvote_count, downvote_count): (i64, i64) = match conn
-        .transaction::<_, diesel::result::Error, _>(|conn| {
+        .transaction::<_, diesel::result::Error, _>(async |conn| {
             let is_upvote = request.is_upvote;
 
-            Box::pin(async move {
-                // 1. Insert or update the vote
-                diesel::sql_query(
-                    "INSERT INTO post_votes (post_id, user_id, is_upvote)
+            // 1. Insert or update the vote
+            diesel::sql_query(
+                "INSERT INTO post_votes (post_id, user_id, is_upvote)
                      VALUES ($1, $2, $3)
                      ON CONFLICT (post_id, user_id)
                      DO UPDATE SET is_upvote = EXCLUDED.is_upvote",
-                )
-                .bind::<diesel::sql_types::Uuid, Uuid>(post_id)
-                .bind::<diesel::sql_types::Uuid, Uuid>(user_id)
-                .bind::<diesel::sql_types::Bool, bool>(is_upvote)
-                .execute(conn)
-                .await?;
+            )
+            .bind::<diesel::sql_types::Uuid, Uuid>(post_id)
+            .bind::<diesel::sql_types::Uuid, Uuid>(user_id)
+            .bind::<diesel::sql_types::Bool, bool>(is_upvote)
+            .execute(&mut *conn)
+            .await?;
 
-                // 2. Get both counts in a single query
-                let counts: VoteCounts = diesel::sql_query(
-                    "SELECT \
+            // 2. Get both counts in a single query
+            let counts: VoteCounts = diesel::sql_query(
+                "SELECT \
                         COUNT(*) FILTER (WHERE is_upvote = true) AS upvote_count, \
                         COUNT(*) FILTER (WHERE is_upvote = false) AS downvote_count \
                      FROM post_votes \
                      WHERE post_id = $1",
-                )
-                .bind::<diesel::sql_types::Uuid, Uuid>(post_id)
-                .get_result(conn)
+            )
+            .bind::<diesel::sql_types::Uuid, Uuid>(post_id)
+            .get_result(&mut *conn)
+            .await?;
+
+            // 3. Update both columns in the posts table at once
+            diesel::update(posts::table.filter(posts::post_id.eq(post_id)))
+                .set((
+                    posts::total_upvotes.eq(counts.upvote_count),
+                    posts::total_downvotes.eq(counts.downvote_count),
+                ))
+                .execute(&mut *conn)
                 .await?;
 
-                // 3. Update both columns in the posts table at once
-                diesel::update(posts::table.filter(posts::post_id.eq(post_id)))
-                    .set((
-                        posts::total_upvotes.eq(counts.upvote_count),
-                        posts::total_downvotes.eq(counts.downvote_count),
-                    ))
-                    .execute(conn)
-                    .await?;
-
-                Ok((counts.upvote_count, counts.downvote_count))
-            })
+            Ok((counts.upvote_count, counts.downvote_count))
         })
         .await
     {

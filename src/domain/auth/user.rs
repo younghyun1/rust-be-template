@@ -2,7 +2,6 @@ use chrono::{DateTime, Utc};
 use diesel::{Queryable, QueryableByName, Selectable, prelude::Insertable};
 use diesel_async::{
     AsyncConnection, AsyncPgConnection, RunQueryDsl, pooled_connection::bb8::PooledConnection,
-    scoped_futures::ScopedFutureExt,
 };
 use serde_derive::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -77,24 +76,21 @@ impl User {
         };
 
         let inserted_user_id = conn
-            .transaction::<Uuid, diesel::result::Error, _>(|conn| {
-                async move {
-                    let user_id = match diesel::insert_into(users::table)
-                        .values(new_user)
-                        .returning(users::user_id)
-                        .get_result::<Uuid>(conn)
-                        .await
-                    {
-                        Ok(user_id) => user_id,
-                        Err(e) => return Err(e),
-                    };
+            .transaction::<Uuid, diesel::result::Error, _>(async |conn| {
+                let user_id = match diesel::insert_into(users::table)
+                    .values(new_user)
+                    .returning(users::user_id)
+                    .get_result::<Uuid>(&mut *conn)
+                    .await
+                {
+                    Ok(user_id) => user_id,
+                    Err(e) => return Err(e),
+                };
 
-                    match UserRole::insert_for_user(conn, user_id, RoleType::User).await {
-                        Ok(()) => Ok(user_id),
-                        Err(e) => Err(e),
-                    }
+                match UserRole::insert_for_user(conn, user_id, RoleType::User).await {
+                    Ok(()) => Ok(user_id),
+                    Err(e) => Err(e),
                 }
-                .scope_boxed()
             })
             .await;
 

@@ -63,43 +63,41 @@ pub async fn rescind_post_vote(
     };
 
     let (upvote_count, downvote_count) = match conn
-        .transaction::<_, diesel::result::Error, _>(|conn| {
-            Box::pin(async move {
-                let affected_rows = diesel::delete(
-                    post_votes::table.filter(
-                        post_votes::post_id
-                            .eq(post_id)
-                            .and(post_votes::user_id.eq(user_id)),
-                    ),
-                )
-                .execute(conn)
-                .await?;
+        .transaction::<_, diesel::result::Error, _>(async |conn| {
+            let affected_rows = diesel::delete(
+                post_votes::table.filter(
+                    post_votes::post_id
+                        .eq(post_id)
+                        .and(post_votes::user_id.eq(user_id)),
+                ),
+            )
+            .execute(&mut *conn)
+            .await?;
 
-                if affected_rows == 0 {
-                    return Err(diesel::result::Error::NotFound);
-                }
+            if affected_rows == 0 {
+                return Err(diesel::result::Error::NotFound);
+            }
 
-                let counts: VoteCounts = diesel::sql_query(
-                    "SELECT \
+            let counts: VoteCounts = diesel::sql_query(
+                "SELECT \
                         COUNT(*) FILTER (WHERE is_upvote = true) AS upvote_count, \
                         COUNT(*) FILTER (WHERE is_upvote = false) AS downvote_count \
                      FROM post_votes \
                      WHERE post_id = $1",
-                )
-                .bind::<diesel::sql_types::Uuid, Uuid>(post_id)
-                .get_result(conn)
+            )
+            .bind::<diesel::sql_types::Uuid, Uuid>(post_id)
+            .get_result(&mut *conn)
+            .await?;
+
+            diesel::update(posts::table.filter(posts::post_id.eq(post_id)))
+                .set((
+                    posts::total_upvotes.eq(counts.upvote_count),
+                    posts::total_downvotes.eq(counts.downvote_count),
+                ))
+                .execute(&mut *conn)
                 .await?;
 
-                diesel::update(posts::table.filter(posts::post_id.eq(post_id)))
-                    .set((
-                        posts::total_upvotes.eq(counts.upvote_count),
-                        posts::total_downvotes.eq(counts.downvote_count),
-                    ))
-                    .execute(conn)
-                    .await?;
-
-                Ok((counts.upvote_count, counts.downvote_count))
-            })
+            Ok((counts.upvote_count, counts.downvote_count))
         })
         .await
     {

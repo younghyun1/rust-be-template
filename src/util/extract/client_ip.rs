@@ -21,6 +21,7 @@ pub fn extract_client_ip(headers: &HeaderMap, fallback: SocketAddr) -> Option<Ip
     }
 }
 
+#[allow(clippy::question_mark)]
 fn parse_ip_header(value: &str) -> Option<IpAddr> {
     let first = match value.split(',').next() {
         Some(value) => value.trim(),

@@ -27,7 +27,7 @@ axum = { version = "0.8.9", features = [
 ] }
 axum-extra = { version = "0.12.6", features = ["cookie", "attachment", "form"] }
 axum-server = { version = "0.8.0", features = ["tls-rustls", "tokio-rustls"] }
-tower-http = { version = "0.6.8", features = [
+tower-http = { version = "0.6.10", features = [
     "compression-gzip",
     "compression-zstd",
     "trace",
@@ -36,27 +36,27 @@ tower-http = { version = "0.6.8", features = [
 ] }
 
 # OpenAPI
-utoipa = { version = "5.4.0", features = ["axum_extras", "uuid", "chrono"] }
+utoipa = { version = "5.5.0", features = ["axum_extras", "uuid", "chrono"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
 
 # parallelism
 # rayon = "1.10.0"
 
 # ORM
-diesel = { version = "2.3.8", features = [
+diesel = { version = "2.3.9", features = [
     "postgres",
     "chrono",
     "serde_json",
     "uuid",
     "ipnet-address",
 ] }
-diesel-async = { version = "0.8.0", features = ["bb8", "postgres"] }
+diesel-async = { version = "0.9.0", features = ["bb8", "postgres"] }
 
 # .env loading
 dotenvy = "0.15.7"
 
 # async runtime
-tokio = { version = "1.52.1", features = ["full"] }
+tokio = { version = "1.52.3", features = ["full"] }
 
 # loggers
 tracing = { version = "0.1.44", features = ["std"] }
@@ -81,7 +81,7 @@ flate2 = "1.1.9"
 # types
 chrono = { version = "0.4.44", features = ["serde"] }
 chrono-tz = { version = "0.10.4", features = ["serde"] }
-scc = "3.7.0"
+scc = "3.7.1"
 uuid = { version = "1.23.1", features = [
     "v4",
     "v7",
@@ -99,14 +99,14 @@ email_address = "0.2.9"
 argon2 = "0.5.3"
 rand = "0.10"
 rand_08 = { package = "rand", version = "0.8.6" }
-rustls = { version = "0.23.39", features = [] }
+rustls = { version = "0.23.40", features = [] }
 zeroize = { version = "1.8.2", features = ["derive"] }
 
 # memory allocator
 mimalloc = { version = "0.1.50", features = [] }
 
 # email
-lettre = { version = "0.11.21", default-features = false, features = [
+lettre = { version = "0.11.22", default-features = false, features = [
     "builder",
     "hostname",
     "pool",
@@ -127,13 +127,13 @@ kamadak-exif = "0.6.1"
 
 # markdown
 comrak = { version = "0.52.0", features = ["emojis", "shortcodes"] }
-ansi-to-html = "0.2.2"
+ansi-to-html = "0.2.3"
 
 # full-text search
 tantivy = "0.26"
 
 # request to external
-reqwest = { version = "0.13.2", features = ["gzip", "query"] }
+reqwest = { version = "0.13.3", features = ["gzip", "query"] }
 
 # embed assets into binary
 rust-embed = "8.11.0"
@@ -143,7 +143,7 @@ mime_guess = "2.0.5"
 internment = "0.8.6"
 
 # aws
-aws-sdk-s3 = { version = "1.131.0", features = ["behavior-version-latest"] }
+aws-sdk-s3 = { version = "1.132.0", features = ["behavior-version-latest"] }
 aws-config = { version = "1.8.16", features = [
     "rustls",
     "behavior-version-latest",
@@ -160,9 +160,6 @@ chrono = { version = "0.4.44" }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libc = { version = "0.2.186", features = [] }
-
-[target.'cfg(target_os = "macos")'.dependencies]
 libc = { version = "0.2.186", features = [] }
 
 [target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]

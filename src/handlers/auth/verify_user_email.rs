@@ -90,39 +90,36 @@ pub async fn verify_user_email(
     let verified_user_id = email_verification_token.user_id;
 
     let updated_user_email = match conn
-        .transaction::<_, diesel::result::Error, _>(move |conn| {
+        .transaction::<_, diesel::result::Error, _>(async move |conn| {
             let token_id = email_verification_token.email_verification_token_id;
 
-            Box::pin(async move {
-                let updated_email =
-                    match diesel::update(users::table.filter(users::user_id.eq(verified_user_id)))
-                        .set((
-                            users::user_is_email_verified.eq(true),
-                            users::user_updated_at.eq(now),
-                        ))
-                        .returning(users::user_email)
-                        .get_result::<String>(conn)
-                        .await
-                    {
-                        Ok(updated_email) => updated_email,
-                        Err(e) => return Err(e),
-                    };
-
-                match diesel::update(
-                    email_verification_tokens::table.filter(
-                        email_verification_tokens::email_verification_token_id.eq(token_id),
-                    ),
-                )
-                .set(email_verification_tokens::email_verification_token_used_at.eq(now))
-                .execute(conn)
-                .await
+            let updated_email =
+                match diesel::update(users::table.filter(users::user_id.eq(verified_user_id)))
+                    .set((
+                        users::user_is_email_verified.eq(true),
+                        users::user_updated_at.eq(now),
+                    ))
+                    .returning(users::user_email)
+                    .get_result::<String>(&mut *conn)
+                    .await
                 {
-                    Ok(_) => (),
+                    Ok(updated_email) => updated_email,
                     Err(e) => return Err(e),
-                }
+                };
 
-                Ok(updated_email)
-            })
+            match diesel::update(
+                email_verification_tokens::table
+                    .filter(email_verification_tokens::email_verification_token_id.eq(token_id)),
+            )
+            .set(email_verification_tokens::email_verification_token_used_at.eq(now))
+            .execute(&mut *conn)
+            .await
+            {
+                Ok(_) => (),
+                Err(e) => return Err(e),
+            }
+
+            Ok(updated_email)
         })
         .await
     {
