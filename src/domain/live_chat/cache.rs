@@ -250,6 +250,22 @@ impl LiveChatCache {
                 None => return,
             };
             let eviction_key = (**popped).clone();
+            // Skip stale eviction entries (e.g. left over from a re-append/upsert
+            // of the same message_id). Only evict if this entry still describes the
+            // currently-cached message; otherwise drop the entry and continue. The
+            // genuine eviction entry for any live message remains later in the queue,
+            // so loop termination is preserved.
+            let matches_live = self
+                .messages_by_id
+                .read_async(&eviction_key.live_chat_message_id, |_, message| {
+                    ChatTimelineKey::from_message(message) == eviction_key.timeline_key
+                        && message.estimated_bytes() == eviction_key.estimated_bytes
+                })
+                .await
+                .unwrap_or_default();
+            if !matches_live {
+                continue;
+            }
             if self
                 .messages_by_id
                 .remove_async(&eviction_key.live_chat_message_id)
@@ -347,6 +363,33 @@ impl LiveChatCache {
     pub async fn clear_expired_typing(&self, now: DateTime<Utc>) {
         self.typing_by_actor
             .retain_async(|_, typing_state| typing_state.expires_at > now)
+            .await;
+    }
+
+    /// Drops rate-limit windows older than the active rate window so they carry
+    /// no live rate-limit information, bounding `message_rate_by_key` to actors
+    /// active within the last sweep interval. The rate window is 1 second wide
+    /// (see `record_message_attempt_for_key`), so windows older than 2 seconds
+    /// are always reset on next access and safe to drop; they are recreated on
+    /// the next attempt. Prevents the otherwise unbounded growth of one entry
+    /// per distinct IP/user for the process lifetime.
+    pub async fn clear_stale_rate_windows(&self, now: DateTime<Utc>) {
+        self.message_rate_by_key
+            .retain_async(|_, state| {
+                now.signed_duration_since(state.window_started_at) < ChronoDuration::seconds(2)
+            })
+            .await;
+    }
+
+    /// Drops per-key rate windows not touched within the last minute. The window
+    /// is only 1 second wide, so any entry older than the 60s threshold carries
+    /// no live rate-limit signal and is simply recreated on the next attempt.
+    /// Provides a wider-threshold prune suitable for a once-per-minute sweep.
+    pub async fn clear_expired_rate_windows(&self, now: DateTime<Utc>) {
+        self.message_rate_by_key
+            .retain_async(|_, state| {
+                now.signed_duration_since(state.window_started_at) < ChronoDuration::seconds(60)
+            })
             .await;
     }
 

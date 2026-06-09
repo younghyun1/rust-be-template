@@ -55,9 +55,19 @@ impl SystemInfoState {
     }
 
     pub async fn update(&self) {
+        let cpu_usage = get_cpu_usage().await;
+        // get_memory_usage does blocking /proc + sysinfo syscalls; keep it off the
+        // async worker thread.
+        let memory_usage = match tokio::task::spawn_blocking(get_memory_usage).await {
+            Ok(usage) => usage,
+            Err(e) => {
+                tracing::error!(error = %e, "spawn_blocking for get_memory_usage failed");
+                0
+            }
+        };
         let info = SystemInfo {
-            cpu_usage: get_cpu_usage().await,
-            memory_usage: get_memory_usage(),
+            cpu_usage,
+            memory_usage,
         };
         self.push(info).await;
     }

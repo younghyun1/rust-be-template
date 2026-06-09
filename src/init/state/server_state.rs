@@ -1,4 +1,3 @@
-use std::collections::HashMap as StdHashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
@@ -7,7 +6,7 @@ use diesel_async::AsyncPgConnection;
 use diesel_async::pooled_connection::bb8::Pool;
 use lettre::{AsyncSmtpTransport, Tokio1Executor};
 use scc::HashSet;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::domain::blog::blog::CachedPostInfo;
@@ -44,7 +43,7 @@ pub struct ServerState {
     pub(crate) search_index: PostSearchIndex,
     pub(crate) geo_ip_db: GeoIpDatabases,
     pub visitor_board_map: scc::HashMap<([u8; 8], [u8; 8]), u64>,
-    pub(crate) visitor_log_buffer: Mutex<StdHashMap<VisitorLogKey, VisitorLogBatch>>,
+    pub(crate) visitor_log_buffer: scc::HashMap<VisitorLogKey, VisitorLogBatch>,
     pub(crate) api_keys_set: HashSet<Uuid>,
     pub country_map: RwLock<CountryAndSubdivisionsTable>,
     pub languages_map: RwLock<IsoLanguageTable>,

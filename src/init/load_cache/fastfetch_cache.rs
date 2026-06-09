@@ -14,10 +14,15 @@ impl FastFetchCache {
     pub async fn init() -> Self {
         let cache = FastFetchCache {
             fastfetch_string: RwLock::new(String::new()),
-            last_fetched: RwLock::new(Utc::now()),
+            // Start stale so a failed initial fetch is retried on the next request
+            // instead of being gated by the 1-minute staleness window. A successful
+            // update_fastfetch_string() advances last_fetched to now().
+            last_fetched: RwLock::new(DateTime::<Utc>::MIN_UTC),
         };
 
-        if let Err(_e) = cache.update_fastfetch_string().await {}
+        if let Err(e) = cache.update_fastfetch_string().await {
+            error!(error = ?e, "Initial fastfetch population failed");
+        }
 
         cache
     }

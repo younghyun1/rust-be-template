@@ -6,13 +6,13 @@ use axum::{
     response::IntoResponse,
 };
 use chrono::Utc;
-use diesel::{ExpressionMethods, QueryDsl};
+use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
-    domain::wasm_module::wasm_module::{WasmModule, WasmModuleChangeset},
+    domain::wasm_module::wasm_module::{WasmModuleChangeset, WasmModuleMetadata},
     dto::{
         requests::wasm_module::UpdateWasmModuleRequest,
         responses::{response_data::http_resp, wasm_module::WasmModuleItem},
@@ -20,7 +20,7 @@ use crate::{
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
     schema::wasm_module,
-    util::{time::now::tokio_now, wasm_bundle::sniff_content_type_from_gzip_bytes},
+    util::time::now::tokio_now,
 };
 
 /// PATCH /api/wasm-modules/{wasm_module_id}
@@ -61,10 +61,11 @@ pub async fn update_wasm_module(
         code_err(CodeError::POOL_ERROR, e)
     })?;
 
-    let updated: WasmModule = diesel::update(
+    let updated: WasmModuleMetadata = diesel::update(
         wasm_module::table.filter(wasm_module::wasm_module_id.eq(wasm_module_id)),
     )
     .set(&changeset)
+    .returning(WasmModuleMetadata::as_returning())
     .get_result(&mut conn)
     .await
     .map_err(|e| {
@@ -78,23 +79,6 @@ pub async fn update_wasm_module(
     })?;
 
     drop(conn);
-
-    let content_type =
-        sniff_content_type_from_gzip_bytes(&updated.wasm_module_bundle_gz).map_err(|e| {
-            error!(
-                error = ?e,
-                wasm_module_id = %wasm_module_id,
-                "Failed to detect bundle content type while refreshing WASM cache"
-            );
-            code_err(CodeError::DB_UPDATE_ERROR, e)
-        })?;
-    state
-        .upsert_wasm_module_cache(
-            wasm_module_id,
-            updated.wasm_module_bundle_gz.clone(),
-            content_type,
-        )
-        .await;
 
     info!(
         wasm_module_id = %wasm_module_id,

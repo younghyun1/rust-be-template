@@ -1,8 +1,5 @@
 use crate::errors::code_error::CodeErrorResp;
-use std::{
-    net::{IpAddr, SocketAddr},
-    sync::Arc,
-};
+use std::{net::SocketAddr, sync::Arc};
 
 use axum::{
     extract::{ConnectInfo, State},
@@ -14,7 +11,10 @@ use crate::{
     dto::responses::response_data::http_resp,
     errors::code_error::HandlerResponse,
     init::state::ServerState,
-    util::{geographic::ip_info_lookup::IpInfo, time::now::tokio_now},
+    util::{
+        extract::client_ip::extract_client_ip, geographic::ip_info_lookup::IpInfo,
+        time::now::tokio_now,
+    },
 };
 
 #[utoipa::path(
@@ -33,7 +33,10 @@ pub async fn lookup_my_ip_info(
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
-    let client_ip = extract_client_ip(&headers, info.ip());
+    let client_ip = match extract_client_ip(&headers, info) {
+        Some(ip) => ip,
+        None => info.ip(),
+    };
 
     let ip_info: IpInfo = match state.lookup_ip_location(client_ip) {
         Some(info) => info,
@@ -50,33 +53,4 @@ pub async fn lookup_my_ip_info(
     };
 
     Ok(http_resp(ip_info, (), start))
-}
-
-fn extract_client_ip(headers: &HeaderMap, fallback: IpAddr) -> IpAddr {
-    let forwarded = headers
-        .get("x-forwarded-for")
-        .and_then(|value| value.to_str().ok())
-        .and_then(parse_ip_header);
-
-    let real = headers
-        .get("x-real-ip")
-        .and_then(|value| value.to_str().ok())
-        .and_then(parse_ip_header);
-
-    forwarded.or(real).unwrap_or(fallback)
-}
-
-fn parse_ip_header(value: &str) -> Option<IpAddr> {
-    let first = value.split(',').next()?.trim();
-
-    if let Ok(ip) = first.parse::<IpAddr>() {
-        return Some(ip);
-    }
-
-    if let Ok(socket) = first.parse::<SocketAddr>() {
-        return Some(socket.ip());
-    }
-
-    let trimmed = first.trim_matches(&['[', ']'][..]);
-    trimmed.parse::<IpAddr>().ok()
 }

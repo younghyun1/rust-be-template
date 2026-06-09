@@ -134,7 +134,7 @@ pub fn encode_server_event(event: &LiveChatServerEvent) -> anyhow::Result<Vec<u8
         }
         LiveChatServerEvent::HeartbeatAck { nonce } => {
             writer.write_u8(SERVER_PONG);
-            let parsed_nonce = nonce.parse::<u64>().map_or(0, |value| value);
+            let parsed_nonce = nonce.parse::<u64>().unwrap_or(0);
             writer.write_u64(parsed_nonce);
         }
         LiveChatServerEvent::Error { code, message } => {

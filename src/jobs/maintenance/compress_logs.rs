@@ -58,27 +58,40 @@ pub async fn compress_old_logs(_state: Arc<ServerState>) {
                     .unwrap_or_else(|| "zst".to_string()),
             );
 
-            if let Err(err) = (|| -> Result<(), Box<dyn std::error::Error>> {
-                let input = File::open(path)?;
-                let output = File::create(&compressed_path)?;
+            // spawn_blocking needs owned paths (CLAUDE.md: blocking work off the runtime threads)
+            let owned_path = path.to_path_buf();
+            let owned_compressed_path = compressed_path.clone();
+
+            let join_result = tokio::task::spawn_blocking(move || -> std::io::Result<()> {
+                let input = File::open(&owned_path)?;
+                let output = File::create(&owned_compressed_path)?;
 
                 let mut reader = BufReader::new(input);
                 let mut writer = BufWriter::new(output);
 
                 copy_encode(&mut reader, &mut writer, 11)?;
 
-                std::fs::remove_file(path)?;
+                std::fs::remove_file(&owned_path)?;
 
                 Ok(())
-            })() {
-                error!(log_file_path = %path.display(), error = %err, "Failed to compress log file");
-            } else {
-                let duration = entry_start.elapsed();
-                info!(
-                    log_file_path = %entry.path().display(),
-                    duration = ?duration,
-                    "Log file compressed"
-                );
+            })
+            .await;
+
+            match join_result {
+                Ok(Ok(())) => {
+                    let duration = entry_start.elapsed();
+                    info!(
+                        log_file_path = %entry.path().display(),
+                        duration = ?duration,
+                        "Log file compressed"
+                    );
+                }
+                Ok(Err(err)) => {
+                    error!(log_file_path = %path.display(), error = %err, "Failed to compress log file");
+                }
+                Err(join_err) => {
+                    error!(log_file_path = %path.display(), error = %join_err, "Compression task panicked or was cancelled");
+                }
             }
         }
     }

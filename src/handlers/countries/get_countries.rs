@@ -26,7 +26,8 @@ pub async fn get_countries(
 
     let country_table_lock = state.country_map.read().await;
 
-    let countries = country_table_lock.serialized_country_list.clone();
+    // Cheap Arc refcount bump, not a deep clone of the whole countries JSON tree.
+    let countries = Arc::clone(&country_table_lock.serialized_country_list);
 
     drop(country_table_lock);
 

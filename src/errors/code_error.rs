@@ -194,6 +194,13 @@ impl CodeError {
         message: "Post not found or access denied!",
         log_level: Level::INFO,
     };
+    pub const COMMENT_NOT_FOUND: CodeError = CodeError {
+        success: false,
+        error_code: 46,
+        http_status_code: StatusCode::NOT_FOUND,
+        message: "Comment not found or access denied!",
+        log_level: Level::INFO,
+    };
     pub const INVALID_IP_ADDRESS: CodeError = CodeError {
         success: false,
         error_code: 25,

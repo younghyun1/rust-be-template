@@ -72,7 +72,7 @@ pub async fn get_photographs(
     // Fetch a single page of photographs ordered by most recently shot
     let results: Result<Vec<Photograph>, diesel::result::Error> = photographs
         .filter(photograph_context.eq(PhotographContext::Photography))
-        .order(photograph_shot_at.desc())
+        .order((photograph_shot_at.desc(), photograph_id.desc()))
         .offset(offset_val)
         .limit(page_size)
         .load::<Photograph>(&mut conn)

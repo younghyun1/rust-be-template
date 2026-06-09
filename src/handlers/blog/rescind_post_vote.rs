@@ -10,7 +10,6 @@ use diesel_async::{AsyncConnection, RunQueryDsl};
 use uuid::Uuid;
 
 use crate::{
-    domain::blog::blog::CachedPostInfo,
     dto::responses::response_data::http_resp,
     errors::code_error::{CodeError, CodeErrorResp, HandlerResponse, code_err},
     init::state::ServerState,
@@ -52,15 +51,14 @@ pub async fn rescind_post_vote(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    let mut post_info: CachedPostInfo = match state.get_post_from_cache(&post_id).await {
-        Some(post_info) => post_info,
-        None => {
-            return Err(code_err(
-                CodeError::POST_NOT_FOUND_IN_CACHE,
-                "Post not found",
-            ));
-        }
-    };
+    // Existence check only; counts are updated in-place below to avoid clobbering
+    // concurrent updates to other cached fields with a stale snapshot write-back.
+    if state.get_post_from_cache(&post_id).await.is_none() {
+        return Err(code_err(
+            CodeError::POST_NOT_FOUND_IN_CACHE,
+            "Post not found",
+        ));
+    }
 
     let (upvote_count, downvote_count) = match conn
         .transaction::<_, diesel::result::Error, _>(async |conn| {
@@ -106,11 +104,15 @@ pub async fn rescind_post_vote(
         Err(e) => return Err(code_err(CodeError::DB_DELETION_ERROR, e)),
     };
 
-    post_info.total_upvotes = upvote_count;
-    post_info.total_downvotes = downvote_count;
-
-    state
-        .insert_post_to_cache_without_search_sync(&post_info)
+    // Update only the vote counts on the live cache entry in place; other fields
+    // are left untouched and the order/search index is not resynced (votes do not
+    // affect ordering). update_async is a no-op if the post was deleted meanwhile.
+    let _ = state
+        .blog_posts_cache
+        .update_async(&post_id, |_, cached| {
+            cached.total_upvotes = upvote_count;
+            cached.total_downvotes = downvote_count;
+        })
         .await;
 
     Ok(http_resp((), (), start))

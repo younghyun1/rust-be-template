@@ -139,10 +139,19 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
     // initialize scheduled jobs manager
     task_init(state.clone()).await?;
 
-    tokio::spawn(redirect_http_to_https(Ports {
-        http: 80,
-        https: host_port,
-    }));
+    tokio::spawn(async move {
+        if let Err(e) = redirect_http_to_https(
+            host_ip,
+            Ports {
+                http: 80,
+                https: host_port,
+            },
+        )
+        .await
+        {
+            tracing::error!(error = %e, "HTTP->HTTPS redirect listener exited with error");
+        }
+    });
 
     info!(host_port = host_port, "Listening for HTTPS traffic");
 
@@ -165,7 +174,7 @@ struct Ports {
     https: u16,
 }
 
-async fn redirect_http_to_https(ports: Ports) -> anyhow::Result<()> {
+async fn redirect_http_to_https(host_ip: IpAddr, ports: Ports) -> anyhow::Result<()> {
     fn make_https(host: &str, uri: Uri, https_port: u16) -> anyhow::Result<Uri> {
         let mut parts = uri.into_parts();
 
@@ -215,7 +224,7 @@ async fn redirect_http_to_https(ports: Ports) -> anyhow::Result<()> {
         }
     };
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], ports.http));
+    let addr = SocketAddr::new(host_ip, ports.http);
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to bind TCP listener: {}", e))?;

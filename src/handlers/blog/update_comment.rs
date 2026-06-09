@@ -61,7 +61,9 @@ pub async fn update_comment(
         .filter(comments::comment_id.eq(comment_id))
         .first(&mut conn)
         .await
-        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+        .optional()
+        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?
+        .ok_or_else(|| code_err(CodeError::COMMENT_NOT_FOUND, "Comment not found"))?;
 
     if author_id != requester_id && !is_superuser {
         return Err(code_err(

@@ -3,15 +3,20 @@ use std::sync::Arc;
 use axum::{
     Router,
     extract::DefaultBodyLimit,
+    http::{HeaderValue, Method, header},
     middleware::{from_fn, from_fn_with_state},
     routing::{delete, get, patch, post},
 };
 use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
-use tower_http::{compression::CompressionLayer, cors::CorsLayer};
+use tower_http::{
+    compression::CompressionLayer,
+    cors::{AllowOrigin, CorsLayer},
+};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{
+    DOMAIN_NAME,
     docs::ApiDoc,
     handlers::{
         admin::{get_host_stats::ws_host_stats_handler, sync_i18n_cache::sync_i18n_cache},
@@ -76,7 +81,24 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
     let log_middleware = from_fn_with_state(state.clone(), log_middleware);
     let is_logged_in_middleware = from_fn_with_state(state.clone(), is_logged_in_middleware);
     let compression_middleware = CompressionLayer::new().zstd(true).gzip(true);
-    let cors_layer = CorsLayer::very_permissive();
+
+    // Auth is cookie-based (session_id cookie with credentials), so CORS must NOT reflect an
+    // arbitrary Origin while allowing credentials. We build an explicit allow-list of trusted
+    // frontend origins. Never combine `AllowOrigin::any()` with `allow_credentials(true)`:
+    // tower-http panics on that combination at runtime.
+    let cors_layer = CorsLayer::new()
+        .allow_origin(AllowOrigin::list(build_trusted_origins(
+            state.get_deployment_environment(),
+        )))
+        .allow_credentials(true)
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
+        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION]);
 
     let governor_conf = match GovernorConfigBuilder::default()
         .per_millisecond(REPLENISHED_EVERY_MILLISECONDS)
@@ -182,23 +204,22 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .layer(require_superuser_middleware.clone())
         .layer(auth_middleware.clone());
 
-    // Combine all API routes and apply shared middleware
-    let mut api_router = public_router
+    // Combine all API routes and apply shared middleware. Rate limiting is intentionally NOT
+    // applied here; it is applied to the outer router below so that the static fallback and
+    // Swagger UI assets are throttled too (otherwise those surfaces are unbounded). CORS stays
+    // scoped to the API router only.
+    let api_router = public_router
         .merge(protected_router)
         .merge(superuser_router)
         .layer(is_logged_in_middleware)
         // .layer(api_key_check_middleware)
         .layer(log_middleware)
-        .layer(DefaultBodyLimit::max(MAX_REQUEST_SIZE));
-
-    if let Some(governor_conf) = governor_conf {
-        api_router = api_router.layer(GovernorLayer::new(governor_conf));
-    }
-
-    let api_router = api_router.layer(cors_layer).with_state(state.clone());
+        .layer(DefaultBodyLimit::max(MAX_REQUEST_SIZE))
+        .layer(cors_layer)
+        .with_state(state.clone());
 
     // Final router: merge API routes and set the static asset handler as the fallback
-    let mut router = Router::new().merge(api_router);
+    let router = Router::new().merge(api_router);
 
     // Swagger UI is always available, but in prod it is gated behind auth + superuser.
     //
@@ -217,7 +238,70 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
             .layer(auth_middleware.clone());
     }
 
-    router = router.merge(swagger_router).layer(compression_middleware);
+    // Set the static asset fallback first, then wrap the entire router (API + swagger + static
+    // fallback) in the rate limiter so every request surface is throttled, then apply compression
+    // as the outermost layer. `governor_conf` is consumed exactly once here.
+    let mut router = router
+        .merge(swagger_router)
+        .fallback_service(get(static_asset_handler));
 
-    router.fallback_service(get(static_asset_handler))
+    if let Some(governor_conf) = governor_conf {
+        router = router.layer(GovernorLayer::new(governor_conf));
+    }
+
+    router.layer(compression_middleware)
+}
+
+/// Builds the explicit list of trusted CORS origins for credentialed requests.
+///
+/// The session cookie is scoped to [`DOMAIN_NAME`], so the production frontend origins are
+/// `https://{DOMAIN_NAME}` and `https://www.{DOMAIN_NAME}`. Non-production environments also
+/// accept the usual local dev origins so the frontend dev server can talk to the API.
+///
+/// Additional origins may be supplied via the comma-separated `CORS_ALLOWED_ORIGINS` env var
+/// (e.g. a separately-hosted frontend) without recompiling.
+///
+/// Origins that fail to parse into a [`HeaderValue`] are logged and skipped rather than panicking,
+/// keeping startup infallible.
+fn build_trusted_origins(env: DeploymentEnvironment) -> Vec<HeaderValue> {
+    let mut origins: Vec<String> = vec![
+        format!("https://{DOMAIN_NAME}"),
+        format!("https://www.{DOMAIN_NAME}"),
+    ];
+
+    // In non-prod environments, allow the local frontend dev server origins.
+    if !matches!(env, DeploymentEnvironment::Prod) {
+        origins.extend(
+            [
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+            ]
+            .into_iter()
+            .map(str::to_owned),
+        );
+    }
+
+    // Operator-supplied extra origins (comma-separated), for split-origin deployments.
+    if let Ok(extra) = std::env::var("CORS_ALLOWED_ORIGINS") {
+        origins.extend(
+            extra
+                .split(',')
+                .map(str::trim)
+                .filter(|origin| !origin.is_empty())
+                .map(str::to_owned),
+        );
+    }
+
+    origins
+        .into_iter()
+        .filter_map(|origin| match HeaderValue::from_str(&origin) {
+            Ok(value) => Some(value),
+            Err(e) => {
+                tracing::error!(origin = %origin, error = %e, "Skipping invalid CORS origin");
+                None
+            }
+        })
+        .collect()
 }
