@@ -1,7 +1,4 @@
-use axum::{
-    body::Bytes,
-    extract::ws::{Message, WebSocket},
-};
+use axum::{body::Bytes, extract::ws::Message};
 use tracing::{error, warn};
 
 use crate::{
@@ -13,6 +10,11 @@ use crate::{
 };
 
 use super::{LIVE_CHAT_MAX_FRAME_BYTES, LiveChatWireProtocol};
+
+/// Outbound frame channel to the per-connection writer task. Handlers enqueue
+/// already-or-soon-encoded frames here instead of writing to the socket directly,
+/// so a slow DB persist on the read side never stalls the broadcast drain.
+pub(super) type OutboundSender = tokio::sync::mpsc::Sender<Message>;
 
 pub(super) enum DecodedLiveChatClientEvent {
     SendMessage {
@@ -60,7 +62,7 @@ impl From<LiveChatBinaryClientEvent> for DecodedLiveChatClientEvent {
 }
 
 pub(super) async fn decode_json_client_event(
-    socket: &mut WebSocket,
+    out: &OutboundSender,
     message: &Message,
 ) -> Option<DecodedLiveChatClientEvent> {
     let text = match message.to_text() {
@@ -71,7 +73,7 @@ pub(super) async fn decode_json_client_event(
                 message: "Expected UTF-8 text frame".to_string(),
             };
             error!(error = ?e, "Failed to parse live chat WebSocket frame as text");
-            let _ = send_event(socket, &event, LiveChatWireProtocol::Json).await;
+            send_event(out, &event, LiveChatWireProtocol::Json).await;
             return None;
         }
     };
@@ -81,7 +83,7 @@ pub(super) async fn decode_json_client_event(
             code: "frame_too_large".to_string(),
             message: "Live chat event payload is too large.".to_string(),
         };
-        let _ = send_event(socket, &event, LiveChatWireProtocol::Json).await;
+        send_event(out, &event, LiveChatWireProtocol::Json).await;
         return None;
     }
 
@@ -93,14 +95,14 @@ pub(super) async fn decode_json_client_event(
                 message: "Invalid live chat event payload".to_string(),
             };
             warn!(error = ?e, "Failed to parse live chat client event");
-            let _ = send_event(socket, &event, LiveChatWireProtocol::Json).await;
+            send_event(out, &event, LiveChatWireProtocol::Json).await;
             None
         }
     }
 }
 
 pub(super) async fn decode_binary_client_event(
-    socket: &mut WebSocket,
+    out: &OutboundSender,
     message: Message,
 ) -> Option<DecodedLiveChatClientEvent> {
     let bytes = match message {
@@ -113,7 +115,7 @@ pub(super) async fn decode_binary_client_event(
                 code: "invalid_frame".to_string(),
                 message: "Expected binary live chat frame".to_string(),
             };
-            let _ = send_event(socket, &event, LiveChatWireProtocol::Binary).await;
+            send_event(out, &event, LiveChatWireProtocol::Binary).await;
             return None;
         }
         Message::Close(_) => return None,
@@ -124,7 +126,7 @@ pub(super) async fn decode_binary_client_event(
             code: "frame_too_large".to_string(),
             message: "Live chat event payload is too large.".to_string(),
         };
-        let _ = send_event(socket, &event, LiveChatWireProtocol::Binary).await;
+        send_event(out, &event, LiveChatWireProtocol::Binary).await;
         return None;
     }
 
@@ -136,36 +138,45 @@ pub(super) async fn decode_binary_client_event(
                 message: "Invalid live chat binary event payload".to_string(),
             };
             warn!(error = ?e, "Failed to parse live chat binary client event");
-            let _ = send_event(socket, &event, LiveChatWireProtocol::Binary).await;
+            send_event(out, &event, LiveChatWireProtocol::Binary).await;
             None
         }
     }
 }
 
-pub(super) async fn send_event(
-    socket: &mut WebSocket,
+/// Serialize a server event into a WebSocket frame for the negotiated wire
+/// protocol. Returns `None` (and logs) on a serialization failure.
+pub(super) fn encode_event(
     event: &LiveChatServerEvent,
     wire_protocol: LiveChatWireProtocol,
-) -> Result<(), axum::Error> {
+) -> Option<Message> {
     if matches!(wire_protocol, LiveChatWireProtocol::Binary) {
-        let payload = match encode_server_event(event) {
-            Ok(payload) => payload,
+        match encode_server_event(event) {
+            Ok(payload) => Some(Message::Binary(Bytes::from(payload))),
             Err(e) => {
                 error!(error = ?e, "Failed to serialize binary live chat server event");
-                return Ok(());
+                None
             }
-        };
-
-        return socket.send(Message::Binary(Bytes::from(payload))).await;
-    }
-
-    let payload = match serde_json::to_string(event) {
-        Ok(payload) => payload,
-        Err(e) => {
-            error!(error = ?e, "Failed to serialize live chat server event");
-            return Ok(());
         }
-    };
+    } else {
+        match serde_json::to_string(event) {
+            Ok(payload) => Some(Message::Text(payload.into())),
+            Err(e) => {
+                error!(error = ?e, "Failed to serialize live chat server event");
+                None
+            }
+        }
+    }
+}
 
-    socket.send(Message::Text(payload.into())).await
+/// Enqueue a server event for the writer task. A closed channel means the
+/// connection is already tearing down, so the frame is dropped silently.
+pub(super) async fn send_event(
+    out: &OutboundSender,
+    event: &LiveChatServerEvent,
+    wire_protocol: LiveChatWireProtocol,
+) {
+    if let Some(message) = encode_event(event, wire_protocol) {
+        let _ = out.send(message).await;
+    }
 }

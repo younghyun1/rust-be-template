@@ -51,12 +51,19 @@ diesel = { version = "2.3.10", features = [
     "ipnet-address",
 ] }
 diesel-async = { version = "0.9.1", features = ["bb8", "postgres"] }
+# embedded migrations, run in-process at startup
+diesel_migrations = "2.3.0"
 
 # .env loading
 dotenvy = "0.15.7"
 
 # async runtime
 tokio = { version = "1.52.3", features = ["full"] }
+# Stream/Sink combinators (WebSocket split for the live-chat writer task)
+futures-util = { version = "0.3.31", default-features = false, features = [
+    "std",
+    "sink",
+] }
 
 # loggers
 tracing = { version = "0.1.44", features = ["std"] }
