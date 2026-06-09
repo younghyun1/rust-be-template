@@ -1,4 +1,4 @@
-use diesel::{ExpressionMethods, QueryDsl};
+use diesel::{DecoratableTarget, ExpressionMethods};
 use diesel_async::{AsyncConnection, RunQueryDsl};
 use tracing::info;
 use uuid::Uuid;
@@ -113,52 +113,38 @@ impl ServerState {
                 for bundle in bundles {
                     for entry in bundle.entries {
                         let now = chrono::Utc::now();
-                        let updated_rows = diesel::update(
-                            i18n_strings::table
-                                .filter(i18n_strings::i18n_string_reference_key.eq(&entry.key))
-                                .filter(
-                                    i18n_strings::i18n_string_country_code
-                                        .eq(bundle.locale.country_code()),
-                                )
-                                .filter(
-                                    i18n_strings::i18n_string_language_code
-                                        .eq(bundle.locale.language_code()),
-                                )
-                                .filter(
-                                    i18n_strings::i18n_string_country_subdivision_code.is_null(),
-                                ),
-                        )
-                        .set((
-                            i18n_strings::i18n_string_content.eq(&entry.content),
-                            i18n_strings::i18n_string_updated_at.eq(now),
-                            i18n_strings::i18n_string_updated_by.eq(system_user_id),
-                        ))
-                        .execute(&mut *conn)
-                        .await?;
-
-                        if updated_rows == 0 {
-                            diesel::insert_into(i18n_strings::table)
-                                .values((
-                                    i18n_strings::i18n_string_content.eq(&entry.content),
-                                    i18n_strings::i18n_string_updated_by.eq(system_user_id),
-                                    i18n_strings::i18n_string_language_code
-                                        .eq(bundle.locale.language_code()),
-                                    i18n_strings::i18n_string_country_code
-                                        .eq(bundle.locale.country_code()),
-                                    i18n_strings::i18n_string_country_subdivision_code
-                                        .eq(Option::<String>::None),
-                                    i18n_strings::i18n_string_reference_key.eq(&entry.key),
-                                ))
-                                .execute(&mut *conn)
-                                .await?;
-                        } else if updated_rows > 1 {
-                            tracing::warn!(
-                                locale = %bundle.locale.as_tag(),
-                                key = %entry.key,
-                                duplicate_rows = %updated_rows,
-                                "Updated duplicate UI i18n rows; existing duplicate rows should be consolidated"
-                            );
-                        }
+                        // Upsert against the partial unique index over NULL-subdivision
+                        // rows (migration 2026-06-09 ..._i18n_null_subdivision_unique),
+                        // which atomically inserts or updates and cannot race into a
+                        // duplicate the way the prior update-then-insert could.
+                        diesel::insert_into(i18n_strings::table)
+                            .values((
+                                i18n_strings::i18n_string_content.eq(&entry.content),
+                                i18n_strings::i18n_string_updated_by.eq(system_user_id),
+                                i18n_strings::i18n_string_language_code
+                                    .eq(bundle.locale.language_code()),
+                                i18n_strings::i18n_string_country_code
+                                    .eq(bundle.locale.country_code()),
+                                i18n_strings::i18n_string_country_subdivision_code
+                                    .eq(Option::<String>::None),
+                                i18n_strings::i18n_string_reference_key.eq(&entry.key),
+                            ))
+                            .on_conflict((
+                                i18n_strings::i18n_string_reference_key,
+                                i18n_strings::i18n_string_country_code,
+                                i18n_strings::i18n_string_language_code,
+                            ))
+                            .filter_target(
+                                i18n_strings::i18n_string_country_subdivision_code.is_null(),
+                            )
+                            .do_update()
+                            .set((
+                                i18n_strings::i18n_string_content.eq(&entry.content),
+                                i18n_strings::i18n_string_updated_at.eq(now),
+                                i18n_strings::i18n_string_updated_by.eq(system_user_id),
+                            ))
+                            .execute(&mut *conn)
+                            .await?;
 
                         rows_synchronized += 1;
                     }

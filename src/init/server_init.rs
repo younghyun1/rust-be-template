@@ -60,6 +60,12 @@ pub async fn server_init_proc(start: tokio::time::Instant) -> anyhow::Result<()>
         .to_url()
         .map_err(|e| anyhow::anyhow!("Failed to convert DB config to URL: {}", e))?;
 
+    // Apply embedded migrations before opening the async pool or loading caches,
+    // so the schema is guaranteed current. A migration failure is fatal.
+    crate::init::db_migrations::run_pending_migrations(db_url.clone())
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to apply database migrations: {}", e))?;
+
     info!(
         event = "database_connect_start",
         "Attempting to connect to database"
