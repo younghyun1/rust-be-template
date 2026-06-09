@@ -68,7 +68,7 @@ pub async fn upload_profile_picture(
     mut multipart: Multipart,
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
-    let mut uploaded_file: Vec<u8> = Vec::with_capacity(MAX_SIZE_OF_UPLOADABLE_PROFILE_PICTURE);
+    let mut uploaded_file: Vec<u8> = Vec::new();
     let mut mime: Option<String> = None;
     let mut _extension: String = String::new();
 
@@ -122,6 +122,17 @@ pub async fn upload_profile_picture(
             error!(error = ?e, user_id = %user_id, "Failed reading multipart field bytes");
             code_err(CodeError::FILE_UPLOAD_ERROR, e)
         })?;
+        if uploaded_file.len() + bytes.len() > MAX_SIZE_OF_UPLOADABLE_PROFILE_PICTURE {
+            warn!(
+                user_id = %user_id,
+                limit = MAX_SIZE_OF_UPLOADABLE_PROFILE_PICTURE,
+                "Profile picture exceeds maximum allowed size; rejecting upload"
+            );
+            return Err(code_err(
+                CodeError::FILE_UPLOAD_ERROR,
+                "Profile picture exceeds the 10MB size limit!",
+            ));
+        }
         uploaded_file.extend_from_slice(&bytes);
     }
 
@@ -209,8 +220,22 @@ pub async fn upload_profile_picture(
                 key = %image_path,
                 "Failed to insert user profile picture row into DB"
             );
-            // Clean up the image file if DB insertion fails
-            tokio::fs::remove_file(&image_path).await.ok();
+            // Clean up the orphaned S3 object if DB insertion fails
+            if let Err(del_err) = s3_client
+                .delete_object()
+                .bucket(AWS_S3_BUCKET_NAME)
+                .key(&image_path)
+                .send()
+                .await
+            {
+                error!(
+                    error = ?del_err,
+                    user_id = %user_id,
+                    bucket = AWS_S3_BUCKET_NAME,
+                    key = %image_path,
+                    "Failed to delete orphaned S3 object after DB insertion failure"
+                );
+            }
             return Err(code_err(CodeError::DB_INSERTION_ERROR, e));
         }
         Ok(user_profile_picture_id) => {

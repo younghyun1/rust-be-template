@@ -1,12 +1,9 @@
 use std::collections::{BTreeMap, HashMap};
 
 use diesel::{Queryable, QueryableByName};
-use diesel_async::{AsyncPgConnection, RunQueryDsl, pooled_connection::bb8::PooledConnection};
 use serde_derive::{Deserialize, Serialize};
 use tracing::error;
 use utoipa::ToSchema;
-
-use crate::schema::iso_country;
 
 #[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable, ToSchema)]
 #[diesel(table_name = iso_country)]
@@ -31,67 +28,6 @@ pub struct IsoCountry {
     pub country_primary_language: i32,
 }
 
-#[derive(Serialize)]
-pub struct IsoCountryTable {
-    rows: Vec<IsoCountry>,
-    alpha2_index: HashMap<String, usize>,
-    alpha3_index: HashMap<String, usize>,
-    serialized_list: serde_json::Value,
-}
-
-impl From<Vec<IsoCountry>> for IsoCountryTable {
-    fn from(mut rows: Vec<IsoCountry>) -> Self {
-        // Sort the rows by the English country name so that they appear in order.
-        rows.sort_by_key(|row| row.country_eng_name.clone());
-
-        let mut alpha2_index = HashMap::new();
-        let mut alpha3_index = HashMap::new();
-        for (idx, row) in rows.iter().enumerate() {
-            alpha2_index.insert(row.country_alpha2.clone(), idx);
-            alpha3_index.insert(row.country_alpha3.clone(), idx);
-        }
-
-        let serialized_list = serde_json::json!({ "countries": rows });
-
-        IsoCountryTable {
-            rows,
-            alpha2_index,
-            alpha3_index,
-            serialized_list,
-        }
-    }
-}
-
-impl IsoCountryTable {
-    pub fn lookup_by_alpha2(&self, code: &str) -> Option<IsoCountry> {
-        self.alpha2_index
-            .get(code)
-            .map(|&idx| self.rows[idx].clone())
-    }
-
-    pub fn lookup_by_alpha3(&self, code: &str) -> Option<IsoCountry> {
-        self.alpha3_index
-            .get(code)
-            .map(|&idx| self.rows[idx].clone())
-    }
-
-    pub async fn load_from_db(
-        mut conn: &mut PooledConnection<'_, AsyncPgConnection>,
-    ) -> anyhow::Result<Self> {
-        let countries: Vec<IsoCountry> = iso_country::table.load(&mut conn).await?;
-        Ok(countries.into())
-    }
-
-    pub fn new_empty() -> Self {
-        IsoCountryTable {
-            rows: Vec::new(),
-            alpha2_index: HashMap::new(),
-            alpha3_index: HashMap::new(),
-            serialized_list: serde_json::Value::Null,
-        }
-    }
-}
-
 // 1. ISO Country Subdivision
 #[derive(Clone, Serialize, Deserialize, QueryableByName, Queryable, ToSchema)]
 #[diesel(table_name = iso_country_subdivision)]
@@ -107,59 +43,6 @@ pub struct IsoCountrySubdivision {
     // Note: subdivision_type is nullable in the DB so we make it Option.
     #[diesel(sql_type = diesel::sql_types::VarChar)]
     pub subdivision_type: Option<String>,
-}
-
-// Create an “indexed table‐like” struct for subdivisions.
-#[derive(Serialize)]
-pub struct IsoCountrySubdivisionTable {
-    // The raw rows.
-    pub rows: Vec<IsoCountrySubdivision>,
-    // Index by primary key.
-    pub by_id: HashMap<i32, usize>,
-    // An index mapping (country_code, subdivision_code) to index.
-    /// (Note: You might decide to index by country-code string or by some other key,
-    ///  in which case adjust the key type as needed.)
-    pub by_country_and_code: HashMap<(i32, String), usize>,
-}
-
-impl From<Vec<IsoCountrySubdivision>> for IsoCountrySubdivisionTable {
-    fn from(rows: Vec<IsoCountrySubdivision>) -> Self {
-        let mut by_id = HashMap::new();
-        let mut by_country_and_code = HashMap::new();
-        for (idx, row) in rows.iter().enumerate() {
-            by_id.insert(row.subdivision_id, idx);
-            by_country_and_code.insert((row.country_code, row.subdivision_code.clone()), idx);
-        }
-        IsoCountrySubdivisionTable {
-            rows,
-            by_id,
-            by_country_and_code,
-        }
-    }
-}
-
-impl IsoCountrySubdivisionTable {
-    pub fn lookup_by_subdivision_id(&self, id: i32) -> Option<IsoCountrySubdivision> {
-        self.by_id.get(&id).map(|&idx| self.rows[idx].clone())
-    }
-
-    pub fn lookup_by_country_and_code(
-        &self,
-        country_code: i32,
-        code: &str,
-    ) -> Option<IsoCountrySubdivision> {
-        self.by_country_and_code
-            .get(&(country_code, code.to_owned()))
-            .map(|&idx| self.rows[idx].clone())
-    }
-
-    pub fn new_empty() -> Self {
-        IsoCountrySubdivisionTable {
-            rows: Vec::new(),
-            by_id: HashMap::new(),
-            by_country_and_code: HashMap::new(),
-        }
-    }
 }
 
 // 2. ISO Currency
@@ -334,7 +217,7 @@ pub struct CountryAndSubdivisionsTable {
     /// An index from a country's alpha‑3 code to its combined record.
     pub by_country_alpha3: HashMap<String, usize>,
     /// A JSON representation of the combined table ready for dispatch.
-    pub serialized_country_list: serde_json::Value,
+    pub serialized_country_list: std::sync::Arc<serde_json::Value>,
 }
 
 impl CountryAndSubdivisionsTable {
@@ -390,7 +273,7 @@ impl CountryAndSubdivisionsTable {
             by_id,
             by_country_alpha2,
             by_country_alpha3,
-            serialized_country_list: dispatch_json,
+            serialized_country_list: std::sync::Arc::new(dispatch_json),
         }
     }
 
@@ -401,7 +284,7 @@ impl CountryAndSubdivisionsTable {
             by_id: HashMap::new(),
             by_country_alpha2: HashMap::new(),
             by_country_alpha3: HashMap::new(),
-            serialized_country_list: serde_json::json!({ "countries": [] }),
+            serialized_country_list: std::sync::Arc::new(serde_json::json!({ "countries": [] })),
         }
     }
 

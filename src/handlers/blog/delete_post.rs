@@ -5,7 +5,7 @@ use axum::{
     extract::{Path, State},
     response::IntoResponse,
 };
-use diesel::{ExpressionMethods, QueryDsl};
+use diesel::{ExpressionMethods, OptionalExtension, QueryDsl};
 use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
@@ -54,7 +54,9 @@ pub async fn delete_post(
         .filter(posts::post_id.eq(post_id))
         .first(&mut conn)
         .await
-        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?;
+        .optional()
+        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?
+        .ok_or_else(|| code_err(CodeError::POST_NOT_FOUND, "Post not found"))?;
 
     if author_id == requester_id || is_superuser {
         // 2. Delete comment!

@@ -95,16 +95,16 @@ pub async fn get_cpu_usage() -> f64 {
             Some((total, idle_all))
         }
 
-        let (total1, idle1) = match read_proc_stat() {
-            Some(vals) => vals,
-            None => return 0.0,
+        let (total1, idle1) = match tokio::task::spawn_blocking(read_proc_stat).await {
+            Ok(Some(vals)) => vals,
+            _ => return 0.0,
         };
 
         tokio::time::sleep(Duration::from_millis(100)).await;
 
-        let (total2, idle2) = match read_proc_stat() {
-            Some(vals) => vals,
-            None => return 0.0,
+        let (total2, idle2) = match tokio::task::spawn_blocking(read_proc_stat).await {
+            Ok(Some(vals)) => vals,
+            _ => return 0.0,
         };
 
         let total_delta = total2.saturating_sub(total1);

@@ -105,8 +105,10 @@ pub(super) async fn decode_binary_client_event(
 ) -> Option<DecodedLiveChatClientEvent> {
     let bytes = match message {
         Message::Binary(bytes) => bytes,
-        Message::Close(_) => return None,
-        _ => {
+        // Transport control frames (Ping/Pong) are auto-handled by tungstenite;
+        // skip them silently instead of emitting an application-level error.
+        Message::Ping(_) | Message::Pong(_) => return None,
+        Message::Text(_) => {
             let event = LiveChatServerEvent::Error {
                 code: "invalid_frame".to_string(),
                 message: "Expected binary live chat frame".to_string(),
@@ -114,6 +116,7 @@ pub(super) async fn decode_binary_client_event(
             let _ = send_event(socket, &event, LiveChatWireProtocol::Binary).await;
             return None;
         }
+        Message::Close(_) => return None,
     };
 
     if bytes.len() > LIVE_CHAT_MAX_FRAME_BYTES {

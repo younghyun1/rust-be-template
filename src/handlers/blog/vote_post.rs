@@ -10,7 +10,6 @@ use diesel_async::{AsyncConnection, RunQueryDsl};
 use uuid::Uuid;
 
 use crate::{
-    domain::blog::blog::CachedPostInfo,
     dto::{
         requests::blog::upvote_post_request::UpvotePostRequest,
         responses::{blog::vote_post_response::VotePostResponse, response_data::http_resp},
@@ -57,15 +56,16 @@ pub async fn vote_post(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    let mut post_info: CachedPostInfo = match state.get_post_from_cache(&post_id).await {
-        Some(post_info) => post_info,
-        None => {
-            return Err(code_err(
-                CodeError::POST_NOT_FOUND_IN_CACHE,
-                "Post not found",
-            ));
-        }
-    };
+    // Existence check only: the count fields are updated in-place below, so we
+    // must not retain (and later write back) a full pre-transaction snapshot of
+    // the cached post; doing so would clobber concurrent updates to other fields
+    // (title, slug, tags, published state) made between this read and the write.
+    if state.get_post_from_cache(&post_id).await.is_none() {
+        return Err(code_err(
+            CodeError::POST_NOT_FOUND_IN_CACHE,
+            "Post not found",
+        ));
+    }
 
     let (upvote_count, downvote_count): (i64, i64) = match conn
         .transaction::<_, diesel::result::Error, _>(async |conn| {
@@ -119,11 +119,19 @@ pub async fn vote_post(
         },
     };
 
-    post_info.total_upvotes = upvote_count;
-    post_info.total_downvotes = downvote_count;
-
-    state
-        .insert_post_to_cache_without_search_sync(&post_info)
+    // Atomically update only the vote counts on the live cache entry, leaving all
+    // other fields untouched. This avoids the read-modify-write clobber a full
+    // snapshot write-back caused, and skips the order/search-index resync since
+    // votes do not affect post_created_at, tags, or title. update_async returns
+    // None if the entry is absent (e.g. post deleted between the DB transaction
+    // and this write); the DB stays authoritative and the next
+    // synchronize_post_info_cache reconciles.
+    let _ = state
+        .blog_posts_cache
+        .update_async(&post_id, |_, cached| {
+            cached.total_upvotes = upvote_count;
+            cached.total_downvotes = downvote_count;
+        })
         .await;
 
     Ok(http_resp(

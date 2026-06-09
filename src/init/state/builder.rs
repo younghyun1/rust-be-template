@@ -130,7 +130,7 @@ impl ServerStateBuilder {
                 .user_agent("cyhdev.com")
                 .build()?,
             visitor_board_map: scc::HashMap::new(),
-            visitor_log_buffer: tokio::sync::Mutex::new(std::collections::HashMap::new()),
+            visitor_log_buffer: scc::HashMap::new(),
             system_info_state: SystemInfoState::new(),
             aws_profile_picture_config,
             fastfetch: fastfetch_cache,

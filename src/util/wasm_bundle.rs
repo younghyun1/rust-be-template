@@ -100,14 +100,13 @@ pub fn normalize_bundle_bytes(
 }
 
 pub fn sniff_content_type_from_gzip_bytes(data: &[u8]) -> anyhow::Result<&'static str> {
-    let mut decoder = GzDecoder::new(data);
-    let mut buf = [0u8; 512];
-    let n = decoder.read(&mut buf)?;
-    let head = &buf[..n];
+    let decoder = GzDecoder::new(data);
+    let mut head = Vec::with_capacity(512);
+    decoder.take(512).read_to_end(&mut head)?;
 
-    if is_wasm_magic(head) {
+    if is_wasm_magic(&head) {
         Ok(WASM_CONTENT_TYPE)
-    } else if looks_like_html(head) {
+    } else if looks_like_html(&head) {
         Ok(HTML_CONTENT_TYPE)
     } else {
         Err(anyhow!("Unable to detect bundle content type"))

@@ -159,17 +159,30 @@ pub async fn read_post(
     let mut post: crate::domain::blog::blog::Post =
         post_result.map_err(|e| code_err(CodeError::JOIN_ERROR, e))??;
 
-    if let Some(markdown) = post
+    // Pick the markdown source while preserving the original branch semantics:
+    // prefer post_metadata["markdown_content"]; else fall back to post_content
+    // only when it is not already HTML (does not contain '<').
+    let markdown_src: Option<String> = if let Some(markdown) = post
         .post_metadata
         .get("markdown_content")
         .and_then(|value| value.as_str())
         .map(str::trim)
         .filter(|value| !value.is_empty())
     {
-        post.post_content = comrak::markdown_to_html(markdown, &comrak::Options::default());
+        Some(markdown.to_string())
     } else if !post.post_content.contains('<') {
-        post.post_content =
-            comrak::markdown_to_html(&post.post_content, &comrak::Options::default());
+        Some(post.post_content.clone())
+    } else {
+        None
+    };
+
+    // comrak is CPU-bound; render off the async worker thread.
+    if let Some(src) = markdown_src {
+        post.post_content = tokio::task::spawn_blocking(move || {
+            comrak::markdown_to_html(&src, &comrak::Options::default())
+        })
+        .await
+        .map_err(|e| code_err(CodeError::JOIN_ERROR, e))?;
     }
 
     // Get tags from cache or DB
@@ -232,7 +245,11 @@ pub async fn read_post(
     // Fetch profile pictures
     let user_pics: Vec<(Uuid, Option<String>)> = user_profile_pictures::table
         .filter(user_profile_pictures::user_id.eq_any(&relevant_user_ids))
-        .order(user_profile_pictures::user_profile_picture_updated_at.desc())
+        .distinct_on(user_profile_pictures::user_id)
+        .order((
+            user_profile_pictures::user_id,
+            user_profile_pictures::user_profile_picture_updated_at.desc(),
+        ))
         .select((
             user_profile_pictures::user_id,
             user_profile_pictures::user_profile_picture_link,

@@ -74,10 +74,10 @@ pub async fn delete_photographs(
     let aws_config = state.aws_profile_picture_config.clone();
     let s3_client = Client::new(&aws_config);
 
-    // Decide bucket from environment; fall back to a reasonable default.
-    let bucket = std::env::var("AWS_PHOTOGRAPHS_BUCKET")
-        .or_else(|_| std::env::var("AWS_IMAGE_UPLOAD_BUCKET"))
-        .unwrap_or_else(|_| "cyhdev-photographs".to_string());
+    // Use the same bucket that upload_photograph.rs (and the profile/wasm handlers)
+    // write to; otherwise deletions target the wrong bucket and orphan objects.
+    const AWS_S3_BUCKET_NAME: &str = "cyhdev-img";
+    let bucket = AWS_S3_BUCKET_NAME.to_string();
 
     // Helper: convert full URL to bucket-relative key (strip leading '/')
     fn url_to_key(url_str: &str) -> Option<String> {

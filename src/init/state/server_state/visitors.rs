@@ -57,6 +57,11 @@ impl ServerState {
 
         let city_lat = ip_info.latitude;
         let city_lon = ip_info.longitude;
+
+        if city_lat == 0.0 && city_lon == 0.0 {
+            return;
+        }
+
         let latitude_bytes = city_lat.to_be_bytes();
         let longitude_bytes = city_lon.to_be_bytes();
         let board_key = (latitude_bytes, longitude_bytes);
@@ -70,10 +75,6 @@ impl ServerState {
             }
         }
 
-        if city_lat == 0.0 && city_lon == 0.0 {
-            return;
-        }
-
         let key = VisitorLogKey {
             latitude_bytes,
             longitude_bytes,
@@ -82,32 +83,36 @@ impl ServerState {
             country: ip_info.country_name,
         };
 
-        let mut lock = self.visitor_log_buffer.lock().await;
-        match lock.get_mut(&key) {
-            Some(batch) => {
+        match self.visitor_log_buffer.entry_async(key).await {
+            Entry::Occupied(mut occ) => {
+                let batch = occ.get_mut();
                 batch.count = batch.count.saturating_add(1);
                 batch.visited_at = chrono::Utc::now();
             }
-            None => {
-                lock.insert(
-                    key,
-                    VisitorLogBatch {
-                        count: 1,
-                        visited_at: chrono::Utc::now(),
-                    },
-                );
+            Entry::Vacant(vac) => {
+                vac.insert_entry(VisitorLogBatch {
+                    count: 1,
+                    visited_at: chrono::Utc::now(),
+                });
             }
         }
     }
 
     pub async fn flush_visitor_logs(&self) -> anyhow::Result<u64> {
-        let pending = {
-            let mut lock = self.visitor_log_buffer.lock().await;
-            if lock.is_empty() {
-                return Ok(0);
-            }
-            std::mem::take(&mut *lock)
-        };
+        // Drain the per-actor buckets into a local map. retain_async returning false
+        // removes each visited entry, so this atomically empties the buffer bucket by
+        // bucket. A concurrent enqueue during the drain may land in the next window;
+        // counts are approximate and requeue merges on DB failure, so that is fine.
+        let mut pending: StdHashMap<VisitorLogKey, VisitorLogBatch> = StdHashMap::new();
+        self.visitor_log_buffer
+            .retain_async(|key, batch| {
+                pending.insert(key.clone(), batch.clone());
+                false
+            })
+            .await;
+        if pending.is_empty() {
+            return Ok(0);
+        }
 
         let mut conn = match self.get_conn().await {
             Ok(conn) => conn,
@@ -165,17 +170,17 @@ impl ServerState {
     }
 
     async fn requeue_visitor_logs(&self, pending: StdHashMap<VisitorLogKey, VisitorLogBatch>) {
-        let mut lock = self.visitor_log_buffer.lock().await;
         for (key, batch) in pending {
-            match lock.get_mut(&key) {
-                Some(existing) => {
+            match self.visitor_log_buffer.entry_async(key).await {
+                Entry::Occupied(mut occ) => {
+                    let existing = occ.get_mut();
                     existing.count = existing.count.saturating_add(batch.count);
                     if batch.visited_at > existing.visited_at {
                         existing.visited_at = batch.visited_at;
                     }
                 }
-                None => {
-                    lock.insert(key, batch);
+                Entry::Vacant(vac) => {
+                    vac.insert_entry(batch);
                 }
             }
         }

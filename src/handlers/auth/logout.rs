@@ -9,11 +9,12 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
+    DOMAIN_NAME,
     dto::responses::{
         auth::logout_response::LogoutResponse, response_data::http_resp_with_cookies,
     },
     errors::code_error::{CodeErrorResp, HandlerResponse},
-    init::state::ServerState,
+    init::state::{DeploymentEnvironment, ServerState},
     util::time::now::tokio_now,
 };
 
@@ -32,11 +33,21 @@ pub async fn logout(
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
-    // Construct the cookie with the same attributes as when it was set
+    // Construct the cookie with the same attributes as when it was set,
+    // including the explicit Domain attribute, so the browser actually
+    // clears the cookie set at login (RFC 6265 name+path+domain match).
+    let domain = match state.get_deployment_environment() {
+        DeploymentEnvironment::Local
+        | DeploymentEnvironment::Dev
+        | DeploymentEnvironment::Staging => "localhost",
+        DeploymentEnvironment::Prod => DOMAIN_NAME,
+    };
+
     let mut cookie = Cookie::build(("session_id", ""))
         .path("/")
         .http_only(true)
         .secure(true)
+        .domain(domain)
         .same_site(SameSite::Strict)
         .build();
 

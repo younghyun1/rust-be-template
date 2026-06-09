@@ -16,20 +16,27 @@ impl ServerState {
         }
     }
 
-    async fn upsert_post_cache_internal(&self, post: &CachedPostInfo, sync_search_index: bool) {
+    /// Upserts a post into the metadata cache and slug cache. Returns `true` when
+    /// the post was a genuinely new entry (so callers can decide whether the
+    /// O(n log n) order-cache rebuild is required).
+    async fn upsert_post_cache_internal(
+        &self,
+        post: &CachedPostInfo,
+        sync_search_index: bool,
+    ) -> bool {
         let previous_slug = self
             .blog_posts_cache
             .read_async(&post.post_id, |_, cached| cached.post_slug.clone())
             .await;
 
-        if self
+        let newly_inserted = self
             .blog_posts_cache
             .update_async(&post.post_id, |_, cached| {
                 *cached = post.clone();
             })
             .await
-            .is_none()
-        {
+            .is_none();
+        if newly_inserted {
             let _ = self
                 .blog_posts_cache
                 .insert_async(post.post_id, post.clone())
@@ -68,7 +75,7 @@ impl ServerState {
         }
 
         if !sync_search_index {
-            return;
+            return newly_inserted;
         }
 
         if post.post_is_published {
@@ -85,6 +92,8 @@ impl ServerState {
                 "Failed to remove unpublished post from search index"
             );
         }
+
+        newly_inserted
     }
 
     async fn rebuild_post_order_cache(&self) {
@@ -132,7 +141,7 @@ impl ServerState {
             .await;
 
         for post_info in &post_info_vec {
-            self.upsert_post_cache_internal(post_info, false).await;
+            let _ = self.upsert_post_cache_internal(post_info, false).await;
         }
         self.rebuild_post_order_cache().await;
 
@@ -195,16 +204,26 @@ impl ServerState {
         let mut visible_posts = 0usize;
 
         for post_id in ordered_post_ids {
-            let post = match self.get_post_from_cache(&post_id).await {
-                Some(post) => post,
+            // Cheap visibility read: avoid cloning the whole CachedPostInfo just
+            // to check publication state / count visible posts.
+            let is_published = match self
+                .blog_posts_cache
+                .read_async(&post_id, |_, p| p.post_is_published)
+                .await
+            {
+                Some(is_published) => is_published,
                 None => continue,
             };
 
-            if !include_unpublished && !post.post_is_published {
+            if !include_unpublished && !is_published {
                 continue;
             }
 
-            if visible_posts >= start_index && posts.len() < page_size {
+            // Only clone the full struct for posts that are actually on this page.
+            if visible_posts >= start_index
+                && posts.len() < page_size
+                && let Some(post) = self.get_post_from_cache(&post_id).await
+            {
                 posts.push(post);
             }
             visible_posts += 1;
@@ -233,13 +252,38 @@ impl ServerState {
     }
 
     pub async fn insert_post_to_cache(&self, post: &CachedPostInfo) {
-        self.upsert_post_cache_internal(post, true).await;
+        let _ = self.upsert_post_cache_internal(post, true).await;
         self.rebuild_post_order_cache().await;
     }
 
     pub async fn insert_post_to_cache_without_search_sync(&self, post: &CachedPostInfo) {
-        self.upsert_post_cache_internal(post, false).await;
-        self.rebuild_post_order_cache().await;
+        // Refresh the cached post (view/vote counts) without re-sorting the global
+        // order on the hot read/rescind paths. Only rebuild when a genuinely new
+        // post entered the cache (e.g. a cold-cache miss in read_post), since the
+        // ordering key (post_created_at) is immutable for an existing entry.
+        if self.upsert_post_cache_internal(post, false).await {
+            self.rebuild_post_order_cache().await;
+        }
+    }
+
+    /// Updates only the vote-count fields of a cached post. Does NOT rebuild the
+    /// order cache, since vote counts never affect ordering (keyed on
+    /// post_created_at). `update_async` is a no-op when the entry is absent (e.g.
+    /// the post was deleted between the DB write and this call); the DB stays
+    /// authoritative and the next synchronize_post_info_cache reconciles.
+    pub async fn update_post_vote_counts(
+        &self,
+        post_id: Uuid,
+        total_upvotes: i64,
+        total_downvotes: i64,
+    ) {
+        let _ = self
+            .blog_posts_cache
+            .update_async(&post_id, |_, cached| {
+                cached.total_upvotes = total_upvotes;
+                cached.total_downvotes = total_downvotes;
+            })
+            .await;
     }
 
     pub async fn get_post_from_cache(&self, post_id: &Uuid) -> Option<CachedPostInfo> {

@@ -1,5 +1,5 @@
 use diesel::{ExpressionMethods, QueryDsl};
-use diesel_async::RunQueryDsl;
+use diesel_async::{AsyncConnection, RunQueryDsl};
 use tracing::info;
 use uuid::Uuid;
 
@@ -35,18 +35,20 @@ impl ServerState {
         let language_fut = async {
             let mut conn = self.get_conn().await?;
             let languages: Vec<IsoLanguage> = iso_language::table.load(&mut conn).await?;
+            let lang_rows = languages.len();
             Ok::<(IsoLanguageTable, usize), anyhow::Error>((
-                IsoLanguageTable::from(languages.clone()),
-                languages.len(),
+                IsoLanguageTable::from(languages),
+                lang_rows,
             ))
         };
 
         let currency_fut = async {
             let mut conn = self.get_conn().await?;
             let currencies: Vec<IsoCurrency> = iso_currency::table.load(&mut conn).await?;
+            let curr_rows = currencies.len();
             Ok::<(IsoCurrencyTable, usize), anyhow::Error>((
-                IsoCurrencyTable::from(currencies.clone()),
-                currencies.len(),
+                IsoCurrencyTable::from(currencies),
+                curr_rows,
             ))
         };
 
@@ -100,57 +102,70 @@ impl ServerState {
         let bundles = source_bundles()?;
         let mut conn = self.get_conn().await?;
         let system_user_id = Uuid::nil();
-        let mut rows_synchronized = 0usize;
 
-        for bundle in bundles {
-            for entry in bundle.entries {
-                let now = chrono::Utc::now();
-                let updated_rows = diesel::update(
-                    i18n_strings::table
-                        .filter(i18n_strings::i18n_string_reference_key.eq(&entry.key))
-                        .filter(
-                            i18n_strings::i18n_string_country_code.eq(bundle.locale.country_code()),
+        // Wrap the whole file-backed reload in a single transaction so the table
+        // is updated atomically relative to the subsequent cache rebuild in
+        // sync_i18n_data(); a mid-loop failure must not leave the table in a
+        // partially written state that the cache could then observe.
+        let rows_synchronized = conn
+            .transaction::<usize, diesel::result::Error, _>(async |conn| {
+                let mut rows_synchronized = 0usize;
+                for bundle in bundles {
+                    for entry in bundle.entries {
+                        let now = chrono::Utc::now();
+                        let updated_rows = diesel::update(
+                            i18n_strings::table
+                                .filter(i18n_strings::i18n_string_reference_key.eq(&entry.key))
+                                .filter(
+                                    i18n_strings::i18n_string_country_code
+                                        .eq(bundle.locale.country_code()),
+                                )
+                                .filter(
+                                    i18n_strings::i18n_string_language_code
+                                        .eq(bundle.locale.language_code()),
+                                )
+                                .filter(
+                                    i18n_strings::i18n_string_country_subdivision_code.is_null(),
+                                ),
                         )
-                        .filter(
-                            i18n_strings::i18n_string_language_code
-                                .eq(bundle.locale.language_code()),
-                        )
-                        .filter(i18n_strings::i18n_string_country_subdivision_code.is_null()),
-                )
-                .set((
-                    i18n_strings::i18n_string_content.eq(&entry.content),
-                    i18n_strings::i18n_string_updated_at.eq(now),
-                    i18n_strings::i18n_string_updated_by.eq(system_user_id),
-                ))
-                .execute(&mut conn)
-                .await?;
-
-                if updated_rows == 0 {
-                    diesel::insert_into(i18n_strings::table)
-                        .values((
+                        .set((
                             i18n_strings::i18n_string_content.eq(&entry.content),
+                            i18n_strings::i18n_string_updated_at.eq(now),
                             i18n_strings::i18n_string_updated_by.eq(system_user_id),
-                            i18n_strings::i18n_string_language_code
-                                .eq(bundle.locale.language_code()),
-                            i18n_strings::i18n_string_country_code.eq(bundle.locale.country_code()),
-                            i18n_strings::i18n_string_country_subdivision_code
-                                .eq(Option::<String>::None),
-                            i18n_strings::i18n_string_reference_key.eq(&entry.key),
                         ))
-                        .execute(&mut conn)
+                        .execute(&mut *conn)
                         .await?;
-                } else if updated_rows > 1 {
-                    tracing::warn!(
-                        locale = %bundle.locale.as_tag(),
-                        key = %entry.key,
-                        duplicate_rows = %updated_rows,
-                        "Updated duplicate UI i18n rows; existing duplicate rows should be consolidated"
-                    );
-                }
 
-                rows_synchronized += 1;
-            }
-        }
+                        if updated_rows == 0 {
+                            diesel::insert_into(i18n_strings::table)
+                                .values((
+                                    i18n_strings::i18n_string_content.eq(&entry.content),
+                                    i18n_strings::i18n_string_updated_by.eq(system_user_id),
+                                    i18n_strings::i18n_string_language_code
+                                        .eq(bundle.locale.language_code()),
+                                    i18n_strings::i18n_string_country_code
+                                        .eq(bundle.locale.country_code()),
+                                    i18n_strings::i18n_string_country_subdivision_code
+                                        .eq(Option::<String>::None),
+                                    i18n_strings::i18n_string_reference_key.eq(&entry.key),
+                                ))
+                                .execute(&mut *conn)
+                                .await?;
+                        } else if updated_rows > 1 {
+                            tracing::warn!(
+                                locale = %bundle.locale.as_tag(),
+                                key = %entry.key,
+                                duplicate_rows = %updated_rows,
+                                "Updated duplicate UI i18n rows; existing duplicate rows should be consolidated"
+                            );
+                        }
+
+                        rows_synchronized += 1;
+                    }
+                }
+                Ok(rows_synchronized)
+            })
+            .await?;
 
         info!(
             elapsed = ?start.elapsed(),

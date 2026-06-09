@@ -186,8 +186,24 @@ async fn handle_live_chat_socket(
                             break;
                         }
                     }
-                    Err(e) => {
-                        warn!(error = ?e, connection_id = %connection_id, "Live chat broadcast receiver lagged or closed");
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
+                        warn!(skipped = skipped, connection_id = %connection_id, "Live chat broadcast receiver lagged; resyncing client");
+                        let recent_messages = state
+                            .live_chat_cache
+                            .get_recent_chat_messages(LIVE_CHAT_INITIAL_MESSAGES)
+                            .await;
+                        let resync = LiveChatServerEvent::Hello {
+                            actor: actor.clone(),
+                            recent_messages,
+                            connected_count: state.live_chat_cache.connected_count(),
+                        };
+                        if send_event(&mut socket, &resync, wire_protocol).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        info!(connection_id = %connection_id, "Live chat broadcast channel closed");
+                        break;
                     }
                 }
             }

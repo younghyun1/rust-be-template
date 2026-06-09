@@ -38,7 +38,7 @@ pub async fn get_host_stats(state: Arc<ServerState>) -> HostStats {
     HostStats {
         cpu_usage: cpu_usage as f32,
         mem_total,
-        mem_free: mem_total - mem_usage,
+        mem_free: mem_total.saturating_sub(mem_usage),
     }
 }
 

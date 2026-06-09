@@ -3,8 +3,7 @@ use std::sync::Arc;
 use axum::{Json, extract::State, response::IntoResponse};
 use chrono::Utc;
 use diesel::{AsChangeset, ExpressionMethods, QueryDsl};
-use diesel_async::RunQueryDsl;
-use tracing::error;
+use diesel_async::{AsyncConnection, RunQueryDsl};
 
 use crate::{
     domain::auth::user::{PasswordResetToken, User},
@@ -86,43 +85,49 @@ pub async fn reset_password(
         user_password_hash: &hashed_pw,
     };
 
-    // Now update the user in the users table where the id matches.
-    let user: User =
-        diesel::update(users::table.filter(users::user_id.eq(password_reset_token.user_id)))
-            .set(&update_data)
-            .returning(users::all_columns)
-            .get_result(&mut conn)
-            .await
-            .map_err(|e| code_err(CodeError::DB_UPDATE_ERROR, e))?;
+    // Atomically consume the single-use token and update the password.
+    let token_id = password_reset_token.password_reset_token_id;
+    let target_user_id = password_reset_token.user_id;
+
+    let user: User = match conn
+        .transaction::<_, diesel::result::Error, _>(async move |conn| {
+            // Gate: only proceeds if the token is still unused. A 0-row result
+            // means a concurrent request already consumed it.
+            let rows_consumed = diesel::update(
+                crate::schema::password_reset_tokens::table
+                    .filter(
+                        crate::schema::password_reset_tokens::password_reset_token_id.eq(token_id),
+                    )
+                    .filter(
+                        crate::schema::password_reset_tokens::password_reset_token_used_at
+                            .is_null(),
+                    ),
+            )
+            .set(crate::schema::password_reset_tokens::password_reset_token_used_at.eq(now))
+            .execute(&mut *conn)
+            .await?;
+
+            if rows_consumed != 1 {
+                // Roll back; surface as already-used to the caller below.
+                return Err(diesel::result::Error::RollbackTransaction);
+            }
+
+            diesel::update(users::table.filter(users::user_id.eq(target_user_id)))
+                .set(&update_data)
+                .returning(users::all_columns)
+                .get_result(&mut *conn)
+                .await
+        })
+        .await
+    {
+        Ok(user) => user,
+        Err(diesel::result::Error::RollbackTransaction) => {
+            return Err(CodeError::PASSWORD_RESET_TOKEN_ALREADY_USED.into());
+        }
+        Err(e) => return Err(code_err(CodeError::DB_UPDATE_ERROR, e)),
+    };
 
     drop(conn);
-
-    // TODO: asynchronously flag password reset token as used
-    let coroutine_state = state.clone();
-    tokio::spawn(async move {
-        let mut conn = match coroutine_state.get_conn().await {
-            Ok(conn) => conn,
-            Err(e) => {
-                error!(error = %e, "Could not acquire connection from pool.");
-                return;
-            }
-        };
-
-        if let Err(e) = diesel::update(
-            crate::schema::password_reset_tokens::table.filter(
-                crate::schema::password_reset_tokens::password_reset_token_id
-                    .eq(password_reset_token.password_reset_token_id),
-            ),
-        )
-        .set(crate::schema::password_reset_tokens::password_reset_token_used_at.eq(now))
-        .execute(&mut conn)
-        .await
-        {
-            error!(error = %e, "Could not mark the password reset token as used.");
-        }
-
-        drop(conn);
-    });
 
     Ok(http_resp(
         ResetPasswordResponse {

@@ -27,8 +27,6 @@ use crate::{
     },
 };
 
-// TODO: This is not actually checked. Need to check that; also see what's going on with the profile pic size check.
-//
 const MAX_SIZE_OF_UPLOADABLE_PHOTOGRPAH: usize = 1024 * 1024 * 150; // 150MB
 const ALLOWED_MIME_TYPES: [&str; 16] = [
     "image/png",                // PNG
@@ -72,7 +70,7 @@ pub async fn upload_photograph(
 ) -> HandlerResponse<impl IntoResponse> {
     let start = tokio_now();
 
-    let mut uploaded_file: Vec<u8> = Vec::with_capacity(MAX_SIZE_OF_UPLOADABLE_PHOTOGRPAH);
+    let mut uploaded_file: Vec<u8> = Vec::new();
 
     let mut mime: Option<String> = None;
 
@@ -146,6 +144,17 @@ pub async fn upload_photograph(
                     error!(error = ?e, user_id = %user_id, "Failed reading multipart field bytes");
                     code_err(CodeError::FILE_UPLOAD_ERROR, e)
                 })?;
+                if uploaded_file.len() + bytes.len() > MAX_SIZE_OF_UPLOADABLE_PHOTOGRPAH {
+                    warn!(
+                        user_id = %user_id,
+                        limit_bytes = MAX_SIZE_OF_UPLOADABLE_PHOTOGRPAH,
+                        "Uploaded photograph exceeds maximum allowed size"
+                    );
+                    return Err(code_err(
+                        CodeError::FILE_UPLOAD_ERROR,
+                        "Uploaded file exceeds maximum allowed size",
+                    ));
+                }
                 uploaded_file.extend_from_slice(&bytes);
             }
 
@@ -285,19 +294,30 @@ pub async fn upload_photograph(
         }
     };
 
-    // Try to extract EXIF shot date from the original bytes.
-    // This may return None if there is no EXIF or no DateTimeOriginal.
-    let photograph_shot_at = match extract_exif_shot_at(&uploaded_file) {
-        Ok(dt_opt) => dt_opt,
-        Err(e) => {
-            error!(
-                error = ?e,
-                user_id = %user_id,
-                "Failed to parse EXIF shot-at datetime from uploaded photograph"
-            );
-            None
-        }
-    };
+    // Try to extract EXIF shot date from the original bytes on a blocking
+    // thread so the synchronous EXIF container parse does not stall a Tokio
+    // worker (mirrors the spawn_blocking offload used for image processing).
+    let exif_bytes = uploaded_file.clone();
+    let photograph_shot_at =
+        match tokio::task::spawn_blocking(move || extract_exif_shot_at(&exif_bytes)).await {
+            Ok(Ok(dt_opt)) => dt_opt,
+            Ok(Err(e)) => {
+                error!(
+                    error = ?e,
+                    user_id = %user_id,
+                    "Failed to parse EXIF shot-at datetime from uploaded photograph"
+                );
+                None
+            }
+            Err(e) => {
+                error!(
+                    error = ?e,
+                    user_id = %user_id,
+                    "EXIF extraction blocking task panicked"
+                );
+                None
+            }
+        };
 
     // compress and process image here in a blocking thread
     let uploaded_file_clone = uploaded_file.clone();
@@ -367,7 +387,7 @@ pub async fn upload_photograph(
 
     // Upload thumbnail
 
-    s3_client
+    if let Err(e) = s3_client
         .put_object()
         .bucket(AWS_S3_BUCKET_NAME)
         .key(&thumbnail_path)
@@ -377,17 +397,38 @@ pub async fn upload_photograph(
         ))
         .send()
         .await
-        .map_err(|e| {
-            error!(
-                error = ?e,
+    {
+        error!(
+            error = ?e,
+            user_id = %user_id,
+            bucket = AWS_S3_BUCKET_NAME,
+            key = %thumbnail_path,
+            "Failed to upload thumbnail to S3"
+        );
+        // Clean up the orphaned main object that was already uploaded.
+        match s3_client
+            .delete_object()
+            .bucket(AWS_S3_BUCKET_NAME)
+            .key(&image_path)
+            .send()
+            .await
+        {
+            Ok(_) => info!(
                 user_id = %user_id,
                 bucket = AWS_S3_BUCKET_NAME,
-                key = %thumbnail_path,
-                "Failed to upload thumbnail to S3"
-            );
-
-            code_err(CodeError::FILE_UPLOAD_ERROR, e)
-        })?;
+                key = %image_path,
+                "Cleaned up orphaned main photograph after thumbnail upload failure"
+            ),
+            Err(cleanup_err) => error!(
+                error = ?cleanup_err,
+                user_id = %user_id,
+                bucket = AWS_S3_BUCKET_NAME,
+                key = %image_path,
+                "Failed to clean up orphaned main photograph after thumbnail upload failure"
+            ),
+        }
+        return Err(code_err(CodeError::FILE_UPLOAD_ERROR, e));
+    }
 
     info!(
         user_id = %user_id,
@@ -446,8 +487,25 @@ pub async fn upload_photograph(
                 key = %image_path,
                 "Failed to insert photograph row into DB"
             );
-            // Clean up the image file if DB insertion fails
-            tokio::fs::remove_file(&image_path).await.ok();
+            // DB insertion failed after both S3 uploads succeeded; delete the
+            // orphaned objects so the bucket does not accumulate untracked files.
+            for key in [image_path.as_str(), thumbnail_path.as_str()] {
+                if let Err(cleanup_err) = s3_client
+                    .delete_object()
+                    .bucket(AWS_S3_BUCKET_NAME)
+                    .key(key)
+                    .send()
+                    .await
+                {
+                    error!(
+                        error = ?cleanup_err,
+                        user_id = %user_id,
+                        bucket = AWS_S3_BUCKET_NAME,
+                        key = %key,
+                        "Failed to delete orphaned S3 object after DB insertion failure"
+                    );
+                }
+            }
             return Err(code_err(CodeError::DB_INSERTION_ERROR, e));
         }
         Ok(photograph) => photograph,
