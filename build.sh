@@ -36,10 +36,14 @@ npm install
 ./deploy_to_be.sh
 cd ../rust-be-template/
 
+CACHEBUST="$(date +%s)"
+
 docker build \
   --platform "$DOCKER_PLATFORM" \
   --build-arg RUST_DOCKER_TAG="$RUST_DOCKER_TAG" \
   --build-arg TARGET_TRIPLE="$TARGET_TRIPLE" \
+  --build-arg CACHEBUST="$CACHEBUST" \
+  --pull \
   -t "$BUILDER_IMAGE" \
   -f - "$BUILDER_CONTEXT" <<'DOCKERFILE'
 ARG RUST_DOCKER_TAG=latest
@@ -62,8 +66,17 @@ RUN apt-get update && \
       zstd && \
     rm -rf /var/lib/apt/lists/*
 
-RUN rustup update && \
+# Cache-bust this layer so the nightly toolchain is re-fetched on every build.
+# Docker would otherwise cache the RUN below and pin whatever nightly existed
+# when the layer was first built (the reason builds kept shipping an old
+# nightly). build.sh passes a fresh CACHEBUST value per invocation; referencing
+# it in the RUN forces the layer to re-run, and `rustup update` then pulls the
+# latest stable + nightly.
+ARG CACHEBUST=0
+RUN echo "rust toolchain refresh: ${CACHEBUST}" && \
+    rustup update && \
     rustup toolchain install nightly --component rust-src && \
+    rustup update nightly && \
     rustup target add --toolchain nightly "${TARGET_TRIPLE}"
 
 WORKDIR /app
