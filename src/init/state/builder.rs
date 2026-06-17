@@ -137,6 +137,7 @@ impl ServerStateBuilder {
             wasm_module_cache: scc::HashMap::new(),
             live_chat_cache: LiveChatCache::default(),
             photograph_batches: scc::HashMap::new(),
+            photograph_view_buffer: tokio::sync::RwLock::new(std::collections::HashMap::new()),
         })
     }
 }

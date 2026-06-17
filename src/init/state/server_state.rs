@@ -26,6 +26,7 @@ mod core;
 mod geo;
 mod i18n;
 mod live_chat;
+mod photograph_views;
 mod photography_batches;
 mod posts;
 mod sessions;
@@ -59,6 +60,11 @@ pub struct ServerState {
     pub wasm_module_cache: scc::HashMap<Uuid, (Arc<[u8]>, bool, &'static str)>,
     pub live_chat_cache: LiveChatCache,
     pub(crate) photograph_batches: scc::HashMap<uuid::Uuid, Arc<BatchSession>>,
+    /// Write-through buffer of unflushed photograph view increments (deltas),
+    /// keyed by photograph id. Views accumulate here in RAM and a periodic job
+    /// flushes them to `photographs.photograph_view_count`, so the hot path does
+    /// no per-view DB write. Bounded: drained to empty on every flush.
+    pub(crate) photograph_view_buffer: RwLock<std::collections::HashMap<uuid::Uuid, i64>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

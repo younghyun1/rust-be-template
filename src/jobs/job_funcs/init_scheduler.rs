@@ -17,8 +17,8 @@ use crate::{
             every_second::schedule_task_every_second_at,
         },
         maintenance::{
-            compress_logs::compress_old_logs, flush_visitor_logs::flush_visitor_logs,
-            prune_live_chat::prune_live_chat_state,
+            compress_logs::compress_old_logs, flush_photograph_views::flush_photograph_views,
+            flush_visitor_logs::flush_visitor_logs, prune_live_chat::prune_live_chat_state,
             prune_photograph_batches::prune_photograph_batches,
         },
     },
@@ -170,6 +170,22 @@ pub async fn task_init(state: Arc<ServerState>) -> anyhow::Result<()> {
                 },
                 String::from("PRUNE_LIVE_CHAT_STATE"),
                 30,
+                0,
+            )
+        });
+    }
+
+    {
+        let state = Arc::clone(&state);
+        supervise("FLUSH_PHOTOGRAPH_VIEWS", move || {
+            let state = Arc::clone(&state);
+            schedule_task_every_minute_at(
+                state,
+                move |coroutine_state: Arc<ServerState>| async move {
+                    flush_photograph_views(coroutine_state).await
+                },
+                String::from("FLUSH_PHOTOGRAPH_VIEWS"),
+                15,
                 0,
             )
         });
