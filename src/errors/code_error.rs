@@ -348,6 +348,34 @@ impl CodeError {
         message: "Invalid request!",
         log_level: Level::INFO,
     };
+    pub const BATCH_NOT_FOUND: CodeError = CodeError {
+        success: false,
+        error_code: 47,
+        http_status_code: StatusCode::NOT_FOUND,
+        message: "Processing batch not found!",
+        log_level: Level::INFO,
+    };
+    pub const BATCH_TOO_MANY_FILES: CodeError = CodeError {
+        success: false,
+        error_code: 48,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Too many files in batch!",
+        log_level: Level::WARN,
+    };
+    pub const BATCH_EMPTY: CodeError = CodeError {
+        success: false,
+        error_code: 49,
+        http_status_code: StatusCode::BAD_REQUEST,
+        message: "Batch contains no files!",
+        log_level: Level::INFO,
+    };
+    pub const PHOTOGRAPH_NOT_FOUND: CodeError = CodeError {
+        success: false,
+        error_code: 50,
+        http_status_code: StatusCode::NOT_FOUND,
+        message: "Photograph not found!",
+        log_level: Level::INFO,
+    };
 }
 
 pub fn code_err(cerr: CodeError, e: impl ToString) -> CodeErrorResp {

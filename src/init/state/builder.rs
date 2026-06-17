@@ -136,6 +136,7 @@ impl ServerStateBuilder {
             fastfetch: fastfetch_cache,
             wasm_module_cache: scc::HashMap::new(),
             live_chat_cache: LiveChatCache::default(),
+            photograph_batches: scc::HashMap::new(),
         })
     }
 }

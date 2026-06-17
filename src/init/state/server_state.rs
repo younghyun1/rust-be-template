@@ -13,6 +13,7 @@ use crate::domain::blog::blog::CachedPostInfo;
 use crate::domain::country::{CountryAndSubdivisionsTable, IsoCurrencyTable, IsoLanguageTable};
 use crate::domain::i18n::i18n_cache::I18nCache;
 use crate::domain::live_chat::cache::LiveChatCache;
+use crate::domain::photography::batch::session::BatchSession;
 use crate::init::load_cache::fastfetch_cache::FastFetchCache;
 use crate::init::load_cache::system_info::SystemInfoState;
 use crate::init::search::PostSearchIndex;
@@ -25,6 +26,7 @@ mod core;
 mod geo;
 mod i18n;
 mod live_chat;
+mod photography_batches;
 mod posts;
 mod sessions;
 mod visitors;
@@ -56,6 +58,7 @@ pub struct ServerState {
     pub fastfetch: FastFetchCache,
     pub wasm_module_cache: scc::HashMap<Uuid, (Arc<[u8]>, bool, &'static str)>,
     pub live_chat_cache: LiveChatCache,
+    pub(crate) photograph_batches: scc::HashMap<uuid::Uuid, Arc<BatchSession>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

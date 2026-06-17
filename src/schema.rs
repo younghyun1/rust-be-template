@@ -174,6 +174,43 @@ diesel::table! {
         photograph_lon -> Float8,
         photograph_thumbnail_link -> Varchar,
         photograph_context -> PhotographContext,
+        photograph_view_count -> Int8,
+        photograph_total_upvotes -> Int8,
+        photograph_total_downvotes -> Int8,
+    }
+}
+
+diesel::table! {
+    photograph_votes (photograph_vote_id) {
+        photograph_vote_id -> Uuid,
+        photograph_id -> Uuid,
+        user_id -> Uuid,
+        photograph_vote_created_at -> Timestamptz,
+        is_upvote -> Bool,
+    }
+}
+
+diesel::table! {
+    photograph_comments (photograph_comment_id) {
+        photograph_comment_id -> Uuid,
+        photograph_id -> Uuid,
+        user_id -> Uuid,
+        photograph_comment_content -> Text,
+        photograph_comment_created_at -> Timestamptz,
+        photograph_comment_updated_at -> Nullable<Timestamptz>,
+        parent_photograph_comment_id -> Nullable<Uuid>,
+        photograph_comment_total_upvotes -> Int8,
+        photograph_comment_total_downvotes -> Int8,
+    }
+}
+
+diesel::table! {
+    photograph_comment_votes (photograph_comment_vote_id) {
+        photograph_comment_vote_id -> Uuid,
+        photograph_comment_id -> Uuid,
+        user_id -> Uuid,
+        photograph_comment_vote_created_at -> Timestamptz,
+        is_upvote -> Bool,
     }
 }
 
@@ -320,6 +357,12 @@ diesel::joinable!(live_chat_messages -> users (user_id));
 diesel::joinable!(password_reset_tokens -> users (user_id));
 diesel::joinable!(photographs -> user_profile_picture_image_types (photograph_image_type));
 diesel::joinable!(photographs -> users (user_id));
+diesel::joinable!(photograph_votes -> photographs (photograph_id));
+diesel::joinable!(photograph_votes -> users (user_id));
+diesel::joinable!(photograph_comments -> photographs (photograph_id));
+diesel::joinable!(photograph_comments -> users (user_id));
+diesel::joinable!(photograph_comment_votes -> photograph_comments (photograph_comment_id));
+diesel::joinable!(photograph_comment_votes -> users (user_id));
 diesel::joinable!(post_tags -> posts (post_id));
 diesel::joinable!(post_tags -> tags (tag_id));
 diesel::joinable!(post_votes -> posts (post_id));
@@ -349,6 +392,9 @@ diesel::allow_tables_to_appear_in_same_query!(
     live_chat_messages,
     password_reset_tokens,
     permissions,
+    photograph_comment_votes,
+    photograph_comments,
+    photograph_votes,
     photographs,
     post_tags,
     post_votes,

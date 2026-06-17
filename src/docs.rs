@@ -21,7 +21,12 @@ use crate::handlers::{
     },
     geo_ip::lookup_ip,
     i18n::get_ui_text_bundle,
-    photography::{delete_photographs, get_photographs, upload_photograph},
+    photography::{
+        batch_list, batch_status, batch_upload, delete_photograph_comment, delete_photographs,
+        get_photographs, read_photograph, rescind_photograph_comment_vote, rescind_photograph_vote,
+        submit_photograph_comment, update_photograph_comment, upload_photograph, vote_photograph,
+        vote_photograph_comment,
+    },
     server::{get_host_fastfetch, healthcheck, lookup_ip_loc, root, visitor_board},
     user::{get_user_info, upload_profile_picture},
 };
@@ -35,7 +40,9 @@ use crate::domain::{
     country::{
         CountryAndSubdivisions, IsoCountry, IsoCountrySubdivision, IsoCurrency, IsoLanguage,
     },
+    photography::batch::status::ProcessingStatus,
     photography::photographs::Photograph,
+    photography::social::{PhotographComment, PhotographCommentResponse},
 };
 use crate::dto::{
     requests::{
@@ -53,6 +60,9 @@ use crate::dto::{
         },
         i18n::get_ui_text_bundle_request::GetUiTextBundleRequest,
         photography::delete_photographs_request::DeletePhotographsRequest,
+        photography::submit_photograph_comment_request::SubmitPhotographCommentRequest,
+        photography::update_photograph_comment_request::UpdatePhotographCommentRequest,
+        photography::vote_photograph_request::VotePhotographRequest,
     },
     responses::{
         admin::sync_i18n_cache_response::SyncI18nCacheResponse,
@@ -69,9 +79,16 @@ use crate::dto::{
             vote_comment_response::VoteCommentResponse, vote_post_response::VotePostResponse,
         },
         i18n::ui_text_bundle_response::UiTextBundleResponse,
+        photography::batch_status_response::{
+            BatchItemStatus, BatchListResponse, BatchStatusResponse, BatchUploadItem,
+            BatchUploadResponse,
+        },
+        photography::delete_photograph_comment_response::DeletePhotographCommentResponse,
         photography::get_photograph_response::{
             GetPhotographsResponse, PaginationMeta, PhotographItem,
         },
+        photography::read_photograph_response::ReadPhotographResponse,
+        photography::vote_photograph_response::VotePhotographResponse,
         user::public_user_info_response::PublicUserInfoResponse,
     },
 };
@@ -135,6 +152,17 @@ use crate::util::geographic::ip_info_lookup::IpInfo;
         get_photographs::get_photographs,
         upload_photograph::upload_photograph,
         delete_photographs::delete_photographs,
+        batch_upload::batch_upload,
+        batch_status::batch_status,
+        batch_list::batch_list,
+        read_photograph::read_photograph,
+        vote_photograph::vote_photograph,
+        rescind_photograph_vote::rescind_photograph_vote,
+        vote_photograph_comment::vote_photograph_comment,
+        rescind_photograph_comment_vote::rescind_photograph_comment_vote,
+        submit_photograph_comment::submit_photograph_comment,
+        update_photograph_comment::update_photograph_comment,
+        delete_photograph_comment::delete_photograph_comment,
 
         // --- user ---
         get_user_info::get_user_info,
@@ -188,6 +216,20 @@ use crate::util::geographic::ip_info_lookup::IpInfo;
             PhotographItem,
             PaginationMeta,
             DeletePhotographsRequest,
+            BatchUploadResponse,
+            BatchUploadItem,
+            BatchStatusResponse,
+            BatchItemStatus,
+            BatchListResponse,
+            ProcessingStatus,
+            VotePhotographRequest,
+            VotePhotographResponse,
+            SubmitPhotographCommentRequest,
+            UpdatePhotographCommentRequest,
+            DeletePhotographCommentResponse,
+            ReadPhotographResponse,
+            PhotographComment,
+            PhotographCommentResponse,
 
             // --- domain models used in responses ---
             PublicUserInfoResponse,
