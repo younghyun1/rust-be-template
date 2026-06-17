@@ -21,6 +21,11 @@ pub struct PhotographItem {
     pub photograph_lat: f64,
     pub photograph_lon: f64,
     pub photograph_thumbnail_link: String,
+    /// Persisted view count (excludes not-yet-flushed RAM deltas; the detail
+    /// endpoint returns the live count).
+    pub photograph_view_count: i64,
+    pub photograph_total_upvotes: i64,
+    pub photograph_total_downvotes: i64,
 }
 
 /// Pagination metadata for list endpoints.
