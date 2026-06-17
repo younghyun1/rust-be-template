@@ -76,7 +76,7 @@ pub async fn delete_photographs(
 
     // Use the same bucket that upload_photograph.rs (and the profile/wasm handlers)
     // write to; otherwise deletions target the wrong bucket and orphan objects.
-    const AWS_S3_BUCKET_NAME: &str = "cyhdev-img";
+    use crate::util::s3::AWS_S3_BUCKET_NAME;
     let bucket = AWS_S3_BUCKET_NAME.to_string();
 
     // Helper: convert full URL to bucket-relative key (strip leading '/')

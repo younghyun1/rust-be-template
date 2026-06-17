@@ -43,8 +43,16 @@ use crate::{
         i18n::get_ui_text_bundle::get_ui_text_bundle,
         live_chat::{get_live_chat_cache_stats, get_live_chat_messages, live_chat_ws_handler},
         photography::{
+            batch_list::batch_list, batch_status::batch_status, batch_upload::batch_upload,
+            delete_photograph_comment::delete_photograph_comment,
             delete_photographs::delete_photographs, get_photographs::get_photographs,
-            upload_photograph::upload_photograph,
+            read_photograph::read_photograph,
+            rescind_photograph_comment_vote::rescind_photograph_comment_vote,
+            rescind_photograph_vote::rescind_photograph_vote,
+            submit_photograph_comment::submit_photograph_comment,
+            update_photograph_comment::update_photograph_comment,
+            upload_photograph::upload_photograph, vote_photograph::vote_photograph,
+            vote_photograph_comment::vote_photograph_comment,
         },
         server::{
             get_host_fastfetch::get_host_fastfetch, healthcheck::healthcheck,
@@ -70,6 +78,7 @@ mod static_assets;
 use static_assets::static_asset_handler;
 
 const MAX_REQUEST_SIZE: usize = 1024 * 1024 * 150; // 150MB
+const BATCH_REQUEST_SIZE: usize = 1024 * 1024 * 1024; // 1GB (route-scoped to batch upload)
 
 const REPLENISHED_EVERY_MILLISECONDS: u64 = 63;
 const RATE_LIMIT_BURST_SIZE: u32 = 1024;
@@ -157,6 +166,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/api/live-chat/cache-stats", get(get_live_chat_cache_stats))
         .route("/api/i18n/ui-text", get(get_ui_text_bundle))
         .route("/api/photographs/get", get(get_photographs))
+        .route("/api/photographs/{photograph_id}", get(read_photograph))
         // WASM modules - public read endpoints
         .route("/api/wasm-modules", get(get_wasm_modules))
         .route("/api/wasm-modules/{wasm_module_id}/wasm", get(serve_wasm));
@@ -179,7 +189,43 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
             "/api/blog/{post_id}/{comment_id}/vote",
             delete(rescind_comment_vote),
         )
+        // Photograph social (votes + comments), mirroring the blog tier.
+        .route(
+            "/api/photographs/{photograph_id}/vote",
+            post(vote_photograph),
+        )
+        .route(
+            "/api/photographs/{photograph_id}/vote",
+            delete(rescind_photograph_vote),
+        )
+        .route(
+            "/api/photographs/{photograph_id}/comment",
+            post(submit_photograph_comment),
+        )
+        .route(
+            "/api/photographs/{photograph_id}/{comment_id}/vote",
+            post(vote_photograph_comment),
+        )
+        .route(
+            "/api/photographs/{photograph_id}/{comment_id}/vote",
+            delete(rescind_photograph_comment_vote),
+        )
+        .route(
+            "/api/photographs/{photograph_id}/{comment_id}",
+            patch(update_photograph_comment),
+        )
+        .route(
+            "/api/photographs/{photograph_id}/{comment_id}",
+            delete(delete_photograph_comment),
+        )
         .layer(auth_middleware.clone());
+
+    // Batch upload accepts large multi-file bodies. The route-scoped
+    // DefaultBodyLimit here is closest to the handler, so it overrides the global
+    // 150MB limit added later on api_router, without widening it for other routes.
+    let batch_upload_router = Router::new()
+        .route("/api/photographs/batch-upload", post(batch_upload))
+        .layer(DefaultBodyLimit::max(BATCH_REQUEST_SIZE));
 
     let superuser_router = Router::new()
         .route("/api/admin/sync-i18n-cache", get(sync_i18n_cache))
@@ -187,6 +233,8 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
         .route("/api/blog/{post_id}", patch(update_post))
         .route("/api/photographs/upload", post(upload_photograph))
         .route("/api/photographs/delete", delete(delete_photographs))
+        .route("/api/photographs/batch/{batch_id}", get(batch_status))
+        .route("/api/photographs/batches", get(batch_list))
         // WASM modules - protected CUD endpoints
         .route("/api/wasm-modules", post(upload_wasm_module))
         .route(
@@ -201,6 +249,7 @@ pub fn build_router(state: Arc<ServerState>) -> axum::Router {
             "/api/wasm-modules/{wasm_module_id}",
             delete(delete_wasm_module),
         )
+        .merge(batch_upload_router)
         .layer(require_superuser_middleware.clone())
         .layer(auth_middleware.clone());
 

@@ -5,6 +5,7 @@ pub mod extract;
 pub mod geographic;
 pub mod image;
 pub mod init_logger;
+pub mod s3;
 pub mod string;
 pub mod system;
 pub mod time;

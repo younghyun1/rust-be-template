@@ -47,7 +47,7 @@ const ALLOWED_MIME_TYPES: [&str; 16] = [
     "image/vnd.zbrush.pcx",     // PCX
 ];
 
-const AWS_S3_BUCKET_NAME: &str = "cyhdev-img";
+use crate::util::s3::AWS_S3_BUCKET_NAME;
 
 // TODO: STREAM to file, don't keep the whole damn thing around
 #[utoipa::path(

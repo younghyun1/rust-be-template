@@ -19,6 +19,7 @@ use crate::{
         maintenance::{
             compress_logs::compress_old_logs, flush_visitor_logs::flush_visitor_logs,
             prune_live_chat::prune_live_chat_state,
+            prune_photograph_batches::prune_photograph_batches,
         },
     },
 };
@@ -65,6 +66,17 @@ where
 
 pub async fn task_init(state: Arc<ServerState>) -> anyhow::Result<()> {
     info!("Task scheduler running...");
+
+    // Startup sweep: clear orphaned batch temp dirs from a previous process run.
+    // The in-memory tracker is empty at startup, so the whole staging root is stale.
+    tokio::spawn(async {
+        let root = crate::util::image::batch_pipeline::batch_root_dir();
+        if let Err(e) = tokio::fs::remove_dir_all(&root).await
+            && e.kind() != std::io::ErrorKind::NotFound
+        {
+            tracing::warn!(error = %e, path = %root.display(), "Failed startup sweep of batch temp dir");
+        }
+    });
 
     {
         let state = Arc::clone(&state);
@@ -158,6 +170,22 @@ pub async fn task_init(state: Arc<ServerState>) -> anyhow::Result<()> {
                 },
                 String::from("PRUNE_LIVE_CHAT_STATE"),
                 30,
+                0,
+            )
+        });
+    }
+
+    {
+        let state = Arc::clone(&state);
+        supervise("PRUNE_PHOTOGRAPH_BATCHES", move || {
+            let state = Arc::clone(&state);
+            schedule_task_every_minute_at(
+                state,
+                move |coroutine_state: Arc<ServerState>| async move {
+                    prune_photograph_batches(coroutine_state).await
+                },
+                String::from("PRUNE_PHOTOGRAPH_BATCHES"),
+                45,
                 0,
             )
         });

@@ -76,6 +76,9 @@ pub struct Photograph {
     pub photograph_lon: f64,
     pub photograph_thumbnail_link: String,
     pub photograph_context: PhotographContext,
+    pub photograph_view_count: i64,
+    pub photograph_total_upvotes: i64,
+    pub photograph_total_downvotes: i64,
 }
 
 #[derive(Insertable)]
