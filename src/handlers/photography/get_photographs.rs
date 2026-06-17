@@ -110,6 +110,9 @@ pub async fn get_photographs(
             photograph_lat: p.photograph_lat,
             photograph_lon: p.photograph_lon,
             photograph_thumbnail_link: p.photograph_thumbnail_link,
+            photograph_view_count: p.photograph_view_count,
+            photograph_total_upvotes: p.photograph_total_upvotes,
+            photograph_total_downvotes: p.photograph_total_downvotes,
         })
         .collect();
 
