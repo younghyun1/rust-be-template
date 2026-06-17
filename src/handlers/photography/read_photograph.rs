@@ -61,16 +61,20 @@ pub async fn read_photograph(
         .await
         .map_err(|e| code_err(CodeError::POOL_ERROR, e))?;
 
-    // Naive +1 view, return the updated row.
-    let photograph: Photograph =
-        diesel::update(photographs::table.filter(photographs::photograph_id.eq(photograph_id)))
-            .set(photographs::photograph_view_count.eq(photographs::photograph_view_count + 1))
-            .returning(photographs::all_columns)
-            .get_result(&mut conn)
-            .await
-            .optional()
-            .map_err(|e| code_err(CodeError::DB_UPDATE_ERROR, e))?
-            .ok_or_else(|| code_err(CodeError::PHOTOGRAPH_NOT_FOUND, "Photograph not found"))?;
+    // Read the persisted row; the view itself is buffered in RAM and flushed to
+    // the DB by a periodic job, so the hot read path does no per-view write.
+    let mut photograph: Photograph = photographs::table
+        .filter(photographs::photograph_id.eq(photograph_id))
+        .select(photographs::all_columns)
+        .first::<Photograph>(&mut conn)
+        .await
+        .optional()
+        .map_err(|e| code_err(CodeError::DB_QUERY_ERROR, e))?
+        .ok_or_else(|| code_err(CodeError::PHOTOGRAPH_NOT_FOUND, "Photograph not found"))?;
+
+    // Record the view in the RAM buffer and present persisted base + pending.
+    let pending_views = state.record_view(photograph_id).await;
+    photograph.photograph_view_count += pending_views;
 
     let comments: Vec<PhotographComment> = photograph_comments::table
         .filter(photograph_comments::photograph_id.eq(photograph_id))
