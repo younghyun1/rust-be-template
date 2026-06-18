@@ -75,6 +75,12 @@ impl LiveChatCache {
         self.broadcast_tx.subscribe()
     }
 
+    /// Clone of the room broadcast sender, used by the SFU to publish
+    /// roster/peer-state changes to every connected client.
+    pub fn broadcast_sender(&self) -> broadcast::Sender<LiveChatServerEvent> {
+        self.broadcast_tx.clone()
+    }
+
     pub fn broadcast(&self, event: LiveChatServerEvent) {
         let _ = self.broadcast_tx.send(event);
     }

@@ -3,13 +3,16 @@ use std::sync::atomic::AtomicU64;
 use diesel_async::AsyncPgConnection;
 use diesel_async::pooled_connection::bb8::Pool;
 use lettre::{AsyncSmtpTransport, Tokio1Executor};
+use std::sync::Arc;
+
 use tokio::sync::RwLock;
-use tracing::info;
+use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::domain::country::{CountryAndSubdivisionsTable, IsoCurrencyTable, IsoLanguageTable};
 use crate::domain::i18n::i18n_cache::I18nCache;
 use crate::domain::live_chat::cache::LiveChatCache;
+use crate::domain::live_chat::rtc::{RtcConfig, RtcEngine};
 use crate::init::load_cache::fastfetch_cache::FastFetchCache;
 use crate::init::load_cache::system_info::SystemInfoState;
 use crate::init::search::PostSearchIndex;
@@ -74,6 +77,22 @@ impl ServerStateBuilder {
 
         let fastfetch_cache = FastFetchCache::init().await;
 
+        // Build the SFU engine once if enabled. A bind/init failure disables RTC
+        // but does not abort startup.
+        let rtc_config = RtcConfig::from_env();
+        let rtc_engine = if rtc_config.enabled {
+            match RtcEngine::new(rtc_config.clone()).await {
+                Ok(engine) => Some(Arc::new(engine)),
+                Err(e) => {
+                    error!(error = %e, "Failed to initialize RTC SFU engine; calls disabled");
+                    None
+                }
+            }
+        } else {
+            info!("RTC SFU disabled (RTC_ENABLE not set)");
+            None
+        };
+
         Ok(ServerState {
             app_name_version: self
                 .app_name_version
@@ -136,6 +155,9 @@ impl ServerStateBuilder {
             fastfetch: fastfetch_cache,
             wasm_module_cache: scc::HashMap::new(),
             live_chat_cache: LiveChatCache::default(),
+            rtc_config,
+            rtc_engine,
+            rtc_rooms: scc::HashMap::new(),
             photograph_batches: scc::HashMap::new(),
             photograph_view_buffer: tokio::sync::RwLock::new(std::collections::HashMap::new()),
         })

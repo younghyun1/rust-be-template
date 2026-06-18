@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde_derive::{Deserialize, Serialize};
 
 use super::{CachedChatMessage, ChatActor};
+use crate::domain::live_chat::rtc::RtcServerSignal;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TypingState {
@@ -51,6 +52,10 @@ pub enum LiveChatServerEvent {
         code: String,
         message: String,
     },
+    /// WebRTC signaling envelope. Unicast variants (answer/offer/ice/roster) are
+    /// sent to a single connection; peer-state is broadcast room-wide. The inner
+    /// enum is internally tagged with "kind".
+    Rtc(RtcServerSignal),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

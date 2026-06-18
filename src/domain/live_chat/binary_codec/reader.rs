@@ -34,7 +34,7 @@ impl<'a> BinaryReader<'a> {
         Ok(bytes[0])
     }
 
-    fn read_u16(&mut self) -> anyhow::Result<u16> {
+    pub(super) fn read_u16(&mut self) -> anyhow::Result<u16> {
         let bytes = self.read_exact(2)?;
         Ok(u16::from_be_bytes([bytes[0], bytes[1]]))
     }

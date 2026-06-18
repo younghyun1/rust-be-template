@@ -138,6 +138,30 @@ diesel::table! {
 }
 
 diesel::table! {
+    live_chat_calls (live_chat_call_id) {
+        live_chat_call_id -> Uuid,
+        room_key -> Varchar,
+        call_started_at -> Timestamptz,
+        call_ended_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    live_chat_call_participants (live_chat_call_participant_id) {
+        live_chat_call_participant_id -> Uuid,
+        live_chat_call_id -> Uuid,
+        user_id -> Nullable<Uuid>,
+        guest_ip -> Nullable<Inet>,
+        participant_sender_kind -> Int2,
+        participant_display_name -> Text,
+        participant_joined_at -> Timestamptz,
+        participant_left_at -> Nullable<Timestamptz>,
+        participant_had_audio -> Bool,
+        participant_had_video -> Bool,
+    }
+}
+
+diesel::table! {
     password_reset_tokens (password_reset_token_id) {
         password_reset_token_id -> Uuid,
         user_id -> Uuid,
@@ -363,6 +387,8 @@ diesel::joinable!(photograph_comments -> photographs (photograph_id));
 diesel::joinable!(photograph_comments -> users (user_id));
 diesel::joinable!(photograph_comment_votes -> photograph_comments (photograph_comment_id));
 diesel::joinable!(photograph_comment_votes -> users (user_id));
+diesel::joinable!(live_chat_call_participants -> live_chat_calls (live_chat_call_id));
+diesel::joinable!(live_chat_call_participants -> users (user_id));
 diesel::joinable!(post_tags -> posts (post_id));
 diesel::joinable!(post_tags -> tags (tag_id));
 diesel::joinable!(post_votes -> posts (post_id));
@@ -389,6 +415,8 @@ diesel::allow_tables_to_appear_in_same_query!(
     iso_currency,
     iso_language,
     live_chat_bans,
+    live_chat_call_participants,
+    live_chat_calls,
     live_chat_messages,
     password_reset_tokens,
     permissions,

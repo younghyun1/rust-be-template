@@ -5,6 +5,7 @@ use crate::{
     domain::live_chat::{
         binary_codec::{LiveChatBinaryClientEvent, decode_client_event, encode_server_event},
         cache::LiveChatServerEvent,
+        rtc::RtcClientSignal,
     },
     dto::requests::live_chat::LiveChatClientEvent,
 };
@@ -27,6 +28,7 @@ pub(super) enum DecodedLiveChatClientEvent {
     Heartbeat {
         nonce: String,
     },
+    Rtc(RtcClientSignal),
 }
 
 impl From<LiveChatClientEvent> for DecodedLiveChatClientEvent {
@@ -41,6 +43,7 @@ impl From<LiveChatClientEvent> for DecodedLiveChatClientEvent {
             },
             LiveChatClientEvent::Typing { is_typing } => Self::Typing { is_typing },
             LiveChatClientEvent::Heartbeat { nonce } => Self::Heartbeat { nonce },
+            LiveChatClientEvent::Rtc(signal) => Self::Rtc(signal),
         }
     }
 }
@@ -57,6 +60,7 @@ impl From<LiveChatBinaryClientEvent> for DecodedLiveChatClientEvent {
             },
             LiveChatBinaryClientEvent::Typing { is_typing } => Self::Typing { is_typing },
             LiveChatBinaryClientEvent::Heartbeat { nonce } => Self::Heartbeat { nonce },
+            LiveChatBinaryClientEvent::Rtc(signal) => Self::Rtc(signal),
         }
     }
 }

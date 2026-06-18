@@ -27,6 +27,7 @@ use crate::{
 mod persistence;
 mod presence;
 mod protocol;
+mod rtc;
 
 use persistence::{persist_live_chat_ban, persist_message};
 use presence::{broadcast_typing_set, cleanup_live_chat_connection, handle_typing};
@@ -34,13 +35,16 @@ use protocol::{
     DecodedLiveChatClientEvent, OutboundSender, decode_binary_client_event,
     decode_json_client_event, encode_event, send_event,
 };
+use rtc::RtcSession;
 
 /// Bound on the per-connection outbound frame queue feeding the writer task.
 const LIVE_CHAT_OUTBOUND_QUEUE: usize = 128;
 
 const LIVE_CHAT_INITIAL_MESSAGES: usize = 50;
 const LIVE_CHAT_MAX_MESSAGE_CHARS: usize = 300;
-pub(super) const LIVE_CHAT_MAX_FRAME_BYTES: usize = 2 * 1024;
+// Raised from 2 KiB to fit WebRTC SDP offers/answers, which exceed it. Chat
+// message bodies remain bounded separately by `LIVE_CHAT_MAX_MESSAGE_CHARS`.
+pub(super) const LIVE_CHAT_MAX_FRAME_BYTES: usize = 64 * 1024;
 pub(super) const LIVE_CHAT_TYPING_TTL_SECONDS: i64 = 4;
 
 #[derive(Clone, Copy)]
@@ -223,6 +227,16 @@ async fn handle_live_chat_socket(
             connected_count: state.live_chat_cache.connected_count(),
         });
 
+    // Per-connection RTC signaling state, sharing the outbound queue with chat.
+    let rtc_session = Arc::new(RtcSession::new(
+        state.clone(),
+        connection_id,
+        actor.clone(),
+        client_ip,
+        out_tx.clone(),
+        wire_protocol,
+    ));
+
     // Reader loop: handle inbound frames, enqueueing any responses on out_tx.
     while let Some(socket_message) = stream.next().await {
         let should_continue = match socket_message {
@@ -234,6 +248,7 @@ async fn handle_live_chat_socket(
                     client_ip,
                     message,
                     wire_protocol,
+                    &rtc_session,
                 )
                 .await
             }
@@ -247,6 +262,10 @@ async fn handle_live_chat_socket(
             break;
         }
     }
+
+    // Tear down any active call for this connection before the socket closes.
+    rtc_session.teardown().await;
+    drop(rtc_session);
 
     // Drop our sender so the writer drains any still-buffered frames (e.g. a final
     // "banned"/error frame enqueued right before the reader broke) and exits on its
@@ -270,6 +289,7 @@ async fn handle_client_message(
     client_ip: std::net::IpAddr,
     message: Message,
     wire_protocol: LiveChatWireProtocol,
+    rtc_session: &Arc<RtcSession>,
 ) -> bool {
     if matches!(message, Message::Close(_)) {
         return false;
@@ -308,6 +328,9 @@ async fn handle_client_message(
         DecodedLiveChatClientEvent::Heartbeat { nonce } => {
             let event = LiveChatServerEvent::HeartbeatAck { nonce };
             send_event(out, &event, wire_protocol).await;
+        }
+        DecodedLiveChatClientEvent::Rtc(signal) => {
+            rtc_session.dispatch(signal).await;
         }
     }
 

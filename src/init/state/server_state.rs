@@ -13,6 +13,7 @@ use crate::domain::blog::blog::CachedPostInfo;
 use crate::domain::country::{CountryAndSubdivisionsTable, IsoCurrencyTable, IsoLanguageTable};
 use crate::domain::i18n::i18n_cache::I18nCache;
 use crate::domain::live_chat::cache::LiveChatCache;
+use crate::domain::live_chat::rtc::{RtcConfig, RtcEngine, RtcRoom};
 use crate::domain::photography::batch::session::BatchSession;
 use crate::init::load_cache::fastfetch_cache::FastFetchCache;
 use crate::init::load_cache::system_info::SystemInfoState;
@@ -29,6 +30,7 @@ mod live_chat;
 mod photograph_views;
 mod photography_batches;
 mod posts;
+mod rtc;
 mod sessions;
 mod visitors;
 mod wasm;
@@ -59,6 +61,14 @@ pub struct ServerState {
     pub fastfetch: FastFetchCache,
     pub wasm_module_cache: scc::HashMap<Uuid, (Arc<[u8]>, bool, &'static str)>,
     pub live_chat_cache: LiveChatCache,
+    /// SFU runtime configuration (env-derived).
+    pub(crate) rtc_config: RtcConfig,
+    /// The shared webrtc-rs engine; `None` when the SFU is disabled or failed to
+    /// initialize, in which case RTC join requests are rejected.
+    pub(crate) rtc_engine: Option<Arc<RtcEngine>>,
+    /// Active call rooms keyed by `room_key`. Bounded: a room is removed when it
+    /// empties (closing its `live_chat_calls` row).
+    pub(crate) rtc_rooms: scc::HashMap<String, Arc<RtcRoom>>,
     pub(crate) photograph_batches: scc::HashMap<uuid::Uuid, Arc<BatchSession>>,
     /// Write-through buffer of unflushed photograph view increments (deltas),
     /// keyed by photograph id. Views accumulate here in RAM and a periodic job
