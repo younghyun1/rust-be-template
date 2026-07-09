@@ -115,10 +115,8 @@ pub async fn delete_photographs(
         }
     }
 
-    let s3_deleted_count: usize;
-
-    if object_keys.is_empty() {
-        s3_deleted_count = 0;
+    let s3_deleted_count: usize = if object_keys.is_empty() {
+        0
     } else {
         let mut total_deleted = 0usize;
 
@@ -179,8 +177,8 @@ pub async fn delete_photographs(
             }
         }
 
-        s3_deleted_count = total_deleted;
-    }
+        total_deleted
+    };
 
     tracing::info!(
         deleted_db_rows = deleted_rows,

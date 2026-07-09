@@ -84,7 +84,7 @@ impl RtcRoom {
     pub fn release_slot(&self) {
         let _ = self
             .occupancy
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
                 value.checked_sub(1)
             });
     }
