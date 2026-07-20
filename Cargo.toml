@@ -43,7 +43,7 @@ utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
 # rayon = "1.10.0"
 
 # ORM
-diesel = { version = "2.3.10", features = [
+diesel = { version = "2.3.11", features = [
     "postgres",
     "chrono",
     "serde_json",
@@ -58,9 +58,9 @@ diesel_migrations = "2.3.2"
 dotenvy = "0.15.7"
 
 # async runtime
-tokio = { version = "1.52.3", features = ["full"] }
+tokio = { version = "1.53.0", features = ["full"] }
 # Stream/Sink combinators (WebSocket split for the live-chat writer task)
-futures-util = { version = "0.3.32", default-features = false, features = [
+futures-util = { version = "0.3.33", default-features = false, features = [
     "std",
     "sink",
 ] }
@@ -71,7 +71,7 @@ tracing-subscriber = { version = "0.3.23", features = ["fmt", "json"] }
 tracing-appender = "0.2.5"
 
 # error
-anyhow = "1.0.103"
+anyhow = "1.0.104"
 
 # system information
 num_cpus = "1.17.0"
@@ -79,17 +79,17 @@ walkdir = "2.5.0"
 # sysinfo = "0.37.2"
 
 # serialization/deserialization
-serde = "1.0.228"
-serde_derive = "1.0.228"
-serde_json = { version = "1.0.150", features = ["preserve_order"] }
+serde = "1.0.229"
+serde_derive = "1.0.229"
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
 bitcode = "0.6.9"
 flate2 = "1.1.9"
 
 # types
 chrono = { version = "0.4.45", features = ["serde"] }
 chrono-tz = { version = "0.10.4", features = ["serde"] }
-scc = "3.8.4"
-uuid = { version = "1.23.4", features = [
+scc = "3.8.5"
+uuid = { version = "1.24.0", features = [
     "v4",
     "v7",
     "serde",
@@ -105,8 +105,8 @@ email_address = "0.2.9"
 # crypto/rand
 argon2 = "0.5.3"
 rand = "0.10"
-rand_08 = { package = "rand", version = "0.8.6" }
-rustls = { version = "0.23.41", features = [] }
+rand_08 = { package = "rand", version = "0.8.7" }
+rustls = { version = "0.23.42", features = [] }
 zeroize = { version = "1.9.0", features = ["derive"] }
 
 # memory allocator
@@ -133,7 +133,7 @@ fast_image_resize = { version = "6.0.0", features = ["image"]}
 kamadak-exif = "0.6.1"
 
 # markdown
-comrak = { version = "0.53.0", features = ["emojis", "shortcodes"] }
+comrak = { version = "0.54.0", features = ["emojis", "shortcodes"] }
 ansi-to-html = "0.2.3"
 
 # full-text search
@@ -150,7 +150,7 @@ mime_guess = "2.0.5"
 internment = "0.8.6"
 
 # aws
-aws-sdk-s3 = { version = "1.138.0", features = ["behavior-version-latest"] }
+aws-sdk-s3 = { version = "1.138.1", features = ["behavior-version-latest"] }
 aws-config = { version = "1.9.0", features = [
     "rustls",
     "behavior-version-latest",
@@ -166,7 +166,7 @@ nutype = "0.7.0"
 
 [build-dependencies]
 chrono = { version = "0.4.45" }
-serde_json = { version = "1.0.150", features = ["preserve_order"] }
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = { version = "0.2.186", features = [] }
