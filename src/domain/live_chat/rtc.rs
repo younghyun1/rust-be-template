@@ -15,6 +15,7 @@ mod signal;
 pub use config::{MaxParticipants, RtcConfig, TurnConfig};
 pub use engine::RtcEngine;
 pub use peer::RtcPeer;
+pub use publication::RtcPublication;
 pub use room::{RtcRoom, RtcRoomAcquire};
 pub use signal::{
     MediaKind, RtcClientSignal, RtcIceCandidate, RtcParticipant, RtcPeerPhase, RtcServerSignal,

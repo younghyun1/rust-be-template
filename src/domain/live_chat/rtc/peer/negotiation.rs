@@ -98,6 +98,11 @@ impl RtcPeer {
             Ok(answer) => {
                 if let Err(e) = self.pc.set_remote_description(answer).await {
                     error!(error = %e, "set_remote_description(answer) failed");
+                } else {
+                    // Subscriptions added in this negotiation round are live
+                    // now; ask their publishers for the keyframes that make
+                    // the video decodable.
+                    self.request_pending_keyframes().await;
                 }
             }
             Err(e) => error!(error = %e, "Invalid renegotiation answer SDP"),

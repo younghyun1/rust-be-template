@@ -7,9 +7,9 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use tokio::sync::broadcast;
 use tracing::debug;
 use uuid::Uuid;
-use webrtc::track::track_local::track_local_static_rtp::TrackLocalStaticRTP;
 
 use super::peer::RtcPeer;
+use super::publication::RtcPublication;
 use super::signal::{RtcParticipant, RtcPeerPhase, RtcServerSignal};
 use crate::domain::live_chat::cache::LiveChatServerEvent;
 
@@ -141,13 +141,13 @@ impl RtcRoom {
     }
 
     /// Subscribe a newly joined peer to every existing publisher's current
-    /// tracks, then renegotiate the new peer once if anything was added.
+    /// publications, then renegotiate the new peer once if anything was added.
     pub async fn subscribe_new_peer(&self, new_peer: Arc<RtcPeer>) {
         let others = self.other_peers(new_peer.connection_id).await;
         let mut added_any = false;
         for other in others {
-            for track in other.local_tracks_snapshot().await {
-                if new_peer.subscribe_to(track).await {
+            for publication in other.publications_snapshot().await {
+                if new_peer.subscribe_to(publication).await {
                     added_any = true;
                 }
             }
@@ -157,12 +157,12 @@ impl RtcRoom {
         }
     }
 
-    /// Fan a publisher's newly arrived track out to all other peers, then
+    /// Fan a publisher's newly arrived publication out to all other peers, then
     /// renegotiate each subscriber that accepted it.
-    pub async fn fan_out_track(&self, publisher_id: Uuid, track: Arc<TrackLocalStaticRTP>) {
+    pub async fn fan_out_track(&self, publisher_id: Uuid, publication: Arc<RtcPublication>) {
         let subscribers = self.other_peers(publisher_id).await;
         for subscriber in subscribers {
-            if subscriber.subscribe_to(track.clone()).await {
+            if subscriber.subscribe_to(publication.clone()).await {
                 subscriber.renegotiate().await;
             }
         }

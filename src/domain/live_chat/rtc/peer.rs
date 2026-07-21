@@ -19,11 +19,10 @@ use webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState;
 use webrtc::rtp_transceiver::RTCRtpTransceiver;
 use webrtc::rtp_transceiver::rtp_codec::RTPCodecType;
 use webrtc::rtp_transceiver::rtp_receiver::RTCRtpReceiver;
-use webrtc::track::track_local::TrackLocal;
 use webrtc::track::track_local::track_local_static_rtp::TrackLocalStaticRTP;
 use webrtc::track::track_remote::TrackRemote;
 
-use super::publication::{spawn_rtcp_drain, spawn_rtp_forward};
+use super::publication::{RtcPublication, spawn_rtp_forward};
 use super::room::RtcRoom;
 use super::signal::{MediaKind, RtcIceCandidate, RtcParticipant, RtcServerSignal};
 use crate::domain::live_chat::cache::{ChatActor, ChatActorKey};
@@ -31,6 +30,8 @@ use crate::domain::live_chat::cache::{ChatActor, ChatActorKey};
 /// SDP/renegotiation methods live in the child module; they need access to this
 /// type's private fields, which descendant modules are permitted.
 mod negotiation;
+/// Subscription/keyframe methods live in a child module for the same reason.
+mod subscription;
 
 /// Stable per-publisher stream id so a browser groups a publisher's audio and
 /// video into one `MediaStream` and the frontend can map it back to an actor.
@@ -61,11 +62,14 @@ pub struct RtcPeer {
     pub participant_id: Uuid,
     pc: Arc<RTCPeerConnection>,
     signal_tx: mpsc::Sender<RtcServerSignal>,
-    /// This peer's published media, as fan-out tracks others subscribe to.
-    local_tracks: scc::HashMap<MediaKind, Arc<TrackLocalStaticRTP>>,
+    /// This peer's published media, as fan-out publications others subscribe to.
+    publications: scc::HashMap<MediaKind, Arc<RtcPublication>>,
     /// Track ids this peer is already subscribed to, so a fan-out racing the
     /// join-time subscribe cannot `add_track` the same source track twice.
     subscribed: scc::HashSet<String>,
+    /// Video publications bound since the last renegotiation answer; each gets
+    /// a keyframe request once the answer lands (see `peer/subscription.rs`).
+    pending_keyframe_requests: Mutex<Vec<Arc<RtcPublication>>>,
     mic_on: AtomicBool,
     cam_on: AtomicBool,
     negotiation: Mutex<NegotiationState>,
@@ -92,8 +96,9 @@ impl RtcPeer {
             participant_id,
             pc,
             signal_tx,
-            local_tracks: scc::HashMap::new(),
+            publications: scc::HashMap::new(),
             subscribed: scc::HashSet::new(),
+            pending_keyframe_requests: Mutex::new(Vec::new()),
             mic_on: AtomicBool::new(want_audio),
             cam_on: AtomicBool::new(want_video),
             negotiation: Mutex::new(NegotiationState::default()),
@@ -164,9 +169,18 @@ impl RtcPeer {
                         }
                     );
                     let local = Arc::new(TrackLocalStaticRTP::new(capability, track_id, stream_id));
-                    let _ = peer.local_tracks.insert_async(kind, local.clone()).await;
-                    spawn_rtp_forward(remote, local.clone());
-                    room.fan_out_track(peer.connection_id, local).await;
+                    let publication = RtcPublication::new(
+                        kind,
+                        local.clone(),
+                        Arc::downgrade(&peer.pc),
+                        remote.ssrc(),
+                    );
+                    let _ = peer
+                        .publications
+                        .insert_async(kind, publication.clone())
+                        .await;
+                    spawn_rtp_forward(remote, local);
+                    room.fan_out_track(peer.connection_id, publication).await;
                 })
             },
         ));
@@ -197,50 +211,6 @@ impl RtcPeer {
         if let Err(e) = self.pc.add_ice_candidate(init).await {
             debug!(error = %e, "add_ice_candidate failed");
         }
-    }
-
-    /// Subscribe this peer to a publisher's fan-out track. Returns true if the
-    /// track was newly added (the caller should then renegotiate this peer).
-    /// Idempotent per source track id: a fan-out racing the join-time subscribe
-    /// cannot `add_track` the same track twice onto this peer connection.
-    pub async fn subscribe_to(&self, track: Arc<TrackLocalStaticRTP>) -> bool {
-        let track_id = track.id().to_string();
-        if self
-            .subscribed
-            .insert_async(track_id.clone())
-            .await
-            .is_err()
-        {
-            return false;
-        }
-        match self
-            .pc
-            .add_track(track as Arc<dyn TrackLocal + Send + Sync>)
-            .await
-        {
-            Ok(sender) => {
-                spawn_rtcp_drain(sender);
-                true
-            }
-            Err(e) => {
-                warn!(error = %e, "add_track (subscribe) failed");
-                // Allow a later retry of the same track since the add failed.
-                let _ = self.subscribed.remove_async(&track_id).await;
-                false
-            }
-        }
-    }
-
-    /// Snapshot of this peer's published fan-out tracks.
-    pub async fn local_tracks_snapshot(&self) -> Vec<Arc<TrackLocalStaticRTP>> {
-        let mut tracks = Vec::new();
-        self.local_tracks
-            .iter_async(|_, track| {
-                tracks.push(track.clone());
-                true
-            })
-            .await;
-        tracks
     }
 
     /// Record a microphone/camera state change (no renegotiation).

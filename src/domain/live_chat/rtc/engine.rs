@@ -8,6 +8,7 @@
 use std::sync::Arc;
 
 use tracing::info;
+use webrtc::api::interceptor_registry::register_default_interceptors;
 use webrtc::api::media_engine::MediaEngine;
 use webrtc::api::setting_engine::SettingEngine;
 use webrtc::api::{API, APIBuilder};
@@ -15,6 +16,7 @@ use webrtc::ice::udp_mux::{UDPMuxDefault, UDPMuxParams};
 use webrtc::ice::udp_network::UDPNetwork;
 use webrtc::ice_transport::ice_candidate_type::RTCIceCandidateType;
 use webrtc::ice_transport::ice_server::RTCIceServer;
+use webrtc::interceptor::registry::Registry;
 use webrtc::peer_connection::RTCPeerConnection;
 use webrtc::peer_connection::configuration::RTCConfiguration;
 use webrtc::rtp_transceiver::RTCPFeedback;
@@ -48,6 +50,13 @@ impl RtcEngine {
             .map_err(|e| anyhow::anyhow!("Failed to register default codecs: {e}"))?;
         register_av1_best_effort(&mut media_engine);
 
+        // NACK, RTCP sender/receiver reports, and TWCC. Without these the SDP
+        // advertises feedback the SFU never honors: publishers get no receiver
+        // reports (blind bandwidth estimation) and lost packets are never
+        // retransmitted, so video degrades unrecoverably on first loss.
+        let registry = register_default_interceptors(Registry::new(), &mut media_engine)
+            .map_err(|e| anyhow::anyhow!("Failed to register default interceptors: {e}"))?;
+
         let mut setting_engine = SettingEngine::default();
         let udp_socket =
             tokio::net::UdpSocket::bind((std::net::Ipv4Addr::UNSPECIFIED, config.udp_mux_port))
@@ -65,6 +74,7 @@ impl RtcEngine {
         let api = APIBuilder::new()
             .with_media_engine(media_engine)
             .with_setting_engine(setting_engine)
+            .with_interceptor_registry(registry)
             .build();
 
         info!(

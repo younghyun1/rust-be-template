@@ -14,6 +14,9 @@ services:
       target: final
     ports:
       - 30737:30737
+      # WebRTC SFU media (UDP mux). Must be published for calls to connect
+      # when RTC_ENABLE=true; keep in sync with RTC_UDP_MUX_PORT.
+      - 3478:3478/udp
 
 # The commented out section below is an example of how to define a PostgreSQL
 # database that your application can use. `depends_on` tells Docker Compose to
