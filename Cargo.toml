@@ -43,7 +43,7 @@ utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
 # rayon = "1.10.0"
 
 # ORM
-diesel = { version = "2.3.11", features = [
+diesel = { version = "2.3.12", features = [
     "postgres",
     "chrono",
     "serde_json",
@@ -60,7 +60,7 @@ dotenvy = "0.15.7"
 # async runtime
 tokio = { version = "1.53.1", features = ["full"] }
 # Stream/Sink combinators (WebSocket split for the live-chat writer task)
-futures-util = { version = "0.3.33", default-features = false, features = [
+futures-util = { version = "0.3.34", default-features = false, features = [
     "std",
     "sink",
 ] }
@@ -88,15 +88,15 @@ flate2 = "1.1.9"
 # types
 chrono = { version = "0.4.45", features = ["serde"] }
 chrono-tz = { version = "0.10.4", features = ["serde"] }
-scc = "3.8.5"
-uuid = { version = "1.24.0", features = [
+scc = "3.8.6"
+uuid = { version = "1.25.0", features = [
     "v4",
     "v7",
     "serde",
     "zerocopy",
     "fast-rng",
 ] }
-ipnet = "2.12.0"
+ipnet = "2.12.1"
 
 # regex/verification
 # regex = { version = "1.11.1", features = ["perf-dfa-full"] }
@@ -106,14 +106,14 @@ email_address = "0.2.9"
 argon2 = "0.5.3"
 rand = "0.10"
 rand_08 = { package = "rand", version = "0.8.7" }
-rustls = { version = "0.23.42", features = [] }
+rustls = { version = "0.23.43", features = [] }
 zeroize = { version = "1.9.0", features = ["derive"] }
 
 # memory allocator
 mimalloc = { version = "0.1.52", features = [] }
 
 # email
-lettre = { version = "0.11.22", default-features = false, features = [
+lettre = { version = "0.11.23", default-features = false, features = [
     "builder",
     "hostname",
     "pool",
@@ -129,12 +129,12 @@ bigdecimal = { version = "0.4.10", features = ["serde"] }
 
 # image processing
 image = "0.25.10"
-fast_image_resize = { version = "6.0.0", features = ["image"]}
+fast_image_resize = { version = "6.1.0", features = ["image"]}
 kamadak-exif = "0.6.1"
 
 # markdown
 comrak = { version = "0.54.0", features = ["emojis", "shortcodes"] }
-ansi-to-html = "0.2.3"
+ansi-to-html = "0.2.4"
 
 # full-text search
 tantivy = "0.26"
@@ -150,14 +150,14 @@ mime_guess = "2.0.5"
 internment = "0.8.6"
 
 # aws
-aws-sdk-s3 = { version = "1.138.1", features = ["behavior-version-latest"] }
-aws-config = { version = "1.9.0", features = [
+aws-sdk-s3 = { version = "1.143.0", features = ["behavior-version-latest"] }
+aws-config = { version = "1.11.0", features = [
     "rustls",
     "behavior-version-latest",
 ] }
-aws-types = "1.4.0"
+aws-types = "1.5.0"
 tower_governor = { version = "0.8.0", features = ["tracing"] }
-webrtc = "0.17.2"
+webrtc = "0.20.3"
 nutype = "0.7.0"
 
 # enable for dockerization?
@@ -169,7 +169,7 @@ chrono = { version = "0.4.45" }
 serde_json = { version = "1.0.151", features = ["preserve_order"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libc = { version = "0.2.188", features = [] }
+libc = { version = "0.2.189", features = [] }
 
 [target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]
 zstd = { version = "0.13.3", features = ["fat-lto", "zstdmt", "pkg-config"] }
