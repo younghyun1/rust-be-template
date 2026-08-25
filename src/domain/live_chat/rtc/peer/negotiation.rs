@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use tokio::time::Instant;
 use tracing::{error, warn};
-use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
+use webrtc::peer_connection::RTCSessionDescription;
 
 use super::super::signal::RtcServerSignal;
 use super::RtcPeer;
@@ -102,7 +102,7 @@ impl RtcPeer {
                     // Subscriptions added in this negotiation round are live
                     // now; ask their publishers for the keyframes that make
                     // the video decodable.
-                    self.request_pending_keyframes().await;
+                    self.activate_pending_subscriptions().await;
                 }
             }
             Err(e) => error!(error = %e, "Invalid renegotiation answer SDP"),

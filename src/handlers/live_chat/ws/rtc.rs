@@ -13,7 +13,8 @@ use uuid::Uuid;
 
 use crate::domain::live_chat::cache::{ChatActor, DEFAULT_LIVE_CHAT_ROOM, LiveChatServerEvent};
 use crate::domain::live_chat::rtc::{
-    RtcClientSignal, RtcPeer, RtcPeerPhase, RtcRoom, RtcRoomAcquire, RtcServerSignal,
+    RtcClientSignal, RtcPeer, RtcPeerEventHandler, RtcPeerPhase, RtcRoom, RtcRoomAcquire,
+    RtcServerSignal,
 };
 use crate::init::state::ServerState;
 
@@ -137,7 +138,8 @@ impl RtcSession {
             }
         };
 
-        let pc = match engine.new_peer_connection().await {
+        let peer_event_handler = RtcPeerEventHandler::new();
+        let pc = match engine.new_peer_connection(peer_event_handler.clone()).await {
             Ok(pc) => pc,
             Err(e) => {
                 error!(error = %e, "Failed to create RTC peer connection");
@@ -179,7 +181,8 @@ impl RtcSession {
             want_audio,
             want_video,
         );
-        peer.attach_handlers(Arc::downgrade(&room));
+        peer.attach_handlers(&peer_event_handler, Arc::downgrade(&room))
+            .await;
 
         let answer = match peer.answer_join_offer(sdp).await {
             Some(answer) => answer,

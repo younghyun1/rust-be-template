@@ -59,6 +59,7 @@ dotenvy = "0.15.7"
 
 # async runtime
 tokio = { version = "1.53.1", features = ["full"] }
+async-trait = "0.1.92"
 # Stream/Sink combinators (WebSocket split for the live-chat writer task)
 futures-util = { version = "0.3.34", default-features = false, features = [
     "std",
@@ -157,6 +158,7 @@ aws-config = { version = "1.11.0", features = [
 ] }
 aws-types = "1.5.0"
 tower_governor = { version = "0.8.0", features = ["tracing"] }
+rtc = "0.20.3"
 webrtc = "0.20.3"
 nutype = "0.7.0"
 

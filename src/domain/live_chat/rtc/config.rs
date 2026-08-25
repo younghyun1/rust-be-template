@@ -31,8 +31,8 @@ pub struct RtcConfig {
     pub enabled: bool,
     /// Public IP advertised as an ICE host candidate (`set_nat_1to1_ips`).
     pub public_ip: String,
-    /// Single UDP port all ICE/media multiplex onto (UDP mux).
-    pub udp_mux_port: u16,
+    /// First UDP port in the per-peer ICE/media port range.
+    pub udp_port_start: u16,
     /// Maximum participants per room call (validated to `1..=64`).
     pub max_participants: usize,
     /// Optional TURN relay fallback.
@@ -43,7 +43,7 @@ impl RtcConfig {
     /// Load SFU configuration from environment variables.
     ///
     /// `RTC_ENABLE` gates the whole feature (default off). When enabled,
-    /// `RTC_PUBLIC_IP` and `RTC_UDP_MUX_PORT` are required; missing/invalid
+    /// `RTC_PUBLIC_IP` and `RTC_UDP_PORT_START` are required; missing/invalid
     /// values disable the SFU rather than aborting startup, so the rest of the
     /// server still comes up.
     pub fn from_env() -> Self {
@@ -91,21 +91,28 @@ impl RtcConfig {
             }
         };
 
-        let udp_mux_port = match std::env::var("RTC_UDP_MUX_PORT")
+        let udp_port_start = match std::env::var("RTC_UDP_PORT_START")
             .ok()
             .and_then(|value| value.trim().parse::<u16>().ok())
         {
             Some(port) if port != 0 => port,
             _ => {
-                warn!("RTC_ENABLE set but RTC_UDP_MUX_PORT missing/invalid; disabling SFU");
+                warn!("RTC_ENABLE set but RTC_UDP_PORT_START missing/invalid; disabling SFU");
                 return Self::disabled(max_participants, turn);
             }
         };
+        if !udp_port_range_fits(udp_port_start, max_participants) {
+            warn!(
+                udp_port_start,
+                max_participants, "RTC UDP port range exceeds port 65535; disabling SFU"
+            );
+            return Self::disabled(max_participants, turn);
+        }
 
         Self {
             enabled: true,
             public_ip,
-            udp_mux_port,
+            udp_port_start,
             max_participants,
             turn,
         }
@@ -115,9 +122,32 @@ impl RtcConfig {
         Self {
             enabled: false,
             public_ip: String::new(),
-            udp_mux_port: 0,
+            udp_port_start: 0,
             max_participants,
             turn,
         }
+    }
+}
+
+/// Whether a contiguous range starting at `start` has `port_count` valid ports.
+fn udp_port_range_fits(start: u16, port_count: usize) -> bool {
+    let end_exclusive = usize::from(start).saturating_add(port_count);
+    end_exclusive <= usize::from(u16::MAX) + 1
+}
+
+#[cfg(test)]
+mod tests {
+    use super::udp_port_range_fits;
+
+    #[test]
+    fn udp_port_range_accepts_last_valid_port() {
+        assert!(udp_port_range_fits(u16::MAX, 1));
+        assert!(udp_port_range_fits(u16::MAX - 63, 64));
+    }
+
+    #[test]
+    fn udp_port_range_rejects_overflow() {
+        assert!(!udp_port_range_fits(u16::MAX, 2));
+        assert!(!udp_port_range_fits(u16::MAX - 62, 64));
     }
 }

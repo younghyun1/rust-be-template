@@ -1,3 +1,8 @@
+#![recursion_limit = "256"]
+// Diesel 2.3.12 derives emit this lint at field declaration spans; there is no
+// handwritten struct initializer to shorten at those locations.
+#![allow(clippy::redundant_field_names)]
+
 use init::server_init::server_init_proc;
 use mimalloc::MiMalloc;
 use tracing::{error, info, level_filters};

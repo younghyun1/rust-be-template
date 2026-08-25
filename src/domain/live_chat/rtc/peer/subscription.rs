@@ -7,12 +7,21 @@
 
 use std::sync::Arc;
 
+use rtc::rtp::Packet;
+use tokio::sync::broadcast;
 use tracing::warn;
-use webrtc::track::track_local::TrackLocal;
+use webrtc::media_stream::track_local::TrackLocal;
+use webrtc::media_stream::track_local::static_rtp::TrackLocalStaticRTP;
 
-use super::super::publication::{RtcPublication, spawn_rtcp_listen};
-use super::super::signal::MediaKind;
+use super::super::publication::{RtcPublication, spawn_rtp_forward};
 use super::RtcPeer;
+
+/// A subscriber-local track waiting for its negotiation answer before forwarding starts.
+pub(super) struct PendingSubscription {
+    publication: Arc<RtcPublication>,
+    local: Arc<TrackLocalStaticRTP>,
+    packets: broadcast::Receiver<Packet>,
+}
 
 impl RtcPeer {
     /// Subscribe this peer to a publication. Returns true if the track was
@@ -20,7 +29,7 @@ impl RtcPeer {
     /// per source track id: a fan-out racing the join-time subscribe cannot
     /// `add_track` the same track twice onto this peer connection.
     pub async fn subscribe_to(&self, publication: Arc<RtcPublication>) -> bool {
-        let track_id = publication.track.id().to_string();
+        let track_id = publication.track_id().to_owned();
         if self
             .subscribed
             .insert_async(track_id.clone())
@@ -29,22 +38,21 @@ impl RtcPeer {
         {
             return false;
         }
+        let (local, packets) = publication.subscribe();
         match self
             .pc
-            .add_track(publication.track.clone() as Arc<dyn TrackLocal + Send + Sync>)
+            .add_track(local.clone() as Arc<dyn TrackLocal>)
             .await
         {
-            Ok(sender) => {
-                // The listener relays this subscriber's PLI/FIR to the
-                // publisher; without it a mid-stream subscriber never
-                // receives a keyframe and video stays undecodable.
-                spawn_rtcp_listen(sender, publication.clone());
-                if publication.kind == MediaKind::Video {
-                    self.pending_keyframe_requests
-                        .lock()
-                        .await
-                        .push(publication);
-                }
+            Ok(_) => {
+                self.pending_subscriptions
+                    .lock()
+                    .await
+                    .push(PendingSubscription {
+                        publication,
+                        local,
+                        packets,
+                    });
                 true
             }
             Err(e) => {
@@ -68,16 +76,16 @@ impl RtcPeer {
         publications
     }
 
-    /// Request a keyframe for every video publication bound since the last
-    /// renegotiation answer. Runs once the client's answer applies, when the
-    /// new transceivers are actually receiving; a request fired at `add_track`
-    /// time would produce a keyframe that dies before the subscriber is bound.
-    /// The RTCP PLI relay backstops any request lost to renegotiation
-    /// coalescing.
-    pub(super) async fn request_pending_keyframes(&self) {
-        let pending = std::mem::take(&mut *self.pending_keyframe_requests.lock().await);
-        for publication in pending {
-            publication.request_keyframe().await;
+    /// Start forwarding for tracks bound by the latest negotiation answer.
+    pub(super) async fn activate_pending_subscriptions(&self) {
+        let pending = std::mem::take(&mut *self.pending_subscriptions.lock().await);
+        for subscription in pending {
+            spawn_rtp_forward(
+                subscription.packets,
+                subscription.local,
+                subscription.publication.clone(),
+            );
+            subscription.publication.request_keyframe().await;
         }
     }
 }
